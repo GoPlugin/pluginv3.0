@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Check for changed files
         id: changedfiles
-        uses: umani/changed-files@d7f842d11479940a6036e3aacc6d35523e6ba978 # Version 4.1.0
+        uses: umani/changed-files@138acc60bcaa548e0c194fc69ed36321ee8466d2 # Version 4.2.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           pattern: '^(?!.*node_modules).*README\.md$'
