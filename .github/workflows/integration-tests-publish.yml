@@ -30,7 +30,7 @@ jobs:
           this-job-name: Publish Integration Test Image
         continue-on-error: true
       - name: Checkout the repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Setup Other Tags If Not Workflow Dispatch
@@ -84,7 +84,7 @@ jobs:
           this-job-name: Build Plugin Image ${{ matrix.image.name }}
         continue-on-error: true
       - name: Checkout the repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.sha }}
       - name: Build Plugin Image
