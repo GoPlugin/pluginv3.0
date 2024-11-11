@@ -1,0 +1,14 @@
+exec plugin admin profile --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin admin profile - Collects profile metrics from the node.
+
+USAGE:
+   plugin admin profile [command options] [arguments...]
+
+OPTIONS:
+   --seconds value, -s value     duration of profile capture (default: 8)
+   --output_dir value, -o value  output directory of the captured profile (default: "/tmp/")
+   

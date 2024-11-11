@@ -1,0 +1,13 @@
+exec plugin admin users delete --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin admin users delete - Delete an API user
+
+USAGE:
+   plugin admin users delete [command options] [arguments...]
+
+OPTIONS:
+   --email value  Email of API user to delete
+   

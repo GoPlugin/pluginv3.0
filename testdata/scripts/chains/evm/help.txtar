@@ -1,0 +1,16 @@
+exec plugin chains evm --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin chains evm - Commands for handling EVM chains
+
+USAGE:
+   plugin chains evm command [command options] [arguments...]
+
+COMMANDS:
+   list  List all existing EVM chains
+
+OPTIONS:
+   --help, -h  show help
+   

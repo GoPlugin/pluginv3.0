@@ -1,0 +1,9 @@
+exec plugin txs evm show --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin txs evm show - get information on a specific Ethereum Transaction
+
+USAGE:
+   plugin txs evm show [arguments...]

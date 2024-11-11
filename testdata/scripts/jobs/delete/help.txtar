@@ -1,0 +1,9 @@
+exec plugin jobs delete --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin jobs delete - Delete a job
+
+USAGE:
+   plugin jobs delete [arguments...]

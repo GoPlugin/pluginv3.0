@@ -1,0 +1,9 @@
+exec plugin nodes cosmos list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin nodes cosmos list - List all existing Cosmos nodes
+
+USAGE:
+   plugin nodes cosmos list [arguments...]

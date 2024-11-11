@@ -1,0 +1,48 @@
+name: Build Plugin Image
+description: A composite action that allows building and publishing the Plugin image for integration testing
+
+inputs:
+  tag_suffix:
+    description: The suffix to append to the image tag (usually blank or "-plugins")
+    default: ""
+  dockerfile:
+    description: The path to the Dockerfile to use (usually core/plugin.Dockerfile or plugins/plugin.Dockerfile)
+    default: core/plugin.Dockerfile
+  git_commit_sha:
+    description: The git commit sha to use for the image tag
+    default: ${{ github.sha }}
+  GRAFANA_CLOUD_BASIC_AUTH:
+    description: "grafana cloud basic auth"
+  GRAFANA_CLOUD_HOST:
+    description: "grafana cloud hostname"
+  AWS_REGION:
+    description: "AWS region to use for ECR"
+  AWS_ROLE_TO_ASSUME:
+    description: "AWS role to assume for ECR"
+
+runs:
+  using: composite
+  steps:
+    - name: Check if image exists
+      id: check-image
+      uses: goplugin/plugin-github-actions/docker/image-exists@92e0f299a87522c2a37bfc4686c4d8a96dc9d28b # v2.3.5
+      with:
+        repository: plugin
+        tag: ${{ inputs.git_commit_sha }}${{ inputs.tag_suffix }}
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+        AWS_ROLE_TO_ASSUME: ${{ inputs.AWS_ROLE_TO_ASSUME }}
+    - name: Build Image
+      if: steps.check-image.outputs.exists == 'false'
+      uses: goplugin/plugin-github-actions/plugin-testing-framework/build-image@92e0f299a87522c2a37bfc4686c4d8a96dc9d28b # v2.3.5
+      with:
+        cl_repo: goplugin/pluginv3.0
+        cl_ref: ${{ inputs.git_commit_sha }}
+        cl_dockerfile: ${{ inputs.dockerfile }}
+        push_tag: ${{ env.PLUGIN_IMAGE }}:${{ inputs.git_commit_sha }}${{ inputs.tag_suffix }}
+        QA_AWS_REGION: ${{ inputs.AWS_REGION }}
+        QA_AWS_ROLE_TO_ASSUME: ${{ inputs.AWS_ROLE_TO_ASSUME }}
+    - name: Print Plugin Image Built
+      shell: sh
+      run: |
+        echo "### Plugin node image tag used for this test run :link:" >>$GITHUB_STEP_SUMMARY
+        echo "\`${GITHUB_SHA}\`" >>$GITHUB_STEP_SUMMARY

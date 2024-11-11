@@ -1,0 +1,16 @@
+exec plugin nodes starknet --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin nodes starknet - Commands for handling StarkNet node configuration
+
+USAGE:
+   plugin nodes starknet command [command options] [arguments...]
+
+COMMANDS:
+   list  List all existing StarkNet nodes
+
+OPTIONS:
+   --help, -h  show help
+   

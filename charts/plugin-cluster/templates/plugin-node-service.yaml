@@ -1,0 +1,18 @@
+{{- range $cfg := .Values.plugin.nodes }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ $cfg.name }}
+spec:
+  ports:
+    - name: node-port
+      port: {{ $.Values.plugin.web_port }}
+      targetPort: {{ $.Values.plugin.web_port }}
+    - name: p2p-port
+      port: {{ $.Values.plugin.p2p_port }}
+      targetPort: {{ $.Values.plugin.p2p_port }}
+  selector:
+    instance: {{ $cfg.name }}
+  type: ClusterIP
+---
+{{- end }}

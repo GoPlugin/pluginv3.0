@@ -1,0 +1,9 @@
+exec plugin bridges destroy --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin bridges destroy - Destroys the Bridge for an External Adapter
+
+USAGE:
+   plugin bridges destroy [arguments...]

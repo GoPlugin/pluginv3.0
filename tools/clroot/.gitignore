@@ -1,0 +1,6 @@
+db.sqlite3
+plugin_debug.log
+cookie
+secret
+plugin.lock
+tempkeys

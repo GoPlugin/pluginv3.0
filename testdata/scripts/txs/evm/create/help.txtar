@@ -1,0 +1,16 @@
+exec plugin txs evm create --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin txs evm create - Send <amount> ETH (or wei) from node ETH account <fromAddress> to destination <toAddress>.
+
+USAGE:
+   plugin txs evm create [command options] [arguments...]
+
+OPTIONS:
+   --force     allows to send a higher amount than the account's balance
+   --eth       allows to send ETH amounts (Default behavior)
+   --wei       allows to send WEI amounts
+   --id value  chain ID (default: 0)
+   

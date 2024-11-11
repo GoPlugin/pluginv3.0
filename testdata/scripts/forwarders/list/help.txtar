@@ -1,0 +1,9 @@
+exec plugin forwarders list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin forwarders list - List all stored forwarders addresses
+
+USAGE:
+   plugin forwarders list [arguments...]

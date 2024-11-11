@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "github.com/goplugin/pluginv3.0/v2/core/services/synchronization/telem";
+
+package telem;
+
+message FunctionsRequest {
+  string request_id = 1;
+  string node_address = 2;
+  repeated string domains = 3;
+}

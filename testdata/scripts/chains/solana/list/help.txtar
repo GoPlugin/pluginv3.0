@@ -1,0 +1,9 @@
+exec plugin chains solana list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin chains solana list - List all existing Solana chains
+
+USAGE:
+   plugin chains solana list [arguments...]

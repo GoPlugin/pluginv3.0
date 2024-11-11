@@ -1,0 +1,9 @@
+exec plugin admin status --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin admin status - Displays the health of various services running inside the node.
+
+USAGE:
+   plugin admin status [arguments...]

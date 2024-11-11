@@ -1,0 +1,9 @@
+exec plugin nodes solana list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin nodes solana list - List all existing Solana nodes
+
+USAGE:
+   plugin nodes solana list [arguments...]

@@ -1,0 +1,13 @@
+exec plugin config loglevel --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin config loglevel - Set log level
+
+USAGE:
+   plugin config loglevel [command options] [arguments...]
+
+OPTIONS:
+   --level value  set log level for node (debug||info||warn||error)
+   

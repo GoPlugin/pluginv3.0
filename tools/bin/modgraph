@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# Generates go.md
+
+set -e
+
+echo "# goplugin Go modules
+\`\`\`mermaid
+flowchart LR
+  subgraph chains
+    plugin-cosmos
+    plugin-evm
+    plugin-solana
+    plugin-starknet/relayer
+  end
+
+  subgraph products
+    plugin-automation
+    plugin-ccip
+    plugin-data-streams
+    plugin-feeds
+    plugin-functions
+    plugin-vrf
+  end
+
+  classDef outline stroke-dasharray:6,fill:none;
+  class chains,products outline
+"
+go mod graph | \
+  # org only
+  grep goplugin.*goplugin | \
+  # drop prefix
+  sed s/"github\.com\/goplugin\/"/""/g | \
+  # insert edges
+  sed s/" "/" --> "/ | \
+  # drop versions
+  sed s/"@[^ ]*"/""/g | \
+  # insert links
+  sed s/"\([^ ]*\)$"/"\1\nclick \1 href \"https:\/\/github.com\/goplugin\/\1\""/ | \
+  # truncate links to repo
+  sed s/"\"https:\/\/github.com\/goplugin\/\([^\"\/]*\)\/.*\""/"\"https:\/\/github.com\/goplugin\/\1\""/ | \
+  # dedupe lines
+  awk '!x[$0]++' | \
+  # indent
+  sed 's/^/  /'
+echo "\`\`\`"

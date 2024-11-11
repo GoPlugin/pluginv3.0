@@ -1,0 +1,2 @@
+exec plugin --version
+stdout 'plugin version .*@.*'

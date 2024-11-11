@@ -1,0 +1,9 @@
+exec plugin bridges show --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin bridges show - Show a Bridge's details
+
+USAGE:
+   plugin bridges show [arguments...]

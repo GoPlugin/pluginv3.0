@@ -1,0 +1,9 @@
+exec plugin nodes evm list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin nodes evm list - List all existing EVM nodes
+
+USAGE:
+   plugin nodes evm list [arguments...]
