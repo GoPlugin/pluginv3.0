@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/rs/zerolog/log"
-	"github.com/goplugin/libocr/offchainreporting2/reportingplugin/median"
-	"github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/reportingplugin/median"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/guregu/null.v4"
 

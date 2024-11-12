@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	commontypes "github.com/goplugin/plugin-common/pkg/types"
 

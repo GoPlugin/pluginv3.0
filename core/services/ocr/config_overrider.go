@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 

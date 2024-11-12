@@ -27,12 +27,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/commontypes"
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
 
-	testoffchainaggregator2 "github.com/goplugin/libocr/gethwrappers2/testocr2aggregator"
-	confighelper2 "github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	ocrtypes2 "github.com/goplugin/libocr/offchainreporting2plus/types"
+	testoffchainaggregator2 "github.com/goplugin/plugin-libocr/gethwrappers2/testocr2aggregator"
+	confighelper2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	ocrtypes2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
 

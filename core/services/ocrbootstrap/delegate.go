@@ -9,7 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	ocr "github.com/goplugin/libocr/offchainreporting2plus"
+	ocr "github.com/goplugin/plugin-libocr/offchainreporting2plus"
 
 	commonlogger "github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/plugin-common/pkg/loop"

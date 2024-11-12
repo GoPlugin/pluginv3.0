@@ -6,7 +6,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/config/toml"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/p2pkey"
 
-	"github.com/goplugin/libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/commontypes"
 )
 
 type p2p struct {

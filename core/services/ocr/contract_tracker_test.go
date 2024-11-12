@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/plugin-common/pkg/services/servicetest"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox/mailboxtest"

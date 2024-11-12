@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v4"
 
-	ocr2 "github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	ocr3 "github.com/goplugin/libocr/offchainreporting2plus/ocr3confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	ocr3 "github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	ocr2keepers20config "github.com/goplugin/plugin-automation/pkg/v2/config"
 	ocr2keepers30config "github.com/goplugin/plugin-automation/pkg/v3/config"

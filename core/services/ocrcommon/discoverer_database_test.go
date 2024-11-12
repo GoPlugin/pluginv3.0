@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	ragep2ptypes "github.com/goplugin/libocr/ragep2p/types"
+	ragep2ptypes "github.com/goplugin/plugin-libocr/ragep2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/goplugin/libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/commontypes"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/synchronization"
 	"github.com/goplugin/pluginv3.0/v2/core/services/telemetry"

@@ -8,10 +8,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
-	ocrConfigHelper "github.com/goplugin/libocr/offchainreporting/confighelper"
-	ocrConfigHelper2 "github.com/goplugin/libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
+	ocrConfigHelper "github.com/goplugin/plugin-libocr/offchainreporting/confighelper"
+	ocrConfigHelper2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/flux_aggregator_wrapper"

@@ -33,11 +33,11 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 	"gopkg.in/guregu/null.v4"
 
-	ocrcommontypes "github.com/goplugin/libocr/commontypes"
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	"github.com/goplugin/libocr/gethwrappers/testoffchainaggregator"
-	"github.com/goplugin/libocr/offchainreporting/confighelper"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrcommontypes "github.com/goplugin/plugin-libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers/testoffchainaggregator"
+	"github.com/goplugin/plugin-libocr/offchainreporting/confighelper"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
 	"github.com/goplugin/plugin-common/pkg/services/servicetest"

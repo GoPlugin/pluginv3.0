@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/commontypes"
 
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/generic"

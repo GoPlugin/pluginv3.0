@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/pkg/errors"
 
-	ragep2ptypes "github.com/goplugin/libocr/ragep2p/types"
+	ragep2ptypes "github.com/goplugin/plugin-libocr/ragep2p/types"
 )
 
 // Key represents a p2p private key

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/stretchr/testify/assert"
 
 	headtracker "github.com/goplugin/pluginv3.0/v2/core/chains/evm/headtracker/types"

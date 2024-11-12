@@ -6,7 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"

@@ -8,7 +8,7 @@ import (
 
 	decryptionPluginConfig "github.com/goplugin/tdh2/go/ocr2/decryptionplugin/config"
 
-	"github.com/goplugin/libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
 
 	"github.com/goplugin/plugin-common/pkg/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/services/gateway/connector"

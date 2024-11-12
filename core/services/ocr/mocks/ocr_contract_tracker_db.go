@@ -5,7 +5,7 @@ package mocks
 import (
 	mock "github.com/stretchr/testify/mock"
 
-	offchainaggregator "github.com/goplugin/libocr/gethwrappers/offchainaggregator"
+	offchainaggregator "github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
 
 	pg "github.com/goplugin/pluginv3.0/v2/core/services/pg"
 )

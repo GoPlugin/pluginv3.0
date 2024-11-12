@@ -35,7 +35,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/plugin-common/pkg/loop"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"

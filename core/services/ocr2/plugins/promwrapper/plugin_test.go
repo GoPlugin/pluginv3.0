@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/promwrapper/mocks"

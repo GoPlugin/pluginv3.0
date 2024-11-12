@@ -11,8 +11,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 

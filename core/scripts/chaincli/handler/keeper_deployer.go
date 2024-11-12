@@ -16,9 +16,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/umbracle/ethgo/abi"
 
-	ocr2config "github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/ocr3confighelper"
-	ocr2types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocr2config "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
+	ocr2types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/core/scripts/chaincli/config"
 

@@ -20,8 +20,8 @@ import (
 
 	commonlogger "github.com/goplugin/plugin-common/pkg/logger"
 
-	"github.com/goplugin/libocr/commontypes"
-	"github.com/goplugin/libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"

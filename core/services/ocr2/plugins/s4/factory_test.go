@@ -10,7 +10,7 @@ import (
 
 	commonlogger "github.com/goplugin/plugin-common/pkg/logger"
 
-	"github.com/goplugin/libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
 
 	"github.com/stretchr/testify/require"
 )

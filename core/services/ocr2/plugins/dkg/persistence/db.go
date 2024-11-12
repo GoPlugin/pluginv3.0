@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	ocr2vrftypes "github.com/goplugin/plugin-vrf/types"
 	"github.com/goplugin/plugin-vrf/types/hash"

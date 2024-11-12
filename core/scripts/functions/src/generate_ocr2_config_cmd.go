@@ -13,8 +13,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	helpers "github.com/goplugin/pluginv3.0/core/scripts/common"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/functions/config"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 	commontypes "github.com/goplugin/plugin-common/pkg/types"

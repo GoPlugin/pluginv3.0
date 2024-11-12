@@ -9,7 +9,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/pelletier/go-toml"
 	pkgerrors "github.com/pkg/errors"
-	libocr2 "github.com/goplugin/libocr/offchainreporting2plus"
+	libocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus"
 
 	"github.com/goplugin/plugin-common/pkg/types"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"

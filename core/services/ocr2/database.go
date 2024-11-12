@@ -9,8 +9,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	ocrcommon "github.com/goplugin/libocr/commontypes"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrcommon "github.com/goplugin/plugin-libocr/commontypes"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pg"

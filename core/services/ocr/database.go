@@ -12,8 +12,8 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils/big"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"

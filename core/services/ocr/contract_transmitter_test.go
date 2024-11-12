@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

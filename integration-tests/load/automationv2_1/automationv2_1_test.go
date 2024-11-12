@@ -17,7 +17,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/require"
 
-	ocr3 "github.com/goplugin/libocr/offchainreporting2plus/ocr3confighelper"
+	ocr3 "github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
 	"github.com/goplugin/wasp"
 
 	ocr2keepers30config "github.com/goplugin/plugin-automation/pkg/v3/config"

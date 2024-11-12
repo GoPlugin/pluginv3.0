@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	"github.com/goplugin/libocr/gethwrappers/link_token_interface"
+	"github.com/goplugin/plugin-libocr/gethwrappers/link_token_interface"
 	"github.com/stretchr/testify/require"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"

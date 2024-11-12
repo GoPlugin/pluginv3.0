@@ -3,8 +3,8 @@ package mercury
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 func BuildSamplePayload(report []byte, reportCtx ocrtypes.ReportContext, sigs []ocrtypes.AttributedOnchainSignature) []byte {

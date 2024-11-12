@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/sdk/freeport"
-	ragep2ptypes "github.com/goplugin/libocr/ragep2p/types"
+	ragep2ptypes "github.com/goplugin/plugin-libocr/ragep2p/types"
 	"github.com/stretchr/testify/require"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"

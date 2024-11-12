@@ -1,7 +1,7 @@
 package plugins
 
 import (
-	ocr2types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocr2types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 )

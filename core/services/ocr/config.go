@@ -1,7 +1,7 @@
 package ocr
 
 import (
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	evmconfig "github.com/goplugin/pluginv3.0/v2/core/chains/evm/config"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"

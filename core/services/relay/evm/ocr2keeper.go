@@ -9,9 +9,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	"github.com/goplugin/libocr/offchainreporting2plus/ocr3types"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-automation/pkg/v3/plugin"
 	commontypes "github.com/goplugin/plugin-common/pkg/types"

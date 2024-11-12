@@ -12,7 +12,7 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap/zapcore"
 
-	ocrcommontypes "github.com/goplugin/libocr/commontypes"
+	ocrcommontypes "github.com/goplugin/plugin-libocr/commontypes"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
 	"github.com/goplugin/pluginv3.0/v2/core/build"

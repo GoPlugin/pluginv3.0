@@ -5,8 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/goplugin/libocr/commontypes"
-	libocr2 "github.com/goplugin/libocr/offchainreporting2plus"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	libocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus"
 
 	decryptionPlugin "github.com/goplugin/tdh2/go/ocr2/decryptionplugin"
 	decryptionPluginConfig "github.com/goplugin/tdh2/go/ocr2/decryptionplugin/config"

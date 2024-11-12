@@ -7,9 +7,9 @@ import (
 
 	"github.com/hdevalence/ed25519consensus"
 	"github.com/pkg/errors"
-	"github.com/goplugin/libocr/offchainreporting2/types"
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"golang.org/x/crypto/blake2s"
 
 	"github.com/goplugin/pluginv3.0/v2/core/utils"

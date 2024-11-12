@@ -3,7 +3,7 @@ package testhelpers
 import (
 	"math/big"
 
-	"github.com/goplugin/libocr/bigbigendian"
+	"github.com/goplugin/plugin-libocr/bigbigendian"
 )
 
 func GenerateDefaultOCR2OnchainConfig(minValue *big.Int, maxValue *big.Int) ([]byte, error) {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/goplugin/caigo"
 	caigotypes "github.com/goplugin/caigo/types"
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 var _ types.OnchainKeyring = &OCR2Key{}

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/goplugin/libocr/commontypes"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	commonlogger "github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"

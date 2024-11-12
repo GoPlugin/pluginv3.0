@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
-	"github.com/goplugin/libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/commontypes"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 	"github.com/goplugin/pluginv3.0/v2/core/config"

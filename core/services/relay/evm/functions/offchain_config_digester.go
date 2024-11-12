@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/goplugin/libocr/offchainreporting2/chains/evmutil"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/chains/evmutil"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	evmRelayTypes "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/types"
 )

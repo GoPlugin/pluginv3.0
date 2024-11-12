@@ -23,8 +23,8 @@ import (
 
 	mercuryocr2 "github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/mercury"
 
-	libocr2 "github.com/goplugin/libocr/offchainreporting2plus"
-	libocr2types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	libocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus"
+	libocr2types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"

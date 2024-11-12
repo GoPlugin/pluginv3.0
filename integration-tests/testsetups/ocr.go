@@ -22,8 +22,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
 
 	"github.com/goplugin/plugin-testing-framework/blockchain"
 	ctfClient "github.com/goplugin/plugin-testing-framework/client"

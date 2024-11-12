@@ -16,9 +16,9 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/guregu/null.v4"
 
-	"github.com/goplugin/libocr/offchainreporting2/reportingplugin/median"
-	"github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/reportingplugin/median"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-testing-framework/blockchain"
 	ctfClient "github.com/goplugin/plugin-testing-framework/client"

@@ -3,7 +3,7 @@ package config
 import (
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
 
-	ocrcommontypes "github.com/goplugin/libocr/commontypes"
+	ocrcommontypes "github.com/goplugin/plugin-libocr/commontypes"
 )
 
 type V2 interface {

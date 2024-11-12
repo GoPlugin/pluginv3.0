@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/olekukonko/tablewriter"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	ocr2keepers20 "github.com/goplugin/plugin-automation/pkg/v2"
 

@@ -7,8 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	libocr2 "github.com/goplugin/libocr/offchainreporting2plus"
-	"github.com/goplugin/libocr/offchainreporting2plus/ocr3types"
+	libocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3types"
 
 	relaymercuryv1 "github.com/goplugin/plugin-data-streams/mercury/v1"
 	relaymercuryv2 "github.com/goplugin/plugin-data-streams/mercury/v2"

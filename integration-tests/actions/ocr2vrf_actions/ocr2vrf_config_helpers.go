@@ -16,8 +16,8 @@ import (
 	"go.dedis.ch/kyber/v3/group/edwards25519"
 	"gopkg.in/guregu/null.v4"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-vrf/altbn_128"
 	"github.com/goplugin/plugin-vrf/dkg"

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/goplugin/libocr/ragep2p/types"
+	"github.com/goplugin/plugin-libocr/ragep2p/types"
 )
 
 var libp2pPBPrefix = []byte{0x08, 0x01, 0x12, 0x40}

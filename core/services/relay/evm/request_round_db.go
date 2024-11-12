@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pg"

@@ -12,7 +12,7 @@ import (
 
 	ctfTestEnv "github.com/goplugin/plugin-testing-framework/docker/test_env"
 
-	ocr3 "github.com/goplugin/libocr/offchainreporting2plus/ocr3confighelper"
+	ocr3 "github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
 
 	ocr2keepers30config "github.com/goplugin/plugin-automation/pkg/v3/config"
 

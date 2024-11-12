@@ -27,9 +27,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo/abi"
 
-	"github.com/goplugin/libocr/commontypes"
-	"github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	ocrTypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	ocrTypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-automation/pkg/v2/config"
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"

@@ -19,8 +19,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/commontypes"
-	ocr2Types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	ocr2Types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-vrf/dkg"
 	"github.com/goplugin/plugin-vrf/ocr2vrf"

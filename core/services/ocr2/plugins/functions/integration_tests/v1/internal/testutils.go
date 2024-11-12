@@ -24,9 +24,9 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/commontypes"
-	confighelper2 "github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	ocrtypes2 "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	confighelper2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	ocrtypes2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
 	"github.com/goplugin/pluginv3.0/v2/core/bridges"

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
-	ocrcommontypes "github.com/goplugin/libocr/commontypes"
+	ocrcommontypes "github.com/goplugin/plugin-libocr/commontypes"
 
 	commonassets "github.com/goplugin/plugin-common/pkg/assets"
 	"github.com/goplugin/plugin-common/pkg/config"

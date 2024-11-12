@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
-	ocrnetworking "github.com/goplugin/libocr/networking/types"
+	ocrnetworking "github.com/goplugin/plugin-libocr/networking/types"
 )
 
 var _ ocrnetworking.DiscovererDatabase = &DiscovererDatabase{}

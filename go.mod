@@ -75,7 +75,7 @@ require (
 	github.com/goplugin/plugin-solana v1.0.3-0.20240213161921-c4d342b761b0
 	github.com/goplugin/plugin-starknet/relayer v0.0.1-beta-test.0.20240213121419-1272736c2ac0
 	github.com/goplugin/plugin-vrf v0.0.0-20231120191722-fef03814f868
-	github.com/goplugin/libocr v0.0.0-20240215150045-fe2ba71b2f0a
+	github.com/goplugin/plugin-libocr v0.0.0-20240215150045-fe2ba71b2f0a
 	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.0.0-20230906073235-9e478e5e19f1
 	github.com/goplugin/tdh2/go/tdh2 v0.0.0-20230906073235-9e478e5e19f1
 	github.com/goplugin/wsrpc v0.7.2

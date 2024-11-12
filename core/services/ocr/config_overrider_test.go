@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/plugin-common/pkg/services/servicetest"
 	evmutils "github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/goplugin/libocr/offchainreporting2/types"
-	"github.com/goplugin/libocr/offchainreporting2plus/ocr3types"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocrcommon"

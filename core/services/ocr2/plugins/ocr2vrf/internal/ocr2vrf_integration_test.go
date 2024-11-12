@@ -21,9 +21,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/kyber/v3"
 
-	"github.com/goplugin/libocr/commontypes"
-	confighelper2 "github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	ocrtypes2 "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	confighelper2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	ocrtypes2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-vrf/altbn_128"
 	ocr2dkg "github.com/goplugin/plugin-vrf/dkg"

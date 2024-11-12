@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/goplugin/wsrpc/credentials"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/utils"

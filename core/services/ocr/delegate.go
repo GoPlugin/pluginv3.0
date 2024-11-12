@@ -14,9 +14,9 @@ import (
 	commonlogger "github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"
 
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	ocr "github.com/goplugin/libocr/offchainreporting"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	ocr "github.com/goplugin/plugin-libocr/offchainreporting"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	txmgrcommon "github.com/goplugin/pluginv3.0/v2/common/txmgr"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/txmgr"

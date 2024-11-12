@@ -3,8 +3,8 @@ package ocrcommon
 import (
 	"context"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/ocr3types"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 var _ ocr3types.OnchainKeyring[[]byte] = (*OCR3OnchainKeyringAdapter)(nil)

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/cometbft/cometbft/libs/rand"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

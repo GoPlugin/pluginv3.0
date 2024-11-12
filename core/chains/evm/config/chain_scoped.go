@@ -6,8 +6,8 @@ import (
 
 	"go.uber.org/multierr"
 
-	ocr "github.com/goplugin/libocr/offchainreporting"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocr "github.com/goplugin/plugin-libocr/offchainreporting"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/plugin-common/pkg/assets"
 	"github.com/goplugin/plugin-common/pkg/logger"

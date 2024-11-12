@@ -9,8 +9,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
-	"github.com/goplugin/libocr/commontypes"
-	libocr2 "github.com/goplugin/libocr/offchainreporting2plus"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	libocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus"
 
 	"github.com/goplugin/plugin-vrf/altbn_128"
 	"github.com/goplugin/plugin-vrf/dkg"

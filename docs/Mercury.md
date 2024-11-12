@@ -6,7 +6,7 @@
 
 [Contracts](https://github.com/goplugin/pluginv3.0/contracts/src/v0.8/llo-feeds)
 
-[OCR3 Config Documentation](https://github.com/goplugin/libocr/blob/master/offchainreporting2plus/internal/config/ocr3config/public_config.go)
+[OCR3 Config Documentation](https://github.com/goplugin/plugin-libocr/blob/master/offchainreporting2plus/internal/config/ocr3config/public_config.go)
 
 
 

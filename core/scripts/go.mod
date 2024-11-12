@@ -23,7 +23,7 @@ require (
 	github.com/goplugin/plugin-common v0.1.7-0.20240216174848-c7f1809138d6
 	github.com/goplugin/plugin-vrf v0.0.0-20231120191722-fef03814f868
 	github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
-	github.com/goplugin/libocr v0.0.0-20240215150045-fe2ba71b2f0a
+	github.com/goplugin/plugin-libocr v0.0.0-20240215150045-fe2ba71b2f0a
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.4

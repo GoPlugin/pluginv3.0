@@ -1,7 +1,7 @@
 package ocr
 
 import (
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 )
 
 var _ ocrtypes.ContractConfigSubscription = &OCRContractConfigSubscription{}

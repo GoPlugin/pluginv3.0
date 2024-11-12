@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	libocr "github.com/goplugin/libocr/offchainreporting2plus"
+	libocr "github.com/goplugin/plugin-libocr/offchainreporting2plus"
 
 	"github.com/goplugin/plugin-common/pkg/loop"
 	"github.com/goplugin/plugin-common/pkg/types"

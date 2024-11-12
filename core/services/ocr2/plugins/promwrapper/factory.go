@@ -3,7 +3,7 @@ package promwrapper
 import (
 	"math/big"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 var _ types.ReportingPluginFactory = &promFactory{}

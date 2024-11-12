@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
-	ocrConfigHelper "github.com/goplugin/libocr/offchainreporting/confighelper"
-	ocrTypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrConfigHelper "github.com/goplugin/plugin-libocr/offchainreporting/confighelper"
+	ocrTypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 )

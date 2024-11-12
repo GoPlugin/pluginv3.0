@@ -9,7 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	ocr2keepers20 "github.com/goplugin/plugin-automation/pkg/v2"
 	ocr2keepers20coordinator "github.com/goplugin/plugin-automation/pkg/v2/coordinator"

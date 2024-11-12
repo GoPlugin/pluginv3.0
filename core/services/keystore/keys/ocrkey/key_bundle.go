@@ -14,7 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/pkg/errors"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 	"golang.org/x/crypto/curve25519"
 
 	"github.com/goplugin/pluginv3.0/v2/core/store/models"

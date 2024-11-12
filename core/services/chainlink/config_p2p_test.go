@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/commontypes"
 )
 
 func TestP2PConfig(t *testing.T) {

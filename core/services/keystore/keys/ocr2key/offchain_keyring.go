@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 var _ ocrtypes.OffchainKeyring = &OffchainKeyring{}

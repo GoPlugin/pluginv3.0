@@ -29,9 +29,9 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/confighelper"
-	"github.com/goplugin/libocr/offchainreporting2plus/ocr3confighelper"
-	ocr2types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
+	ocr2types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/goplugin/wsrpc/credentials"
 
 	mercurytypes "github.com/goplugin/plugin-common/pkg/types/mercury"

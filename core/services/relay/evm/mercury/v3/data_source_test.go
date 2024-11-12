@@ -11,7 +11,7 @@ import (
 	mercurytypes "github.com/goplugin/plugin-common/pkg/types/mercury"
 	relaymercuryv3 "github.com/goplugin/plugin-data-streams/mercury/v3"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"

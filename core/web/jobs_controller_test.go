@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/consul/sdk/freeport"
 	"github.com/pelletier/go-toml"
-	ragep2ptypes "github.com/goplugin/libocr/ragep2p/types"
+	ragep2ptypes "github.com/goplugin/plugin-libocr/ragep2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

@@ -8,9 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/goplugin/libocr/offchainreporting2/types"
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 var _ ocrtypes.OnchainKeyring = &evmKeyring{}

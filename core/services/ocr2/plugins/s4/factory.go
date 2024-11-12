@@ -3,8 +3,8 @@ package s4
 import (
 	s4_orm "github.com/goplugin/pluginv3.0/v2/core/services/s4"
 
-	"github.com/goplugin/libocr/commontypes"
-	"github.com/goplugin/libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
 )
 
 const S4ReportingPluginName = "S4Reporting"

@@ -14,10 +14,10 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
-	"github.com/goplugin/libocr/offchainreporting2/reportingplugin/median"
-	"github.com/goplugin/libocr/offchainreporting2/reportingplugin/median/evmreportcodec"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/reportingplugin/median"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/reportingplugin/median/evmreportcodec"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 	commontypes "github.com/goplugin/plugin-common/pkg/types"

@@ -8,7 +8,7 @@ import (
 
 	pkgerrors "github.com/pkg/errors"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/types/mercury"
 	v2types "github.com/goplugin/plugin-common/pkg/types/mercury/v2"

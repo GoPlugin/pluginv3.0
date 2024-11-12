@@ -7,9 +7,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
-	ocrnetworking "github.com/goplugin/libocr/networking"
-	ocr1types "github.com/goplugin/libocr/offchainreporting/types"
-	ocr2types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrnetworking "github.com/goplugin/plugin-libocr/networking"
+	ocr1types "github.com/goplugin/plugin-libocr/offchainreporting/types"
+	ocr2types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	commonlogger "github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/plugin-common/pkg/services"

@@ -3,7 +3,7 @@ package evm_test
 import (
 	"testing"
 
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

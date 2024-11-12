@@ -16,9 +16,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	"github.com/goplugin/libocr/offchainreporting/confighelper"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	"github.com/goplugin/plugin-libocr/offchainreporting/confighelper"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/config/env"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"

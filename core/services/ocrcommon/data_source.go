@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	ocr1types "github.com/goplugin/libocr/offchainreporting/types"
-	"github.com/goplugin/libocr/offchainreporting2/reportingplugin/median"
-	ocr2types "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocr1types "github.com/goplugin/plugin-libocr/offchainreporting/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2/reportingplugin/median"
+	ocr2types "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/bridges"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"

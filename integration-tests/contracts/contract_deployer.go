@@ -16,9 +16,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/goplugin/libocr/gethwrappers/offchainaggregator"
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
-	ocrConfigHelper "github.com/goplugin/libocr/offchainreporting/confighelper"
+	"github.com/goplugin/plugin-libocr/gethwrappers/offchainaggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
+	ocrConfigHelper "github.com/goplugin/plugin-libocr/offchainreporting/confighelper"
 
 	"github.com/goplugin/plugin-testing-framework/blockchain"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/vrf_mock_ethlink_aggregator"

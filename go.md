@@ -41,7 +41,7 @@ flowchart LR
   plugin/v2 --> plugin-vrf
   click plugin-vrf href "https://github.com/goplugin/plugin-vrf"
   plugin/v2 --> libocr
-  click libocr href "https://github.com/goplugin/libocr"
+  click libocr href "https://github.com/goplugin/plugin-libocr"
   plugin/v2 --> tdh2/go/ocr2/decryptionplugin
   click tdh2/go/ocr2/decryptionplugin href "https://github.com/goplugin/tdh2"
   plugin/v2 --> tdh2/go/tdh2

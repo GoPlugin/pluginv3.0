@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
-	"github.com/goplugin/libocr/offchainreporting2plus/chains/evmutil"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/txmgr"

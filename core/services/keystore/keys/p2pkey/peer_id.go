@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/goplugin/libocr/ragep2p/types"
+	"github.com/goplugin/plugin-libocr/ragep2p/types"
 )
 
 const peerIDPrefix = "p2p_"

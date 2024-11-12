@@ -213,7 +213,7 @@ func (r *runner) OnRunFinished(fn func(*Run)) {
 	r.runFinished = fn
 }
 
-// github.com/goplugin/libocr/offchainreporting2plus/internal/protocol.ReportingPluginTimeoutWarningGracePeriod
+// github.com/goplugin/plugin-libocr/offchainreporting2plus/internal/protocol.ReportingPluginTimeoutWarningGracePeriod
 var overtime = 100 * time.Millisecond
 
 func init() {

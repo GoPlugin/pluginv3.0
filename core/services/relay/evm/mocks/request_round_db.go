@@ -4,7 +4,7 @@ package mocks
 
 import (
 	pg "github.com/goplugin/pluginv3.0/v2/core/services/pg"
-	ocr2aggregator "github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
+	ocr2aggregator "github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
 	mock "github.com/stretchr/testify/mock"
 )
 

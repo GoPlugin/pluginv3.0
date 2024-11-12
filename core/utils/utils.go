@@ -26,7 +26,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/sha3"
 
-	ragep2ptypes "github.com/goplugin/libocr/ragep2p/types"
+	ragep2ptypes "github.com/goplugin/plugin-libocr/ragep2p/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 )

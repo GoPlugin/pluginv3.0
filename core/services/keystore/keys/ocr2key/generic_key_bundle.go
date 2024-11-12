@@ -9,7 +9,7 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/chaintype"
 	"github.com/goplugin/pluginv3.0/v2/core/store/models"

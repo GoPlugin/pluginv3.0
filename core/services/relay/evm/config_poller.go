@@ -11,9 +11,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/goplugin/libocr/gethwrappers2/ocr2aggregator"
-	"github.com/goplugin/libocr/gethwrappers2/ocrconfigurationstoreevmsimple"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocr2aggregator"
+	"github.com/goplugin/plugin-libocr/gethwrappers2/ocrconfigurationstoreevmsimple"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/services"
 

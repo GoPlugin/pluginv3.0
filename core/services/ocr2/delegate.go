@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc"
 	"gopkg.in/guregu/null.v4"
 
-	"github.com/goplugin/libocr/commontypes"
-	libocr2 "github.com/goplugin/libocr/offchainreporting2plus"
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	"github.com/goplugin/plugin-libocr/commontypes"
+	libocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	ocr2keepers20 "github.com/goplugin/plugin-automation/pkg/v2"
 	ocr2keepers20config "github.com/goplugin/plugin-automation/pkg/v2/config"

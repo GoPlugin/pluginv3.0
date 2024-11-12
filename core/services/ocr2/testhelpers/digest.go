@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	ocrtypes "github.com/goplugin/libocr/offchainreporting2plus/types"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 // MakeConfigDigest makes config digest

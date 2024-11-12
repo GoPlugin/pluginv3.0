@@ -28,7 +28,7 @@ require (
 	github.com/goplugin/plugin-testing-framework v1.23.2
 	github.com/goplugin/plugin-vrf v0.0.0-20231120191722-fef03814f868
 	github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
-	github.com/goplugin/libocr v0.0.0-20240215150045-fe2ba71b2f0a
+	github.com/goplugin/plugin-libocr v0.0.0-20240215150045-fe2ba71b2f0a
 	github.com/goplugin/tdh2/go/tdh2 v0.0.0-20230906073235-9e478e5e19f1
 	github.com/goplugin/wasp v0.4.2
 	github.com/spf13/cobra v1.8.0
