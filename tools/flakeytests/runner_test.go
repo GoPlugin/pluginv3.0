@@ -228,7 +228,7 @@ func TestRunner_RerunSuccessful(t *testing.T) {
 }
 
 func TestRunner_RootLevelTest(t *testing.T) {
-	output := `{"Time":"2023-09-07T15:39:46.378315+01:00","Action":"fail","Package":"github.com/goplugin/pluginv3.0/v2/","Test":"TestConfigDocs","Elapsed":0}`
+	output := `{"Time":"2023-09-07T15:39:46.378315+01:00","Action":"fail","Package":"github.com/goplugin/pluginv3.0/v2","Test":"TestConfigDocs","Elapsed":0}`
 
 	rerunOutput := ``
 	m := newMockReporter()
@@ -245,7 +245,7 @@ func TestRunner_RootLevelTest(t *testing.T) {
 
 	err := r.Run(tests.Context(t))
 	require.NoError(t, err)
-	_, ok := m.report.tests["github.com/goplugin/pluginv3.0/v2/"]["TestConfigDocs"]
+	_, ok := m.report.tests["github.com/goplugin/pluginv3.0/v2"]["TestConfigDocs"]
 	assert.True(t, ok)
 }
 

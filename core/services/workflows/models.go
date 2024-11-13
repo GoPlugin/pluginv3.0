@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/dominikbraun/graph"
+
 	"github.com/goplugin/plugin-common/pkg/workflows/sdk"
 
 	"github.com/goplugin/plugin-common/pkg/capabilities"

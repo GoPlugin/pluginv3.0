@@ -1973,7 +1973,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.1 link'
+MinContractPayment = '0.1 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 OperatorFactoryAddress = '0x3E64Cd889482443324F91bFA9c84fE72A511f48A'
@@ -2078,7 +2078,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.1 link'
+MinContractPayment = '0.1 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -2182,7 +2182,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.1 link'
+MinContractPayment = '0.1 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -2286,7 +2286,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.1 link'
+MinContractPayment = '0.1 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -2391,7 +2391,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -2500,7 +2500,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.001 link'
+MinContractPayment = '0.001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -2604,7 +2604,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.001 link'
+MinContractPayment = '0.001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -2708,7 +2708,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.1 link'
+MinContractPayment = '0.1 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 OperatorFactoryAddress = '0x8007e24251b1D2Fc518Eb843A701d9cD21fe0aA3'
@@ -2813,7 +2813,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -2916,7 +2916,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -3019,7 +3019,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -3123,7 +3123,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -3228,7 +3228,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -3332,7 +3332,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -3436,7 +3436,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 5
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -3540,7 +3540,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '12m0s'
 LogBroadcasterEnabled = true
@@ -3644,7 +3644,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '6m0s'
 LogBroadcasterEnabled = true
@@ -3748,7 +3748,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -3852,7 +3852,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -3961,7 +3961,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 LogBroadcasterEnabled = true
@@ -4011,6 +4011,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'zksync'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 50
@@ -4065,7 +4069,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -4169,7 +4173,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -4273,7 +4277,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 LogBroadcasterEnabled = true
@@ -4323,6 +4327,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'zksync'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 50
@@ -4377,7 +4385,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 LogBroadcasterEnabled = true
@@ -4427,6 +4435,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'zksync'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 50
@@ -4482,7 +4494,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -4591,7 +4603,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -4694,7 +4706,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -4798,7 +4810,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -4902,7 +4914,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '6m0s'
 LogBroadcasterEnabled = true
@@ -5006,7 +5018,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -5110,7 +5122,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -5318,7 +5330,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -5427,7 +5439,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -5536,7 +5548,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '12m0s'
 LogBroadcasterEnabled = true
@@ -5640,7 +5652,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -5743,7 +5755,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -5847,7 +5859,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -5956,7 +5968,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -6061,7 +6073,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -6111,6 +6123,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'arbitrum'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 100
@@ -6166,7 +6182,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -6216,6 +6232,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'arbitrum'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 100
@@ -6271,7 +6291,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -6321,6 +6341,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'arbitrum'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 100
@@ -6375,7 +6399,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 LogBroadcasterEnabled = true
@@ -6479,7 +6503,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -6583,7 +6607,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -6687,7 +6711,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 LogBroadcasterEnabled = true
@@ -6792,7 +6816,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -6904,7 +6928,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -7014,7 +7038,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -7117,7 +7141,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -7220,7 +7244,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -7324,7 +7348,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -7428,7 +7452,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 5
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -7531,7 +7555,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 5
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -7635,7 +7659,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -7744,7 +7768,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -7854,7 +7878,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -7904,6 +7928,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'arbitrum'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 100
@@ -7959,7 +7987,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -8009,6 +8037,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'arbitrum'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 100
@@ -8063,7 +8095,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -8113,6 +8145,10 @@ TransactionPercentile = 60
 
 [GasEstimator.FeeHistory]
 CacheTimeout = '10s'
+
+[GasEstimator.DAOracle]
+OracleType = 'arbitrum'
+CustomGasPriceCalldata = ''
 
 [HeadTracker]
 HistoryDepth = 100
@@ -8167,7 +8203,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -8276,7 +8312,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '0s'
 LogBroadcasterEnabled = true
@@ -8385,7 +8421,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 3
-MinContractPayment = '0.1 link'
+MinContractPayment = '0.1 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m0s'
 LogBroadcasterEnabled = true
@@ -8489,7 +8525,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '40s'
 LogBroadcasterEnabled = true
@@ -8598,7 +8634,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -8702,7 +8738,7 @@ LogKeepBlocksDepth = 100000
 LogPrunePageSize = 0
 BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 1
-MinContractPayment = '0.00001 link'
+MinContractPayment = '0.00001 pli'
 NonceAutoSync = true
 NoNewHeadsThreshold = '30s'
 LogBroadcasterEnabled = true
@@ -9321,7 +9357,7 @@ CustomGasPriceCalldata = '' # Default
 ```toml
 OracleType = 'opstack' # Example
 ```
-OracleType refers to the oracle family this config belongs to. Currently the available oracle types are: 'opstack', 'arbitrum', and 'zksync'.
+OracleType refers to the oracle family this config belongs to. Currently the available oracle types are: 'opstack', 'arbitrum', 'zksync', and 'custom_calldata'.
 
 ### OracleAddress
 ```toml
@@ -10050,6 +10086,7 @@ ComputeUnitPriceDefault = 0 # Default
 FeeBumpPeriod = '3s' # Default
 BlockHistoryPollPeriod = '5s' # Default
 ComputeUnitLimitDefault = 200_000 # Default
+EstimateComputeUnitLimit = false # Default
 ```
 
 
@@ -10167,6 +10204,12 @@ BlockHistoryPollPeriod is the rate to poll for blocks in the block history fee e
 ComputeUnitLimitDefault = 200_000 # Default
 ```
 ComputeUnitLimitDefault is the compute units limit applied to transactions unless overriden during the txm enqueue
+
+### EstimateComputeUnitLimit
+```toml
+EstimateComputeUnitLimit = false # Default
+```
+EstimateComputeUnitLimit enables or disables compute unit limit estimations per transaction. If estimations return 0 used compute, the ComputeUnitLimitDefault value is used, if set.
 
 ## Solana.MultiNode
 ```toml

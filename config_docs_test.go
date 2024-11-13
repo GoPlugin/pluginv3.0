@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/goplugin/pluginv3.0/core/config/docs"
+	"github.com/goplugin/pluginv3.0/v2/core/config/docs"
 )
 
 var (

@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	feedsmanager "github.com/goplugin/pluginv3.0/v2/core/services/feeds/proto"
+	feedsmanager "github.com/goplugin/plugin-protos/orchestrator/feedsmanager"
 	mock "github.com/stretchr/testify/mock"
 )
 

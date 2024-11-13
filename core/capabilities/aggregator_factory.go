@@ -3,6 +3,7 @@ package capabilities
 import (
 	"fmt"
 
+	"github.com/goplugin/plugin-common/pkg/capabilities/consensus/ocr3/aggregators"
 	"github.com/goplugin/plugin-common/pkg/capabilities/consensus/ocr3/datafeeds"
 	"github.com/goplugin/plugin-common/pkg/capabilities/consensus/ocr3/types"
 	"github.com/goplugin/plugin-common/pkg/logger"
@@ -14,7 +15,9 @@ func NewAggregator(name string, config values.Map, lggr logger.Logger) (types.Ag
 	switch name {
 	case "data_feeds":
 		mc := streams.NewCodec(lggr)
-		return datafeeds.NewDataFeedsAggregator(config, mc, lggr)
+		return datafeeds.NewDataFeedsAggregator(config, mc)
+	case "identical":
+		return aggregators.NewIdenticalAggregator(config)
 	default:
 		return nil, fmt.Errorf("aggregator %s not supported", name)
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/goplugin/plugin-testing-framework/lib/utils/testcontext"
+	"github.com/goplugin/pluginv3.0/integration-tests/deployment"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
@@ -27,6 +28,7 @@ func TestAddLane(t *testing.T) {
 		MCMSConfig:         NewTestMCMSConfig(t, e.Env),
 		FeeTokenContracts:  e.FeeTokenContracts,
 		CapabilityRegistry: state.Chains[e.HomeChainSel].CapabilityRegistry.Address(),
+		OCRSecrets:         deployment.XXXGenerateTestOCRSecrets(),
 	})
 	require.NoError(t, err)
 

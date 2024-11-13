@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
 	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccip"
+
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/config"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/internal/ccipcalc"
 )

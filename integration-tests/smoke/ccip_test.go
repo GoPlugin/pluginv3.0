@@ -5,14 +5,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
+	"github.com/goplugin/pluginv3.0/integration-tests/deployment"
+
 	"github.com/goplugin/plugin-ccip/pluginconfig"
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
 
 	"github.com/goplugin/plugin-testing-framework/lib/utils/testcontext"
 
 	ccdeploy "github.com/goplugin/pluginv3.0/integration-tests/deployment/ccip"
 	"github.com/goplugin/pluginv3.0/integration-tests/deployment/ccip/changeset"
-	jobv1 "github.com/goplugin/pluginv3.0/integration-tests/deployment/jd/job/v1"
+
+	jobv1 "github.com/goplugin/plugin-protos/job-distributor/v1/job"
+
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
@@ -35,7 +39,7 @@ func TestInitialDeployOnLocal(t *testing.T) {
 		},
 	)
 	// Apply migration
-	output, err := changeset.InitialDeployChangeSet(tenv.Env, ccdeploy.DeployCCIPContractConfig{
+	output, err := changeset.InitialDeployChangeSet(tenv.Ab, tenv.Env, ccdeploy.DeployCCIPContractConfig{
 		HomeChainSel:       tenv.HomeChainSel,
 		FeedChainSel:       tenv.FeedChainSel,
 		ChainsToDeploy:     tenv.Env.AllChainSelectors(),
@@ -43,9 +47,9 @@ func TestInitialDeployOnLocal(t *testing.T) {
 		MCMSConfig:         ccdeploy.NewTestMCMSConfig(t, e),
 		CapabilityRegistry: state.Chains[tenv.HomeChainSel].CapabilityRegistry.Address(),
 		FeeTokenContracts:  tenv.FeeTokenContracts,
+		OCRSecrets:         deployment.XXXGenerateTestOCRSecrets(),
 	})
 	require.NoError(t, err)
-	require.NoError(t, tenv.Ab.Merge(output.AddressBook))
 	// Get new state after migration.
 	state, err = ccdeploy.LoadOnchainState(e, tenv.Ab)
 	require.NoError(t, err)

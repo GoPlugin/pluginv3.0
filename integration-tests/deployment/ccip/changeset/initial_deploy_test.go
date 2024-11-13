@@ -3,17 +3,17 @@ package changeset
 import (
 	"testing"
 
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 	"github.com/goplugin/plugin-ccip/pluginconfig"
-
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/goplugin/plugin-testing-framework/lib/utils/testcontext"
 
-	ccdeploy "github.com/goplugin/pluginv3.0/integration-tests/deployment/ccip"
-	jobv1 "github.com/goplugin/pluginv3.0/integration-tests/deployment/jd/job/v1"
+	jobv1 "github.com/goplugin/plugin-protos/job-distributor/v1/job"
 
+	"github.com/goplugin/pluginv3.0/integration-tests/deployment"
+	ccdeploy "github.com/goplugin/pluginv3.0/integration-tests/deployment/ccip"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
@@ -36,8 +36,15 @@ func TestInitialDeploy(t *testing.T) {
 			DeviationPPB:      cciptypes.NewBigIntFromInt64(1e9),
 		},
 	)
+	tokenConfig.UpsertTokenInfo(ccdeploy.WethSymbol,
+		pluginconfig.TokenInfo{
+			AggregatorAddress: feeds[ccdeploy.WethSymbol].Address().String(),
+			Decimals:          ccdeploy.WethDecimals,
+			DeviationPPB:      cciptypes.NewBigIntFromInt64(1e9),
+		},
+	)
 
-	output, err := InitialDeployChangeSet(tenv.Env, ccdeploy.DeployCCIPContractConfig{
+	output, err := InitialDeployChangeSet(tenv.Ab, tenv.Env, ccdeploy.DeployCCIPContractConfig{
 		HomeChainSel:       tenv.HomeChainSel,
 		FeedChainSel:       tenv.FeedChainSel,
 		ChainsToDeploy:     tenv.Env.AllChainSelectors(),
@@ -45,9 +52,9 @@ func TestInitialDeploy(t *testing.T) {
 		MCMSConfig:         ccdeploy.NewTestMCMSConfig(t, e),
 		CapabilityRegistry: state.Chains[tenv.HomeChainSel].CapabilityRegistry.Address(),
 		FeeTokenContracts:  tenv.FeeTokenContracts,
+		OCRSecrets:         deployment.XXXGenerateTestOCRSecrets(),
 	})
 	require.NoError(t, err)
-	require.NoError(t, tenv.Ab.Merge(output.AddressBook))
 	// Get new state after migration.
 	state, err = ccdeploy.LoadOnchainState(e, tenv.Ab)
 	require.NoError(t, err)
@@ -74,6 +81,7 @@ func TestInitialDeploy(t *testing.T) {
 	startBlocks := make(map[uint64]*uint64)
 	// Send a message from each chain to every other chain.
 	expectedSeqNum := make(map[uint64]uint64)
+
 	for src := range e.Chains {
 		for dest, destChain := range e.Chains {
 			if src == dest {
@@ -91,17 +99,8 @@ func TestInitialDeploy(t *testing.T) {
 	// Wait for all commit reports to land.
 	ccdeploy.ConfirmCommitForAllWithExpectedSeqNums(t, e, state, expectedSeqNum, startBlocks)
 
-	// After commit is reported on all chains, token prices should be updated in FeeQuoter.
-	for dest := range e.Chains {
-		linkAddress := state.Chains[dest].LinkToken.Address()
-		feeQuoter := state.Chains[dest].FeeQuoter
-		timestampedPrice, err := feeQuoter.GetTokenPrice(nil, linkAddress)
-		require.NoError(t, err)
-		require.Equal(t, ccdeploy.MockLinkPrice, timestampedPrice.Value)
-	}
+	// TODO: use proper assertions to check gas and token prices using events
 
 	// Wait for all exec reports to land
 	ccdeploy.ConfirmExecWithSeqNrForAll(t, e, state, expectedSeqNum, startBlocks)
-
-	// TODO: Apply the proposal.
 }

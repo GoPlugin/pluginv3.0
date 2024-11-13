@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	"github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 )
 
 func Test_calculateMessageMaxGas(t *testing.T) {

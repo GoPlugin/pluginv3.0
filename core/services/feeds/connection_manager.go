@@ -10,9 +10,9 @@ import (
 	"github.com/goplugin/wsrpc"
 
 	"github.com/goplugin/plugin-common/pkg/services"
+	pb "github.com/goplugin/plugin-protos/orchestrator/feedsmanager"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/recovery"
-	pb "github.com/goplugin/pluginv3.0/v2/core/services/feeds/proto"
 )
 
 type ConnectionsManager interface {

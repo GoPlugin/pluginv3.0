@@ -20,9 +20,9 @@ import (
 
 	"github.com/goplugin/plugin-ccip/pkg/contractreader"
 	"github.com/goplugin/plugin-ccip/pkg/reader"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 	"github.com/goplugin/plugin-ccip/pluginconfig"
 	"github.com/goplugin/plugin-common/pkg/types"
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
 
 	evmconfig "github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/configs/evm"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/client"

@@ -5,13 +5,12 @@ import (
 	"time"
 
 	"github.com/goplugin/plugin-ccip/chainconfig"
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 	it "github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/ccip_integration_tests/integrationhelpers"
 	cctypes "github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/types"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/pgtest"
 	p2ptypes "github.com/goplugin/pluginv3.0/v2/core/services/p2p/types"
 
-	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/ccip/generated/ccip_home"
@@ -90,9 +89,9 @@ func TestIntegration_Launcher(t *testing.T) {
 		it.FChainA,
 		p2pIDs)
 
-	gomega.NewWithT(t).Eventually(func() bool {
+	require.Eventually(t, func() bool {
 		return len(launcher.runningDONIDs()) == 1
-	}, testutils.WaitTimeout(t), testutils.TestInterval).Should(gomega.BeTrue())
+	}, testutils.WaitTimeout(t), testutils.TestInterval)
 }
 
 type oraclePrints struct {

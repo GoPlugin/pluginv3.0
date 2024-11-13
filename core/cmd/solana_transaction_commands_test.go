@@ -23,6 +23,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/cmd"
 )
 
+// TODO: move this test to `plugin-solana` https://smartcontract-it.atlassian.net/browse/NONEVM-790
 func TestShell_SolanaSendSol(t *testing.T) {
 	ctx := testutils.Context(t)
 	chainID := "localnet"

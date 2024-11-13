@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/core"
 
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"

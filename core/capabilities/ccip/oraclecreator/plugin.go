@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+
 	chainsel "github.com/goplugin/chain-selectors"
 	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
 
@@ -28,12 +29,13 @@ import (
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/loop"
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
 
 	commitocr3 "github.com/goplugin/plugin-ccip/commit"
+	"github.com/goplugin/plugin-ccip/commit/merkleroot/rmn"
 	execocr3 "github.com/goplugin/plugin-ccip/execute"
 	"github.com/goplugin/plugin-ccip/pkg/consts"
 	ccipreaderpkg "github.com/goplugin/plugin-ccip/pkg/reader"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 	"github.com/goplugin/plugin-ccip/pluginconfig"
 
 	"github.com/goplugin/plugin-common/pkg/types"
@@ -226,6 +228,14 @@ func (i *pluginOracleCreator) createFactoryAndTransmitter(
 	var factory ocr3types.ReportingPluginFactory[[]byte]
 	var transmitter ocr3types.ContractTransmitter[[]byte]
 	if config.Config.PluginType == uint8(cctypes.PluginTypeCCIPCommit) {
+		if !i.peerWrapper.IsStarted() {
+			return nil, nil, fmt.Errorf("peer wrapper is not started")
+		}
+
+		rmnPeerClient := rmn.NewPeerClient(i.lggr, i.peerWrapper.PeerGroupFactory, i.bootstrapperLocators)
+
+		rmnCrypto := ccipevm.NewEVMRMNCrypto()
+
 		factory = commitocr3.NewPluginFactory(
 			i.lggr.
 				Named("CCIPCommitPlugin").
@@ -240,6 +250,8 @@ func (i *pluginOracleCreator) createFactoryAndTransmitter(
 			i.homeChainSelector,
 			contractReaders,
 			chainWriters,
+			rmnPeerClient,
+			rmnCrypto,
 		)
 		transmitter = ocrimpls.NewCommitContractTransmitter[[]byte](destChainWriter,
 			ocrtypes.Account(destFromAccounts[0]),

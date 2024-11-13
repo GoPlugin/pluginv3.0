@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	pb "github.com/goplugin/plugin-protos/orchestrator/feedsmanager"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/services/feeds"
 	"github.com/goplugin/pluginv3.0/v2/core/services/feeds/mocks"
-	pb "github.com/goplugin/pluginv3.0/v2/core/services/feeds/proto"
 )
 
 type TestRPCHandlers struct {

@@ -3,8 +3,8 @@
 package mocks
 
 import (
+	feedsmanager "github.com/goplugin/plugin-protos/orchestrator/feedsmanager"
 	feeds "github.com/goplugin/pluginv3.0/v2/core/services/feeds"
-	feedsmanager "github.com/goplugin/pluginv3.0/v2/core/services/feeds/proto"
 
 	mock "github.com/stretchr/testify/mock"
 )

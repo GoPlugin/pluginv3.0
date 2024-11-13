@@ -1294,14 +1294,14 @@ func TestIntegration_BlockHistoryEstimator(t *testing.T) {
 	h42 := evmtypes.Head{Hash: b42.Hash, ParentHash: h41.Hash, Number: 42, EVMChainID: evmChainID}
 
 	mockEth := &evmtestutils.MockEth{EthClient: ethClient}
-	ethClient.On("SubscribeNewHead", mock.Anything, mock.Anything).
+	ethClient.On("SubscribeToHeads", mock.Anything).
 		Return(
-			func(ctx context.Context, ch chan<- *evmtypes.Head) ethereum.Subscription {
+			func(ctx context.Context) (<-chan *evmtypes.Head, ethereum.Subscription, error) {
+				ch := make(chan *evmtypes.Head)
 				sub := mockEth.NewSub(t)
 				chchNewHeads <- evmtestutils.NewRawSub(ch, sub.Err())
-				return sub
+				return ch, sub, nil
 			},
-			func(ctx context.Context, ch chan<- *evmtypes.Head) error { return nil },
 		)
 	// Nonce syncer
 	ethClient.On("PendingNonceAt", mock.Anything, mock.Anything).Maybe().Return(uint64(0), nil)
@@ -1359,11 +1359,11 @@ func TestIntegration_BlockHistoryEstimator(t *testing.T) {
 	h43.ParentHash = h42.Hash
 	newHeads.TrySend(h43)
 
-	gomega.NewWithT(t).Eventually(func() string {
+	require.Eventually(t, func() bool {
 		gasPrice, _, err := estimator.GetFee(testutils.Context(t), nil, 500000, maxGasPrice, nil, nil)
 		require.NoError(t, err)
-		return gasPrice.GasPrice.String()
-	}, testutils.WaitTimeout(t), cltest.DBPollingInterval).Should(gomega.Equal("45 gwei"))
+		return gasPrice.GasPrice.String() == "45 gwei"
+	}, testutils.WaitTimeout(t), cltest.DBPollingInterval)
 }
 
 func triggerAllKeys(t *testing.T, app *cltest.TestApplication) {

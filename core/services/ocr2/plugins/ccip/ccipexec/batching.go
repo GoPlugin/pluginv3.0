@@ -247,7 +247,7 @@ func performCommonChecks(
 
 	// calculating the source chain fee, dividing by 1e18 for denomination.
 	// For example:
-	// FeeToken=link; FeeTokenAmount=1e17 i.e. 0.1 link, price is 6e18 USD/link (1 USD = 1e18),
+	// FeeToken=link; FeeTokenAmount=1e17 i.e. 0.1 pli, price is 6e18 USD/link (1 USD = 1e18),
 	// availableFee is 1e17*6e18/1e18 = 6e17 = 0.6 USD
 	sourceFeeTokenPrice, exists := batchCtx.sourceTokenPricesUSD[msg.FeeToken]
 	if !exists {

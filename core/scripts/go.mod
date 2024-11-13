@@ -24,7 +24,7 @@ require (
 	github.com/prometheus/client_golang v1.20.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/goplugin/plugin-automation v0.8.0
-	github.com/goplugin/plugin-common v0.3.0
+	github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
 	github.com/goplugin/pluginv3.0/integration-tests v0.0.0-00010101000000-000000000000
 	github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
 	github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
@@ -34,7 +34,7 @@ require (
 	github.com/umbracle/ethgo v0.1.3
 	github.com/umbracle/fastrlp v0.0.0-20220527094140-59d5dd30e722
 	github.com/urfave/cli v1.22.14
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.35.1
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0
 	k8s.io/client-go v0.31.0
@@ -286,13 +286,15 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/shirou/gopsutil/v3 v3.24.3 // indirect
 	github.com/goplugin/ccip-owner-contracts v0.0.0-20240926212305-a6deabdfce86 // indirect
-	github.com/goplugin/chain-selectors v1.0.23 // indirect
-	github.com/goplugin/plugin-ccip v0.0.0-20241010120731-ae3e8f4935a0 // indirect
-	github.com/goplugin/plugin-cosmos v0.5.1 // indirect
-	github.com/goplugin/plugin-data-streams v0.1.0 // indirect
+	github.com/goplugin/chain-selectors v1.0.27 // indirect
+	github.com/goplugin/plugin-ccip v0.0.0-20241021132654-e5f3ecb77638 // indirect
+	github.com/goplugin/plugin-cosmos v0.5.2-0.20241017133723-5277829bd53f // indirect
+	github.com/goplugin/plugin-data-streams v0.1.1-0.20241018134907-a00ba3729b5e // indirect
 	github.com/goplugin/plugin-feeds v0.1.1 // indirect
-	github.com/goplugin/plugin-solana v1.1.1-0.20241010140936-4e1d0ae8315a // indirect
-	github.com/goplugin/plugin-starknet/relayer v0.1.0 // indirect
+	github.com/goplugin/plugin-protos/job-distributor v0.4.0 // indirect
+	github.com/goplugin/plugin-protos/orchestrator v0.3.0 // indirect
+	github.com/goplugin/plugin-solana v1.1.1-0.20241017193838-6c937ac2d042 // indirect
+	github.com/goplugin/plugin-starknet/relayer v0.1.1-0.20241017135645-176a23722fd8 // indirect
 	github.com/goplugin/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.0.0-20241009055228-33d0c0bf38de // indirect
 	github.com/goplugin/tdh2/go/tdh2 v0.0.0-20241009055228-33d0c0bf38de // indirect
@@ -372,7 +374,7 @@ require (
 	google.golang.org/genproto v0.0.0-20240711142825-46eb208f015d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240822170219-fc7c04adadcd // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240822170219-fc7c04adadcd // indirect
-	google.golang.org/grpc v1.65.0 // indirect
+	google.golang.org/grpc v1.66.2 // indirect
 	gopkg.in/guregu/null.v4 v4.0.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

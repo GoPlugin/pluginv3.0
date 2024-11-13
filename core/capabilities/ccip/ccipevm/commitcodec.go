@@ -10,7 +10,7 @@ import (
 
 	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/ccip/generated/ccip_encoding_utils"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/abihelpers"

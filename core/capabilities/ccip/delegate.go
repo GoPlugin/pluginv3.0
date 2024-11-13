@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goplugin/plugin-common/pkg/loop"
 	"golang.org/x/exp/maps"
+
+	"github.com/goplugin/plugin-common/pkg/loop"
 
 	"github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/common"
 	configsevm "github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/configs/evm"
@@ -27,10 +28,10 @@ import (
 
 	"github.com/goplugin/plugin-ccip/pkg/consts"
 	ccipreaderpkg "github.com/goplugin/plugin-ccip/pkg/reader"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 
 	chainsel "github.com/goplugin/chain-selectors"
 
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
 	cctypes "github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/config"
