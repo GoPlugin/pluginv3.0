@@ -187,7 +187,7 @@ func newVRFCoordinatorV2PlusUniverse(t *testing.T, key ethkey.KeyV2, numConsumer
 		backend.Commit()
 	}
 
-	// Deploy malicious consumer with 1 pli
+	// Deploy malicious consumer with 1 link
 	maliciousConsumerContractAddress, _, maliciousConsumerContract, err :=
 		vrf_malicious_consumer_v2_plus.DeployVRFMaliciousConsumerV2Plus(
 			evil, backend, coordinatorAddress, linkAddress)

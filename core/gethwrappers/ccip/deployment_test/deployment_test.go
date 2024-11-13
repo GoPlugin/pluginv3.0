@@ -63,7 +63,7 @@ func TestDeployAllV1_6(t *testing.T) {
 		FeeQuoter:          common.HexToAddress("0x4"),
 		MessageInterceptor: common.HexToAddress("0x5"),
 		FeeAggregator:      common.HexToAddress("0x6"),
-		AllowlistAdmin:     common.HexToAddress("0x7"),
+		AllowListAdmin:     common.HexToAddress("0x7"),
 	}, nil)
 	require.NoError(t, err)
 	chain.Commit()

@@ -9,7 +9,7 @@ open an issue, or send a pull request on GitHub.
 We follow an [agile development process](http://agilemanifesto.org/).
 If you run into a bug or have a problem, the best action is to open an issue on GitHub (please search for related closed issues first).
 
-If you're interested in helping out with the development cycle, feel free to tackle open issues. We've even set aside a few that are [good introductory issues](https://github.com/goplugin/pluginv3.0/issues?q=is%3Aissue+label%3A%22good+first+issue%22).
+If you're interested in helping out with the development cycle, feel free to tackle open issues. We've even set aside a few that are [good introductory issues](https://github.com/goplugin/plugin/issues?q=is%3Aissue+label%3A%22good+first+issue%22).
 If you see something you'd like to help with,
 reach out to us [on Discord](https://discord.gg/aSK4zew) to coordinate.
 

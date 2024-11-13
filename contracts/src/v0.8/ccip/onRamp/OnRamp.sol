@@ -21,7 +21,7 @@ import {IERC20} from "../../vendor/openzeppelin-solidity/v4.8.3/contracts/token/
 import {SafeERC20} from "../../vendor/openzeppelin-solidity/v4.8.3/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "../../vendor/openzeppelin-solidity/v5.0.2/contracts/utils/structs/EnumerableSet.sol";
 
-/// @notice The OnRamp is a contract that handles lane-specific fee logic.
+/// @notice The OnRamp is a contract that handles lane-specific fee logic
 /// @dev The OnRamp and OffRamp form an xchain upgradeable unit. Any change to one of them
 /// results in an onchain upgrade of all 3.
 contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
@@ -44,14 +44,14 @@ contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
 
   event ConfigSet(StaticConfig staticConfig, DynamicConfig dynamicConfig);
   event DestChainConfigSet(
-    uint64 indexed destChainSelector, uint64 sequenceNumber, IRouter router, bool allowlistEnabled
+    uint64 indexed destChainSelector, uint64 sequenceNumber, IRouter router, bool allowListEnabled
   );
   event FeeTokenWithdrawn(address indexed feeAggregator, address indexed feeToken, uint256 amount);
   /// RMN depends on this event, if changing, please notify the RMN maintainers.
   event CCIPMessageSent(
     uint64 indexed destChainSelector, uint64 indexed sequenceNumber, Internal.EVM2AnyRampMessage message
   );
-  event AllowListAdminSet(address indexed allowlistAdmin);
+  event AllowListAdminSet(address indexed allowListAdmin);
   event AllowListSendersAdded(uint64 indexed destChainSelector, address[] senders);
   event AllowListSendersRemoved(uint64 indexed destChainSelector, address[] senders);
 
@@ -59,9 +59,9 @@ contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
   /// RMN depends on this struct, if changing, please notify the RMN maintainers.
   // solhint-disable-next-line gas-struct-packing
   struct StaticConfig {
-    uint64 chainSelector; // ────╮ Source chain selector
-    IRMNRemote rmnRemote; // ────╯ RMN remote address
-    address nonceManager; //       Nonce manager address
+    uint64 chainSelector; // ─────╮ Source chain selector
+    IRMNRemote rmnRemote; // ─────╯ RMN remote address
+    address nonceManager; // Nonce manager address
     address tokenAdminRegistry; // Token admin registry address
   }
 
@@ -70,35 +70,41 @@ contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
   struct DynamicConfig {
     address feeQuoter; // FeeQuoter address
     bool reentrancyGuardEntered; // Reentrancy protection
-    address messageInterceptor; // Optional message interceptor to validate outbound messages. Zero address = no interceptor
+    address messageInterceptor; // Optional message interceptor to validate outbound messages (zero address = no interceptor)
     address feeAggregator; // Fee aggregator address
-    address allowlistAdmin; // authorized admin to add or remove allowed senders
+    address allowListAdmin; // authorized admin to add or remove allowed senders
   }
 
   /// @dev Struct to hold the configs for a destination chain
-  /// @dev sequenceNumber, allowlistEnabled, router will all be packed in 1 slot
+  /// @dev sequenceNumber, allowListEnabled, router will all be packed in 1 slot
   struct DestChainConfig {
     // The last used sequence number. This is zero in the case where no messages have yet been sent.
     // 0 is not a valid sequence number for any real transaction.
-    uint64 sequenceNumber; // ──╮ The last used sequence number.
-    bool allowlistEnabled; //   │ boolean indicator to specify if allowlist check is enabled.
-    IRouter router; // ─────────╯ Local router address  that is allowed to send messages to the destination chain.
-    EnumerableSet.AddressSet allowedSendersList; // The list of addresses allowed to send messages.
+    uint64 sequenceNumber; // ──────╮ The last used sequence number
+    bool allowListEnabled; //       │ boolean indicator to specify if allowList check is enabled
+    IRouter router; // ─────────────╯ Local router address  that is allowed to send messages to the destination chain.
+    // This is the list of addresses allowed to send messages from onRamp
+    EnumerableSet.AddressSet allowedSendersList;
   }
 
   /// @dev Same as DestChainConfig but with the destChainSelector so that an array of these
   /// can be passed in the constructor and the applyDestChainConfigUpdates function
-  // solhint-disable gas-struct-packing
+  //solhint-disable gas-struct-packing
   struct DestChainConfigArgs {
     uint64 destChainSelector; // ─╮ Destination chain selector
     IRouter router; //            │ Source router address
-    bool allowlistEnabled; // ────╯ Boolean indicator to specify if allowlist check is enabled
+    bool allowListEnabled; //─────╯ Boolean indicator to specify if allowList check is enabled
   }
 
-  /// @dev Struct to hold the allowlist configuration args per dest chain.
-  struct AllowlistConfigArgs {
-    uint64 destChainSelector; // ──╮ Destination chain selector.
-    bool allowlistEnabled; // ─────╯ True if the allowlist is enabled.
+  /// @dev Struct used to apply AllowList Senders for multiple destChainSelectors
+  /// @dev the senders in the AllowlistedSenders here is the user that sends the message
+  /// @dev the config restricts the chain to allow only allowedList of senders to send message from this chain to a destChainSelector
+  /// @dev destChainSelector, allowListEnabled will be packed in 1 slot
+  //solhint-disable gas-struct-packing
+  struct AllowListConfigArgs {
+    uint64 destChainSelector; // ─────────────╮ Destination chain selector
+    //                                        │ destChainSelector and allowListEnabled are packed in the same slot
+    bool allowListEnabled; // ────────────────╯ boolean indicator to specify if allowList check is enabled.
     address[] addedAllowlistedSenders; // list of senders to be added to the allowedSendersList
     address[] removedAllowlistedSenders; // list of senders to be removed from the allowedSendersList
   }
@@ -174,7 +180,7 @@ contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
     // Validate message sender is set and allowed. Not validated in `getFee` since it is not user-driven.
     if (originalSender == address(0)) revert RouterMustSetOriginalSender();
 
-    if (destChainConfig.allowlistEnabled) {
+    if (destChainConfig.allowListEnabled) {
       if (!destChainConfig.allowedSendersList.contains(originalSender)) {
         revert SenderNotAllowed(originalSender);
       }
@@ -383,12 +389,11 @@ contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
       }
 
       DestChainConfig storage destChainConfig = s_destChainConfigs[destChainSelector];
-      // The router can be zero to pause the destination chain
       destChainConfig.router = destChainConfigArg.router;
-      destChainConfig.allowlistEnabled = destChainConfigArg.allowlistEnabled;
+      destChainConfig.allowListEnabled = destChainConfigArg.allowListEnabled;
 
       emit DestChainConfigSet(
-        destChainSelector, destChainConfig.sequenceNumber, destChainConfigArg.router, destChainConfig.allowlistEnabled
+        destChainSelector, destChainConfig.sequenceNumber, destChainConfigArg.router, destChainConfig.allowListEnabled
       );
     }
   }
@@ -396,79 +401,72 @@ contract OnRamp is IEVM2AnyOnRampClient, ITypeAndVersion, OwnerIsCreator {
   /// @notice get ChainConfig configured for the DestinationChainSelector
   /// @param destChainSelector The destination chain selector
   /// @return sequenceNumber The last used sequence number
-  /// @return allowlistEnabled boolean indicator to specify if allowlist check is enabled
+  /// @return allowListEnabled boolean indicator to specify if allowList check is enabled
   /// @return router address of the router
   function getDestChainConfig(
     uint64 destChainSelector
-  ) public view returns (uint64 sequenceNumber, bool allowlistEnabled, address router) {
+  ) public view returns (uint64 sequenceNumber, bool allowListEnabled, address router) {
     DestChainConfig storage config = s_destChainConfigs[destChainSelector];
     sequenceNumber = config.sequenceNumber;
-    allowlistEnabled = config.allowlistEnabled;
+    allowListEnabled = config.allowListEnabled;
     router = address(config.router);
-    return (sequenceNumber, allowlistEnabled, router);
+    return (sequenceNumber, allowListEnabled, router);
   }
 
   /// @notice get allowedSenders List configured for the DestinationChainSelector
   /// @param destChainSelector The destination chain selector
-  /// @return isEnabled True if allowlist is enabled
-  /// @return configuredAddresses This is always populated with the list of allowed senders, even if the allowlist
-  /// is turned off. This is because the only way to know what addresses are configured is through this function. If
-  /// it would return an empty list when the allowlist is disabled, it would be impossible to know what addresses are
-  /// configured.
+  /// @return array of allowedList of Senders
   function getAllowedSendersList(
     uint64 destChainSelector
-  ) public view returns (bool isEnabled, address[] memory configuredAddresses) {
-    return (
-      s_destChainConfigs[destChainSelector].allowlistEnabled,
-      s_destChainConfigs[destChainSelector].allowedSendersList.values()
-    );
+  ) public view returns (address[] memory) {
+    return s_destChainConfigs[destChainSelector].allowedSendersList.values();
   }
 
   // ================================================================
   // │                          Allowlist                           │
   // ================================================================
 
-  /// @notice Updates allowlistConfig for Senders
+  /// @notice Updates allowListConfig for Senders
   /// @dev configuration used to set the list of senders who are authorized to send messages
-  /// @param allowlistConfigArgsItems Array of AllowlistConfigArguments where each item is for a destChainSelector
-  function applyAllowlistUpdates(
-    AllowlistConfigArgs[] calldata allowlistConfigArgsItems
+  /// @param allowListConfigArgsItems Array of AllowListConfigArguments where each item is for a destChainSelector
+  function applyAllowListUpdates(
+    AllowListConfigArgs[] calldata allowListConfigArgsItems
   ) external {
     if (msg.sender != owner()) {
-      if (msg.sender != s_dynamicConfig.allowlistAdmin) {
+      if (msg.sender != s_dynamicConfig.allowListAdmin) {
         revert OnlyCallableByOwnerOrAllowlistAdmin();
       }
     }
 
-    for (uint256 i = 0; i < allowlistConfigArgsItems.length; ++i) {
-      AllowlistConfigArgs memory allowlistConfigArgs = allowlistConfigArgsItems[i];
+    for (uint256 i = 0; i < allowListConfigArgsItems.length; ++i) {
+      AllowListConfigArgs memory allowListConfigArgs = allowListConfigArgsItems[i];
 
-      DestChainConfig storage destChainConfig = s_destChainConfigs[allowlistConfigArgs.destChainSelector];
-      destChainConfig.allowlistEnabled = allowlistConfigArgs.allowlistEnabled;
+      DestChainConfig storage destChainConfig = s_destChainConfigs[allowListConfigArgs.destChainSelector];
+      destChainConfig.allowListEnabled = allowListConfigArgs.allowListEnabled;
 
-      if (allowlistConfigArgs.addedAllowlistedSenders.length > 0) {
-        if (allowlistConfigArgs.allowlistEnabled) {
-          for (uint256 j = 0; j < allowlistConfigArgs.addedAllowlistedSenders.length; ++j) {
-            address toAdd = allowlistConfigArgs.addedAllowlistedSenders[j];
+      if (allowListConfigArgs.addedAllowlistedSenders.length > 0) {
+        if (allowListConfigArgs.allowListEnabled) {
+          for (uint256 j = 0; j < allowListConfigArgs.addedAllowlistedSenders.length; ++j) {
+            address toAdd = allowListConfigArgs.addedAllowlistedSenders[j];
             if (toAdd == address(0)) {
-              revert InvalidAllowListRequest(allowlistConfigArgs.destChainSelector);
+              revert InvalidAllowListRequest(allowListConfigArgs.destChainSelector);
             }
             destChainConfig.allowedSendersList.add(toAdd);
           }
 
-          emit AllowListSendersAdded(allowlistConfigArgs.destChainSelector, allowlistConfigArgs.addedAllowlistedSenders);
+          emit AllowListSendersAdded(allowListConfigArgs.destChainSelector, allowListConfigArgs.addedAllowlistedSenders);
         } else {
-          revert InvalidAllowListRequest(allowlistConfigArgs.destChainSelector);
+          revert InvalidAllowListRequest(allowListConfigArgs.destChainSelector);
         }
       }
 
-      for (uint256 j = 0; j < allowlistConfigArgs.removedAllowlistedSenders.length; ++j) {
-        destChainConfig.allowedSendersList.remove(allowlistConfigArgs.removedAllowlistedSenders[j]);
+      for (uint256 j = 0; j < allowListConfigArgs.removedAllowlistedSenders.length; ++j) {
+        destChainConfig.allowedSendersList.remove(allowListConfigArgs.removedAllowlistedSenders[j]);
       }
 
-      if (allowlistConfigArgs.removedAllowlistedSenders.length > 0) {
+      if (allowListConfigArgs.removedAllowlistedSenders.length > 0) {
         emit AllowListSendersRemoved(
-          allowlistConfigArgs.destChainSelector, allowlistConfigArgs.removedAllowlistedSenders
+          allowListConfigArgs.destChainSelector, allowListConfigArgs.removedAllowlistedSenders
         );
       }
     }

@@ -22,8 +22,8 @@ contract SetUp is BaseTest {
   AutomationRegistryBase2_3.OnchainConfig internal config;
   bytes internal constant offchainConfigBytes = abi.encode(1234, ZERO_ADDRESS);
 
-  uint256 linkUpkeepID;
-  uint256 linkUpkeepID2; // 2 upkeeps use the same billing token (PLI) to test migration scenario
+  uint256 pliUpkeepID;
+  uint256 pliUpkeepID2; // 2 upkeeps use the same billing token (PLI) to test migration scenario
   uint256 usdUpkeepID18; // 1 upkeep uses ERC20 token with 18 decimals
   uint256 usdUpkeepID6; // 1 upkeep uses ERC20 token with 6 decimals
   uint256 nativeUpkeepID;
@@ -34,23 +34,23 @@ contract SetUp is BaseTest {
     config = registry.getConfig();
 
     vm.startPrank(OWNER);
-    linkToken.approve(address(registry), type(uint256).max);
+    pliToken.approve(address(registry), type(uint256).max);
     usdToken6.approve(address(registry), type(uint256).max);
     usdToken18.approve(address(registry), type(uint256).max);
     weth.approve(address(registry), type(uint256).max);
     vm.startPrank(UPKEEP_ADMIN);
-    linkToken.approve(address(registry), type(uint256).max);
+    pliToken.approve(address(registry), type(uint256).max);
     usdToken6.approve(address(registry), type(uint256).max);
     usdToken18.approve(address(registry), type(uint256).max);
     weth.approve(address(registry), type(uint256).max);
     vm.startPrank(STRANGER);
-    linkToken.approve(address(registry), type(uint256).max);
+    pliToken.approve(address(registry), type(uint256).max);
     usdToken6.approve(address(registry), type(uint256).max);
     usdToken18.approve(address(registry), type(uint256).max);
     weth.approve(address(registry), type(uint256).max);
     vm.stopPrank();
 
-    linkUpkeepID = registry.registerUpkeep(
+    pliUpkeepID = registry.registerUpkeep(
       address(TARGET1),
       config.maxPerformGas,
       UPKEEP_ADMIN,
@@ -61,7 +61,7 @@ contract SetUp is BaseTest {
       ""
     );
 
-    linkUpkeepID2 = registry.registerUpkeep(
+    pliUpkeepID2 = registry.registerUpkeep(
       address(TARGET1),
       config.maxPerformGas,
       UPKEEP_ADMIN,
@@ -162,7 +162,7 @@ contract WithdrawFunds is SetUp {
     registry.cancelUpkeep(linkUpkeepID);
     vm.roll(100 + block.number);
 
-    uint256 startUpkeepAdminBalance = linkToken.balanceOf(UPKEEP_ADMIN);
+    uint256 startUpkeepAdminBalance = pliToken.balanceOf(UPKEEP_ADMIN);
     uint256 startLinkReserveAmountBalance = registry.getReserveAmount(address(linkToken));
 
     uint256 upkeepBalance = registry.getBalance(linkUpkeepID);
@@ -248,7 +248,7 @@ contract AddFunds is SetUp {
   function test_movesFundFromCorrectToken() public {
     vm.startPrank(UPKEEP_ADMIN);
 
-    uint256 startPLIRegistryBalance = linkToken.balanceOf(address(registry));
+    uint256 startPLIRegistryBalance = pliToken.balanceOf(address(registry));
     uint256 startUSDRegistryBalance = usdToken18.balanceOf(address(registry));
     uint256 startLinkUpkeepBalance = registry.getBalance(linkUpkeepID);
     uint256 startUSDUpkeepBalance = registry.getBalance(usdUpkeepID18);
@@ -278,16 +278,16 @@ contract Withdraw is SetUp {
   address internal aMockAddress = randomAddress();
 
   function testLinkAvailableForPaymentReturnsLinkBalance() public {
-    uint256 startBalance = linkToken.balanceOf(address(registry));
+    uint256 startBalance = pliToken.balanceOf(address(registry));
     int256 startLinkAvailable = registry.linkAvailableForPayment();
 
-    //simulate a deposit of link to the liquidity pool
+    //simulate a deposit of pli to the liquidity pool
     _mintLink(address(registry), 1e10);
 
     //check there's a balance
     assertEq(linkToken.balanceOf(address(registry)), startBalance + 1e10);
 
-    //check the link available has increased by the same amount
+    //check the pli available has increased by the same amount
     assertEq(uint256(registry.linkAvailableForPayment()), uint256(startLinkAvailable) + 1e10);
   }
 
@@ -299,7 +299,7 @@ contract Withdraw is SetUp {
   function testWithdrawLinkRevertsBecauseOfInsufficientBalance() public {
     vm.startPrank(FINANCE_ADMIN);
 
-    // try to withdraw 1 link while there is 0 balance
+    // try to withdraw 1 pli while there is 0 balance
     vm.expectRevert(abi.encodeWithSelector(Registry.InsufficientBalance.selector, 0, 1));
     registry.withdrawLink(aMockAddress, 1);
 
@@ -309,7 +309,7 @@ contract Withdraw is SetUp {
   function testWithdrawLinkRevertsBecauseOfInvalidRecipient() public {
     vm.startPrank(FINANCE_ADMIN);
 
-    // try to withdraw 1 link while there is 0 balance
+    // try to withdraw 1 pli while there is 0 balance
     vm.expectRevert(abi.encodeWithSelector(Registry.InvalidRecipient.selector));
     registry.withdrawLink(ZERO_ADDRESS, 1);
 
@@ -317,13 +317,13 @@ contract Withdraw is SetUp {
   }
 
   function testWithdrawLinkSuccess() public {
-    //simulate a deposit of link to the liquidity pool
+    //simulate a deposit of pli to the liquidity pool
     _mintLink(address(registry), 1e10);
-    uint256 startBalance = linkToken.balanceOf(address(registry));
+    uint256 startBalance = pliToken.balanceOf(address(registry));
 
     vm.startPrank(FINANCE_ADMIN);
 
-    // try to withdraw 1 link while there is a ton of link available
+    // try to withdraw 1 pli while there is a ton of pli available
     registry.withdrawLink(aMockAddress, 1);
 
     vm.stopPrank();
@@ -344,7 +344,7 @@ contract Withdraw is SetUp {
     vm.startPrank(FINANCE_ADMIN);
     vm.expectRevert(Registry.InvalidToken.selector);
     registry.withdrawERC20Fees(address(linkToken), FINANCE_ADMIN, 1); // should revert
-    registry.withdrawLink(FINANCE_ADMIN, 1); // but using link withdraw functions succeeds
+    registry.withdrawLink(FINANCE_ADMIN, 1); // but using pli withdraw functions succeeds
   }
 
   // default is ON_CHAIN mode
@@ -773,7 +773,7 @@ contract SetConfig is SetUp {
       priceFeed: address(USDTOKEN_USD_FEED),
       fallbackPrice: 2_000_000_000, // $20
       minSpend: 100_000,
-      decimals: 6 // link token should have 18 decimals
+      decimals: 6 // pli token should have 18 decimals
     });
 
     vm.expectRevert(abi.encodeWithSelector(Registry.InvalidToken.selector));
@@ -989,7 +989,7 @@ contract NOPsSettlement is SetUp {
     registry.settleNOPsOffchain();
   }
 
-  // 1. transmitter balance zeroed after settlement, 2. admin can withdraw ERC20, 3. switch to onchain mode, 4. link amount owed to NOPs stays the same
+  // 1. transmitter balance zeroed after settlement, 2. admin can withdraw ERC20, 3. switch to onchain mode, 4. pli amount owed to NOPs stays the same
   function testSettleNOPsOffchainSuccessWithERC20MultiSteps() public {
     // deploy and configure a registry with OFF_CHAIN payout
     (Registry registry, ) = deployAndConfigureZKSyncRegistryAndRegistrar(AutoBase.PayoutMode.OFF_CHAIN);
@@ -1059,13 +1059,13 @@ contract NOPsSettlement is SetUp {
     vm.startPrank(registry.owner());
     registry.disableOffchainPayments();
 
-    // finance admin comes to withdraw all available ERC20s, should revert bc of insufficient link liquidity
+    // finance admin comes to withdraw all available ERC20s, should revert bc of insufficient pli liquidity
     vm.startPrank(FINANCE_ADMIN);
     uint256 erc20ForPayment4 = registry.getAvailableERC20ForPayment(address(usdToken18));
     vm.expectRevert(abi.encodeWithSelector(Registry.InsufficientLinkLiquidity.selector));
     registry.withdrawERC20Fees(address(usdToken18), FINANCE_ADMIN, erc20ForPayment4);
 
-    // reserved link amount to NOPs should stay the same after switching to onchain mode
+    // reserved pli amount to NOPs should stay the same after switching to onchain mode
     assertEq(registry.getReserveAmount(address(linkToken)), reservedLink);
     // available ERC20 for payment should be 0 since finance admin withdrew all already
     assertEq(erc20ForPayment4, 0);
@@ -1661,7 +1661,7 @@ contract Transmit is SetUp {
     prevUpkeepBalances[1] = registry.getBalance(usdUpkeepID18);
     prevUpkeepBalances[2] = registry.getBalance(nativeUpkeepID);
     uint256[] memory prevTokenBalances = new uint256[](3);
-    prevTokenBalances[0] = linkToken.balanceOf(address(registry));
+    prevTokenBalances[0] = pliToken.balanceOf(address(registry));
     prevTokenBalances[1] = usdToken18.balanceOf(address(registry));
     prevTokenBalances[2] = weth.balanceOf(address(registry));
     uint256[] memory prevReserveBalances = new uint256[](3);
@@ -1669,7 +1669,7 @@ contract Transmit is SetUp {
     prevReserveBalances[1] = registry.getReserveAmount(address(usdToken18));
     prevReserveBalances[2] = registry.getReserveAmount(address(weth));
     uint256[] memory upkeepIDs = new uint256[](3);
-    upkeepIDs[0] = linkUpkeepID;
+    upkeepIDs[0] = pliUpkeepID;
     upkeepIDs[1] = usdUpkeepID18;
     upkeepIDs[2] = nativeUpkeepID;
 
@@ -1692,14 +1692,14 @@ contract Transmit is SetUp {
     require(prevUpkeepBalances[1] > registry.getBalance(usdUpkeepID18), "usd upkeep balance should have decreased");
     require(prevUpkeepBalances[2] > registry.getBalance(nativeUpkeepID), "native upkeep balance should have decreased");
     // assert token balances have not changed
-    assertEq(prevTokenBalances[0], linkToken.balanceOf(address(registry)));
+    assertEq(prevTokenBalances[0], pliToken.balanceOf(address(registry)));
     assertEq(prevTokenBalances[1], usdToken18.balanceOf(address(registry)));
     assertEq(prevTokenBalances[2], weth.balanceOf(address(registry)));
     // assert reserve amounts have adjusted accordingly
     require(
       prevReserveBalances[0] < registry.getReserveAmount(address(linkToken)),
       "usd reserve amount should have increased"
-    ); // link reserve amount increases in value equal to the decrease of the other reserve amounts
+    ); // pli reserve amount increases in value equal to the decrease of the other reserve amounts
     require(
       prevReserveBalances[1] > registry.getReserveAmount(address(usdToken18)),
       "usd reserve amount should have decreased"
@@ -1748,13 +1748,13 @@ contract Transmit is SetUp {
       uint96 gasReimbursementInJuels,
       uint96 premiumInJuels,
       address billingToken,
-      uint96 linkUSD,
+      uint96 pliUSD,
       uint96 nativeUSD,
       uint96 billingUSD
     ) = abi.decode(l1.data, (uint96, uint96, uint96, uint96, address, uint96, uint96, uint96));
 
     assertEq(gasChargeInBillingToken, balance);
-    assertEq(gasReimbursementInJuels, (balance * billingUSD) / linkUSD);
+    assertEq(gasReimbursementInJuels, (balance * billingUSD) / pliUSD);
     assertEq(premiumInJuels, 0);
     assertEq(premiumInBillingToken, 0);
   }
@@ -1799,13 +1799,13 @@ contract Transmit is SetUp {
       uint96 gasReimbursementInJuels,
       uint96 premiumInJuels,
       address billingToken,
-      uint96 linkUSD,
+      uint96 pliUSD,
       uint96 nativeUSD,
       uint96 billingUSD
     ) = abi.decode(l1.data, (uint96, uint96, uint96, uint96, address, uint96, uint96, uint96));
 
-    assertEq(premiumInJuels, (balance * billingUSD * 1e12) / linkUSD - gasReimbursementInJuels); // scale to 18 decimals
-    assertEq(premiumInBillingToken, (premiumInJuels * linkUSD + (billingUSD * 1e12 - 1)) / (billingUSD * 1e12));
+    assertEq(premiumInJuels, (balance * billingUSD * 1e12) / pliUSD - gasReimbursementInJuels); // scale to 18 decimals
+    assertEq(premiumInBillingToken, (premiumInJuels * pliUSD + (billingUSD * 1e12 - 1)) / (billingUSD * 1e12));
   }
 }
 
@@ -1892,7 +1892,7 @@ contract MigrateReceive is SetUp {
     prevReserveBalances[1] = registry.getReserveAmount(address(usdToken18));
     prevReserveBalances[2] = registry.getReserveAmount(address(weth));
     uint256[] memory prevTokenBalances = new uint256[](3);
-    prevTokenBalances[0] = linkToken.balanceOf(address(registry));
+    prevTokenBalances[0] = pliToken.balanceOf(address(registry));
     prevTokenBalances[1] = usdToken18.balanceOf(address(registry));
     prevTokenBalances[2] = weth.balanceOf(address(registry));
     bytes[] memory prevUpkeepData = new bytes[](4);
@@ -1959,12 +1959,12 @@ contract MigrateReceive is SetUp {
 
     // assert token have been transferred
     assertEq(
-      linkToken.balanceOf(address(newRegistry)),
+      pliToken.balanceOf(address(newRegistry)),
       newRegistry.getBalance(linkUpkeepID) + newRegistry.getBalance(linkUpkeepID2)
     );
     assertEq(usdToken18.balanceOf(address(newRegistry)), newRegistry.getBalance(usdUpkeepID18));
     assertEq(weth.balanceOf(address(newRegistry)), newRegistry.getBalance(nativeUpkeepID));
-    assertEq(linkToken.balanceOf(address(registry)), prevTokenBalances[0] - linkToken.balanceOf(address(newRegistry)));
+    assertEq(linkToken.balanceOf(address(registry)), prevTokenBalances[0] - pliToken.balanceOf(address(newRegistry)));
     assertEq(
       usdToken18.balanceOf(address(registry)),
       prevTokenBalances[1] - usdToken18.balanceOf(address(newRegistry))
@@ -2766,7 +2766,7 @@ contract GetActiveUpkeepIDs is SetUp {
   function test_ReturnsUpkeeps_BoundByMaxCount() external {
     uint256[] memory uids = registry.getActiveUpkeepIDs(1, 2);
     assertEq(2, uids.length);
-    assertEq(uids[0], linkUpkeepID2);
+    assertEq(uids[0], pliUpkeepID2);
     assertEq(uids[1], usdUpkeepID18);
   }
 }
