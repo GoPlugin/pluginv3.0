@@ -23,11 +23,14 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/prometheus/client_golang v1.20.0
 	github.com/shopspring/decimal v1.4.0
-	github.com/goplugin/plugin-automation v0.8.0
-	github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
-	github.com/goplugin/pluginv3.0/integration-tests v0.0.0-00010101000000-000000000000
-	github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
-	github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
+	github.com/goplugin/plugin-automation v0.1.1
+	github.com/goplugin/plugin-common v0.1.1
+	github.com/goplugin/pluginv3.0/integration-tests v2.4.0
+	//github.com/goplugin/pluginv3.0/integration-tests v0.0.0-00010101000000-000000000000
+	github.com/goplugin/pluginv3.0/v2 v2.4.0
+	//github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
+	github.com/goplugin/plugin-libocr v0.1.1
+	//github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
