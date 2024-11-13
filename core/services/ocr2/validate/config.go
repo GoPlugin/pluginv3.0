@@ -19,6 +19,8 @@ type OCR2Config interface {
 	ContractPollInterval() time.Duration
 	ContractTransmitterTransmitTimeout() time.Duration
 	DatabaseTimeout() time.Duration
+	DefaultTransactionQueueDepth() uint32
+	SimulateTransactions() bool
 	TraceLogging() bool
 }
 
@@ -43,13 +45,15 @@ func ToLocalConfig(ocr2Config OCR2Config, insConf InsecureConfig, spec job.OCR2O
 		ccTrackerPollInterval = ocr2Config.ContractPollInterval()
 	}
 	lc := types.LocalConfig{
+		DefaultMaxDurationInitialization:   30 * time.Second,
 		BlockchainTimeout:                  blockchainTimeout,
+		ContractConfigLoadTimeout:          blockchainTimeout,
 		ContractConfigConfirmations:        ccConfirmations,
 		ContractConfigTrackerPollInterval:  ccTrackerPollInterval,
 		ContractTransmitterTransmitTimeout: ocr2Config.ContractTransmitterTransmitTimeout(),
 		DatabaseTimeout:                    ocr2Config.DatabaseTimeout(),
 	}
-	if spec.Relay == relay.Solana && env.MedianPlugin.Cmd.Get() != "" {
+	if spec.Relay == relay.NetworkSolana && env.MedianPlugin.Cmd.Get() != "" {
 		// Work around for Solana Feeds configured with zero values to support LOOP Plugins.
 		minOCR2MaxDurationQuery, err := getMinOCR2MaxDurationQuery()
 		if err != nil {

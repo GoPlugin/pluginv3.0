@@ -1,6 +1,7 @@
 package reportcodec
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -9,9 +10,9 @@ import (
 
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
+	"github.com/goplugin/plugin-common/pkg/logger"
 	v3 "github.com/goplugin/plugin-common/pkg/types/mercury/v3"
 
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/utils"
 	reporttypes "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/v3/types"
 )
@@ -31,7 +32,7 @@ func NewReportCodec(feedID [32]byte, lggr logger.Logger) *ReportCodec {
 	return &ReportCodec{lggr, feedID}
 }
 
-func (r *ReportCodec) BuildReport(rf v3.ReportFields) (ocrtypes.Report, error) {
+func (r *ReportCodec) BuildReport(ctx context.Context, rf v3.ReportFields) (ocrtypes.Report, error) {
 	var merr error
 	if rf.BenchmarkPrice == nil {
 		merr = errors.Join(merr, errors.New("benchmarkPrice may not be nil"))
@@ -59,11 +60,11 @@ func (r *ReportCodec) BuildReport(rf v3.ReportFields) (ocrtypes.Report, error) {
 	return ocrtypes.Report(reportBytes), pkgerrors.Wrap(err, "failed to pack report blob")
 }
 
-func (r *ReportCodec) MaxReportLength(n int) (int, error) {
+func (r *ReportCodec) MaxReportLength(ctx context.Context, n int) (int, error) {
 	return maxReportLength, nil
 }
 
-func (r *ReportCodec) ObservationTimestampFromReport(report ocrtypes.Report) (uint32, error) {
+func (r *ReportCodec) ObservationTimestampFromReport(ctx context.Context, report ocrtypes.Report) (uint32, error) {
 	decoded, err := r.Decode(report)
 	if err != nil {
 		return 0, err
@@ -75,7 +76,7 @@ func (r *ReportCodec) Decode(report ocrtypes.Report) (*reporttypes.Report, error
 	return reporttypes.Decode(report)
 }
 
-func (r *ReportCodec) BenchmarkPriceFromReport(report ocrtypes.Report) (*big.Int, error) {
+func (r *ReportCodec) BenchmarkPriceFromReport(ctx context.Context, report ocrtypes.Report) (*big.Int, error) {
 	decoded, err := r.Decode(report)
 	if err != nil {
 		return nil, err

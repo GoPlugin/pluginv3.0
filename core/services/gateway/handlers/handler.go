@@ -7,9 +7,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 )
 
-//go:generate mockery --quiet --name Handler --output ./mocks/ --case=underscore
-//go:generate mockery --quiet --name DON --output ./mocks/ --case=underscore
-
 // UserCallbackPayload is a response to user request sent to HandleUserMessage().
 // Each message needs to receive at most one response on the provided channel.
 type UserCallbackPayload struct {
@@ -34,7 +31,8 @@ type Handler interface {
 	//   2. waits on callbackCh with a timeout
 	HandleUserMessage(ctx context.Context, msg *api.Message, callbackCh chan<- UserCallbackPayload) error
 
-	// Handlers should not make any assumptions about goroutines calling HandleNodeMessage
+	// Handlers should not make any assumptions about goroutines calling HandleNodeMessage.
+	// should be non-blocking
 	HandleNodeMessage(ctx context.Context, msg *api.Message, nodeAddr string) error
 }
 

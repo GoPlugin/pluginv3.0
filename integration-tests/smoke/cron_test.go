@@ -9,8 +9,9 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/plugin-testing-framework/logging"
+	"github.com/goplugin/plugin-testing-framework/lib/logging"
 
+	"github.com/goplugin/pluginv3.0/integration-tests/actions"
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 	"github.com/goplugin/pluginv3.0/integration-tests/docker/test_env"
 	tc "github.com/goplugin/pluginv3.0/integration-tests/testconfig"
@@ -20,15 +21,18 @@ func TestCronBasic(t *testing.T) {
 	t.Parallel()
 	l := logging.GetTestLogger(t)
 
-	config, err := tc.GetConfig("Smoke", tc.Cron)
+	config, err := tc.GetConfig([]string{"Smoke"}, tc.Cron)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	privateNetwork, err := actions.EthereumNetworkConfigFromConfig(l, &config)
+	require.NoError(t, err, "Error building ethereum network config")
+
 	env, err := test_env.NewCLTestEnvBuilder().
 		WithTestInstance(t).
 		WithTestConfig(&config).
-		WithGeth().
+		WithPrivateEthereumNetwork(privateNetwork.EthereumNetworkConfig).
 		WithMockAdapter().
 		WithCLNodes(1).
 		WithStandardCleanup().
@@ -72,15 +76,18 @@ func TestCronJobReplacement(t *testing.T) {
 	t.Parallel()
 	l := logging.GetTestLogger(t)
 
-	config, err := tc.GetConfig("Smoke", tc.Cron)
+	config, err := tc.GetConfig([]string{"Smoke"}, tc.Cron)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	privateNetwork, err := actions.EthereumNetworkConfigFromConfig(l, &config)
+	require.NoError(t, err, "Error building ethereum network config")
+
 	env, err := test_env.NewCLTestEnvBuilder().
 		WithTestInstance(t).
 		WithTestConfig(&config).
-		WithGeth().
+		WithPrivateEthereumNetwork(privateNetwork.EthereumNetworkConfig).
 		WithMockAdapter().
 		WithCLNodes(1).
 		WithStandardCleanup().

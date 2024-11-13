@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-	"github.com/goplugin/plugin-testing-framework/utils/net"
+	"github.com/goplugin/plugin-testing-framework/lib/blockchain"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/net"
 )
 
 const (

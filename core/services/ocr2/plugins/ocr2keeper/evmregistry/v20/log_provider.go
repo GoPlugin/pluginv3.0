@@ -21,7 +21,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	registry "github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/keeper_registry_wrapper2_0"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 )
 
 type TransmitUnpacker interface {
@@ -49,6 +48,7 @@ func LogProviderFilterName(addr common.Address) string {
 }
 
 func NewLogProvider(
+	ctx context.Context,
 	logger logger.Logger,
 	logPoller logpoller.LogPoller,
 	registryAddress common.Address,
@@ -69,7 +69,7 @@ func NewLogProvider(
 
 	// Add log filters for the log poller so that it can poll and find the logs that
 	// we need.
-	err = logPoller.RegisterFilter(logpoller.Filter{
+	err = logPoller.RegisterFilter(ctx, logpoller.Filter{
 		Name: LogProviderFilterName(contract.Address()),
 		EventSigs: []common.Hash{
 			registry.KeeperRegistryUpkeepPerformed{}.Topic(),
@@ -144,7 +144,7 @@ func (c *LogProvider) HealthReport() map[string]error {
 }
 
 func (c *LogProvider) PerformLogs(ctx context.Context) ([]ocr2keepers.PerformLog, error) {
-	end, err := c.logPoller.LatestBlock(pg.WithParentCtx(ctx))
+	end, err := c.logPoller.LatestBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get latest block from log poller", err)
 	}
@@ -152,13 +152,13 @@ func (c *LogProvider) PerformLogs(ctx context.Context) ([]ocr2keepers.PerformLog
 	// always check the last lookback number of blocks and rebroadcast
 	// this allows the plugin to make decisions based on event confirmations
 	logs, err := c.logPoller.LogsWithSigs(
+		ctx,
 		end.BlockNumber-c.lookbackBlocks,
 		end.BlockNumber,
 		[]common.Hash{
 			registry.KeeperRegistryUpkeepPerformed{}.Topic(),
 		},
 		c.registryAddress,
-		pg.WithParentCtx(ctx),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to collect logs from log poller", err)
@@ -185,7 +185,7 @@ func (c *LogProvider) PerformLogs(ctx context.Context) ([]ocr2keepers.PerformLog
 }
 
 func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleReportLog, error) {
-	end, err := c.logPoller.LatestBlock(pg.WithParentCtx(ctx))
+	end, err := c.logPoller.LatestBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get latest block from log poller", err)
 	}
@@ -195,13 +195,13 @@ func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleR
 
 	// ReorgedUpkeepReportLogs
 	logs, err := c.logPoller.LogsWithSigs(
+		ctx,
 		end.BlockNumber-c.lookbackBlocks,
 		end.BlockNumber,
 		[]common.Hash{
 			registry.KeeperRegistryReorgedUpkeepReport{}.Topic(),
 		},
 		c.registryAddress,
-		pg.WithParentCtx(ctx),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to collect logs from log poller", err)
@@ -213,13 +213,13 @@ func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleR
 
 	// StaleUpkeepReportLogs
 	logs, err = c.logPoller.LogsWithSigs(
+		ctx,
 		end.BlockNumber-c.lookbackBlocks,
 		end.BlockNumber,
 		[]common.Hash{
 			registry.KeeperRegistryStaleUpkeepReport{}.Topic(),
 		},
 		c.registryAddress,
-		pg.WithParentCtx(ctx),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to collect logs from log poller", err)
@@ -231,13 +231,13 @@ func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleR
 
 	// InsufficientFundsUpkeepReportLogs
 	logs, err = c.logPoller.LogsWithSigs(
+		ctx,
 		end.BlockNumber-c.lookbackBlocks,
 		end.BlockNumber,
 		[]common.Hash{
 			registry.KeeperRegistryInsufficientFundsUpkeepReport{}.Topic(),
 		},
 		c.registryAddress,
-		pg.WithParentCtx(ctx),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to collect logs from log poller", err)
@@ -250,7 +250,7 @@ func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleR
 	vals := []ocr2keepers.StaleReportLog{}
 	for _, r := range reorged {
 		upkeepId := ocr2keepers.UpkeepIdentifier(r.Id.String())
-		checkBlockNumber, err := c.getCheckBlockNumberFromTxHash(r.TxHash, upkeepId)
+		checkBlockNumber, err := c.getCheckBlockNumberFromTxHash(ctx, r.TxHash, upkeepId)
 		if err != nil {
 			c.logger.Error("error while fetching checkBlockNumber from reorged report log: %w", err)
 			continue
@@ -265,7 +265,7 @@ func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleR
 	}
 	for _, r := range staleUpkeep {
 		upkeepId := ocr2keepers.UpkeepIdentifier(r.Id.String())
-		checkBlockNumber, err := c.getCheckBlockNumberFromTxHash(r.TxHash, upkeepId)
+		checkBlockNumber, err := c.getCheckBlockNumberFromTxHash(ctx, r.TxHash, upkeepId)
 		if err != nil {
 			c.logger.Error("error while fetching checkBlockNumber from stale report log: %w", err)
 			continue
@@ -280,7 +280,7 @@ func (c *LogProvider) StaleReportLogs(ctx context.Context) ([]ocr2keepers.StaleR
 	}
 	for _, r := range insufficientFunds {
 		upkeepId := ocr2keepers.UpkeepIdentifier(r.Id.String())
-		checkBlockNumber, err := c.getCheckBlockNumberFromTxHash(r.TxHash, upkeepId)
+		checkBlockNumber, err := c.getCheckBlockNumberFromTxHash(ctx, r.TxHash, upkeepId)
 		if err != nil {
 			c.logger.Error("error while fetching checkBlockNumber from insufficient funds report log: %w", err)
 			continue
@@ -411,7 +411,7 @@ func (c *LogProvider) unmarshalInsufficientFundsUpkeepLogs(logs []logpoller.Log)
 
 // Fetches the checkBlockNumber for a particular transaction and an upkeep ID. Requires a RPC call to get txData
 // so this function should not be used heavily
-func (c *LogProvider) getCheckBlockNumberFromTxHash(txHash common.Hash, id ocr2keepers.UpkeepIdentifier) (bk ocr2keepers.BlockKey, e error) {
+func (c *LogProvider) getCheckBlockNumberFromTxHash(ctx context.Context, txHash common.Hash, id ocr2keepers.UpkeepIdentifier) (bk ocr2keepers.BlockKey, e error) {
 	defer func() {
 		if r := recover(); r != nil {
 			e = fmt.Errorf("recovered from panic in getCheckBlockNumberForUpkeep: %v", r)
@@ -425,7 +425,7 @@ func (c *LogProvider) getCheckBlockNumberFromTxHash(txHash common.Hash, id ocr2k
 	}
 
 	var tx gethtypes.Transaction
-	err := c.client.CallContext(context.Background(), &tx, "eth_getTransactionByHash", txHash)
+	err := c.client.CallContext(ctx, &tx, "eth_getTransactionByHash", txHash)
 	if err != nil {
 		return "", err
 	}

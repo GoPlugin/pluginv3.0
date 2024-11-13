@@ -8,8 +8,8 @@ import (
 
 func NewCosmosChainsController(app plugin.Application) ChainsController {
 	return newChainsController[presenters.CosmosChainResource](
-		relay.Cosmos,
-		app.GetRelayers().List(plugin.FilterRelayersByType(relay.Cosmos)),
+		relay.NetworkCosmos,
+		app.GetRelayers().List(plugin.FilterRelayersByType(relay.NetworkCosmos)),
 		ErrCosmosNotEnabled,
 		presenters.NewCosmosChainResource,
 		app.GetLogger(),

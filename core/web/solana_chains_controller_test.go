@@ -15,7 +15,6 @@ import (
 	"github.com/goplugin/plugin-common/pkg/types"
 	"github.com/goplugin/plugin-solana/pkg/solana/config"
 
-	"github.com/goplugin/plugin-solana/pkg/solana"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/configtest"
@@ -58,7 +57,26 @@ ComputeUnitPriceMax = 1000
 ComputeUnitPriceMin = 0
 ComputeUnitPriceDefault = 0
 FeeBumpPeriod = '3s'
+BlockHistoryPollPeriod = '5s'
+ComputeUnitLimitDefault = 200000
 Nodes = []
+
+[MultiNode]
+Enabled = false
+PollFailureThreshold = 5
+PollInterval = '10s'
+SelectionMode = 'PriorityLevel'
+SyncThreshold = 5
+NodeIsSyncingEnabled = false
+LeaseDuration = '1m0s'
+FinalizedBlockPollInterval = '5s'
+EnforceRepeatableRead = true
+DeathDeclarationDelay = '10s'
+NodeNoNewHeadsThreshold = '10s'
+NoNewFinalizedHeadsThreshold = '10s'
+FinalityDepth = 0
+FinalityTagEnabled = true
+FinalizedBlockOffset = 0
 `,
 				}
 			},
@@ -80,7 +98,7 @@ Nodes = []
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			controller := setupSolanaChainsControllerTestV2(t, &solana.TOMLConfig{
+			controller := setupSolanaChainsControllerTestV2(t, &config.TOMLConfig{
 				ChainID: ptr(validId),
 				Chain: config.Chain{
 					SkipPreflight: ptr(false),
@@ -111,13 +129,13 @@ Nodes = []
 func Test_SolanaChainsController_Index(t *testing.T) {
 	t.Parallel()
 
-	chainA := &solana.TOMLConfig{
+	chainA := &config.TOMLConfig{
 		ChainID: ptr(fmt.Sprintf("PlugintestA-%d", rand.Int31n(999999))),
 		Chain: config.Chain{
 			TxTimeout: commoncfg.MustNewDuration(time.Hour),
 		},
 	}
-	chainB := &solana.TOMLConfig{
+	chainB := &config.TOMLConfig{
 		ChainID: ptr(fmt.Sprintf("PlugintestB-%d", rand.Int31n(999999))),
 		Chain: config.Chain{
 			SkipPreflight: ptr(false),
@@ -175,7 +193,7 @@ type TestSolanaChainsController struct {
 	client cltest.HTTPClientCleaner
 }
 
-func setupSolanaChainsControllerTestV2(t *testing.T, cfgs ...*solana.TOMLConfig) *TestSolanaChainsController {
+func setupSolanaChainsControllerTestV2(t *testing.T, cfgs ...*config.TOMLConfig) *TestSolanaChainsController {
 	for i := range cfgs {
 		cfgs[i].SetDefaults()
 	}

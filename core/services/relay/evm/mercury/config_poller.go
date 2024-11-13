@@ -11,10 +11,10 @@ import (
 	"github.com/pkg/errors"
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
+	"github.com/goplugin/plugin-common/pkg/logger"
+
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/llo-feeds/generated/verifier"
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/utils"
 )
 
@@ -54,7 +54,7 @@ func unpackLogData(d []byte) (*verifier.VerifierConfigSet, error) {
 	return unpacked, nil
 }
 
-func configFromLog(logData []byte) (FullConfigFromLog, error) {
+func ConfigFromLog(logData []byte) (FullConfigFromLog, error) {
 	unpacked, err := unpackLogData(logData)
 	if err != nil {
 		return FullConfigFromLog{}, err
@@ -98,8 +98,8 @@ func FilterName(addr common.Address, feedID common.Hash) string {
 }
 
 // NewConfigPoller creates a new Mercury ConfigPoller
-func NewConfigPoller(lggr logger.Logger, destChainPoller logpoller.LogPoller, addr common.Address, feedId common.Hash) (*ConfigPoller, error) {
-	err := destChainPoller.RegisterFilter(logpoller.Filter{Name: FilterName(addr, feedId), EventSigs: []common.Hash{FeedScopedConfigSet}, Addresses: []common.Address{addr}})
+func NewConfigPoller(ctx context.Context, lggr logger.Logger, destChainPoller logpoller.LogPoller, addr common.Address, feedId common.Hash) (*ConfigPoller, error) {
+	err := destChainPoller.RegisterFilter(ctx, logpoller.Filter{Name: FilterName(addr, feedId), EventSigs: []common.Hash{FeedScopedConfigSet}, Addresses: []common.Address{addr}})
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (cp *ConfigPoller) Replay(ctx context.Context, fromBlock int64) error {
 // LatestConfigDetails returns the latest config details from the logs
 func (cp *ConfigPoller) LatestConfigDetails(ctx context.Context) (changedInBlock uint64, configDigest ocrtypes.ConfigDigest, err error) {
 	cp.lggr.Debugw("LatestConfigDetails", "eventSig", FeedScopedConfigSet, "addr", cp.addr, "topicIndex", feedIdTopicIndex, "feedID", cp.feedId)
-	logs, err := cp.destChainLogPoller.IndexedLogs(FeedScopedConfigSet, cp.addr, feedIdTopicIndex, []common.Hash{cp.feedId}, 1, pg.WithParentCtx(ctx))
+	logs, err := cp.destChainLogPoller.IndexedLogs(ctx, FeedScopedConfigSet, cp.addr, feedIdTopicIndex, []common.Hash{cp.feedId}, 1)
 	if err != nil {
 		return 0, ocrtypes.ConfigDigest{}, err
 	}
@@ -140,7 +140,7 @@ func (cp *ConfigPoller) LatestConfigDetails(ctx context.Context) (changedInBlock
 		return 0, ocrtypes.ConfigDigest{}, nil
 	}
 	latest := logs[len(logs)-1]
-	latestConfigSet, err := configFromLog(latest.Data)
+	latestConfigSet, err := ConfigFromLog(latest.Data)
 	if err != nil {
 		return 0, ocrtypes.ConfigDigest{}, err
 	}
@@ -149,14 +149,14 @@ func (cp *ConfigPoller) LatestConfigDetails(ctx context.Context) (changedInBlock
 
 // LatestConfig returns the latest config from the logs on a certain block
 func (cp *ConfigPoller) LatestConfig(ctx context.Context, changedInBlock uint64) (ocrtypes.ContractConfig, error) {
-	lgs, err := cp.destChainLogPoller.IndexedLogsByBlockRange(int64(changedInBlock), int64(changedInBlock), FeedScopedConfigSet, cp.addr, feedIdTopicIndex, []common.Hash{cp.feedId}, pg.WithParentCtx(ctx))
+	lgs, err := cp.destChainLogPoller.IndexedLogsByBlockRange(ctx, int64(changedInBlock), int64(changedInBlock), FeedScopedConfigSet, cp.addr, feedIdTopicIndex, []common.Hash{cp.feedId})
 	if err != nil {
 		return ocrtypes.ContractConfig{}, err
 	}
 	if len(lgs) == 0 {
 		return ocrtypes.ContractConfig{}, nil
 	}
-	latestConfigSet, err := configFromLog(lgs[len(lgs)-1].Data)
+	latestConfigSet, err := ConfigFromLog(lgs[len(lgs)-1].Data)
 	if err != nil {
 		return ocrtypes.ContractConfig{}, err
 	}
@@ -166,7 +166,7 @@ func (cp *ConfigPoller) LatestConfig(ctx context.Context, changedInBlock uint64)
 
 // LatestBlockHeight returns the latest block height from the logs
 func (cp *ConfigPoller) LatestBlockHeight(ctx context.Context) (blockHeight uint64, err error) {
-	latest, err := cp.destChainLogPoller.LatestBlock(pg.WithParentCtx(ctx))
+	latest, err := cp.destChainLogPoller.LatestBlock(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil

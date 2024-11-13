@@ -9,7 +9,6 @@ import (
 	"github.com/goplugin/plugin-common/pkg/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
-	"github.com/goplugin/pluginv3.0/v2/core/services/relay"
 )
 
 type chainBatcher struct {
@@ -20,7 +19,7 @@ func (b *chainBatcher) loadByIDs(ctx context.Context, keys dataloader.Keys) []*d
 	// Create a map for remembering the order of keys passed in
 	keyOrder := make(map[string]int, len(keys))
 	// Collect the keys to search for
-	var chainIDs []relay.ChainID
+	var chainIDs []string
 	for ix, key := range keys {
 		chainIDs = append(chainIDs, key.String())
 		keyOrder[key.String()] = ix

@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	grpc_connectivity "google.golang.org/grpc/connectivity"
 
 	"github.com/goplugin/wsrpc"
 	"github.com/goplugin/wsrpc/connectivity"
@@ -70,8 +71,8 @@ type Client interface {
 
 type Conn interface {
 	WaitForReady(ctx context.Context) bool
-	GetState() connectivity.State
-	Close()
+	GetState() grpc_connectivity.State
+	Close() error
 }
 
 type client struct {
@@ -110,7 +111,7 @@ func newClient(lggr logger.Logger, clientPrivKey csakey.KeyV2, serverPubKey []by
 		csaKey:                     clientPrivKey,
 		serverPubKey:               serverPubKey,
 		serverURL:                  serverURL,
-		logger:                     lggr.Named("WSRPC").With("mercuryServerURL", serverURL),
+		logger:                     lggr.Named("WSRPC").Named(serverURL).With("serverURL", serverURL),
 		chResetTransport:           make(chan struct{}, 1),
 		cacheSet:                   cacheSet,
 		chStop:                     make(services.StopChan),
@@ -217,7 +218,7 @@ func (w *client) Close() error {
 }
 
 func (w *client) Name() string {
-	return "EVM.Mercury.WSRPCClient"
+	return w.logger.Name()
 }
 
 func (w *client) HealthReport() map[string]error {
@@ -230,7 +231,7 @@ func (w *client) Healthy() (err error) {
 		return err
 	}
 	state := w.conn.GetState()
-	if state != connectivity.Ready {
+	if state != grpc_connectivity.Ready {
 		return errors.Errorf("client state should be %s; got %s", connectivity.Ready, state)
 	}
 	return nil

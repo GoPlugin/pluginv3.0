@@ -2,25 +2,28 @@ package types
 
 import (
 	"context"
+	"math/big"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 
-	commontypes "github.com/goplugin/pluginv3.0/v2/common/types"
+	"github.com/goplugin/pluginv3.0/v2/common/headtracker"
+	htrktypes "github.com/goplugin/pluginv3.0/v2/common/headtracker/types"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 )
 
 // HeadSaver maintains chains persisted in DB. All methods are thread-safe.
 type HeadSaver interface {
-	commontypes.HeadSaver[*evmtypes.Head, common.Hash]
+	headtracker.HeadSaver[*evmtypes.Head, common.Hash]
 	// LatestHeadFromDB returns the highest seen head from DB.
 	LatestHeadFromDB(ctx context.Context) (*evmtypes.Head, error)
 }
 
 // Type Alias for EVM Head Tracker Components
 type (
-	HeadBroadcasterRegistry = commontypes.HeadBroadcasterRegistry[*evmtypes.Head, common.Hash]
-	HeadTracker             = commontypes.HeadTracker[*evmtypes.Head, common.Hash]
-	HeadTrackable           = commontypes.HeadTrackable[*evmtypes.Head, common.Hash]
-	HeadListener            = commontypes.HeadListener[*evmtypes.Head, common.Hash]
-	HeadBroadcaster         = commontypes.HeadBroadcaster[*evmtypes.Head, common.Hash]
+	HeadTracker     = headtracker.HeadTracker[*evmtypes.Head, common.Hash]
+	HeadTrackable   = headtracker.HeadTrackable[*evmtypes.Head, common.Hash]
+	HeadListener    = headtracker.HeadListener[*evmtypes.Head, common.Hash]
+	HeadBroadcaster = headtracker.HeadBroadcaster[*evmtypes.Head, common.Hash]
+	Client          = htrktypes.Client[*evmtypes.Head, ethereum.Subscription, *big.Int, common.Hash]
 )

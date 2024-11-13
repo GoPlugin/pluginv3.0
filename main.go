@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/goplugin/pluginv3.0/v2/core"
+	"github.com/goplugin/pluginv3.0/core"
 )
 
 //go:generate make modgraph

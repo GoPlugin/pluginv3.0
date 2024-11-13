@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"sync"
 
-	commontypes "github.com/goplugin/plugin-common/pkg/types/llo"
+	"github.com/goplugin/plugin-common/pkg/types/llo"
 
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"
 )
 
 // alias for easier refactoring
-type StreamID = commontypes.StreamID
+type StreamID = llo.StreamID
 
 type Registry interface {
 	Getter

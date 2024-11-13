@@ -11,6 +11,7 @@ import (
 
 	"github.com/goplugin/plugin-common/pkg/assets"
 	"github.com/goplugin/plugin-common/pkg/logger"
+
 	commonclient "github.com/goplugin/pluginv3.0/v2/common/client"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 )
@@ -225,4 +226,16 @@ func (nc *NullClient) NodeStates() map[string]string { return nil }
 func (nc *NullClient) IsL2() bool {
 	nc.lggr.Debug("IsL2")
 	return false
+}
+
+func (nc *NullClient) LatestFinalizedBlock(_ context.Context) (*evmtypes.Head, error) {
+	return nil, nil
+}
+
+func (nc *NullClient) CheckTxValidity(_ context.Context, _ common.Address, _ common.Address, _ []byte) *SendError {
+	return nil
+}
+
+func (nc *NullClient) FeeHistory(ctx context.Context, blockCount uint64, rewardPercentiles []float64) (feeHistory *ethereum.FeeHistory, err error) {
+	return nil, nil
 }

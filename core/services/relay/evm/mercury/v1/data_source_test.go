@@ -18,14 +18,13 @@ import (
 	mercurytypes "github.com/goplugin/plugin-common/pkg/types/mercury"
 	v1 "github.com/goplugin/plugin-common/pkg/types/mercury/v1"
 
-	commonmocks "github.com/goplugin/pluginv3.0/v2/common/mocks"
+	htmocks "github.com/goplugin/pluginv3.0/v2/common/headtracker/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm"
 	mercurymocks "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/mocks"
@@ -65,7 +64,7 @@ type mockORM struct {
 	err    error
 }
 
-func (m *mockORM) LatestReport(ctx context.Context, feedID [32]byte, qopts ...pg.QOpt) (report []byte, err error) {
+func (m *mockORM) LatestReport(ctx context.Context, feedID [32]byte) (report []byte, err error) {
 	return m.report, m.err
 }
 
@@ -117,7 +116,7 @@ func TestMercury_Observe(t *testing.T) {
 	spec := pipeline.Spec{}
 	ds.spec = spec
 
-	h := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+	h := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 	ds.mercuryChainReader = evm.NewMercuryChainReader(h)
 
 	head := &evmtypes.Head{
@@ -208,7 +207,7 @@ func TestMercury_Observe(t *testing.T) {
 					assert.Equal(t, head.Number-1, obs.MaxFinalizedBlockNumber.Val)
 				})
 				t.Run("if no current block available", func(t *testing.T) {
-					h2 := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+					h2 := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 					h2.On("LatestChain").Return((*evmtypes.Head)(nil))
 					ds.mercuryChainReader = evm.NewMercuryChainReader(h2)
 
@@ -319,7 +318,7 @@ func TestMercury_Observe(t *testing.T) {
 
 	t.Run("LatestBlocks is populated correctly", func(t *testing.T) {
 		t.Run("when chain length is zero", func(t *testing.T) {
-			ht2 := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+			ht2 := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 			ht2.On("LatestChain").Return((*evmtypes.Head)(nil))
 			ds.mercuryChainReader = evm.NewMercuryChainReader(ht2)
 
@@ -333,18 +332,17 @@ func TestMercury_Observe(t *testing.T) {
 		t.Run("when chain is too short", func(t *testing.T) {
 			h4 := &evmtypes.Head{
 				Number: 4,
-				Parent: nil,
 			}
 			h5 := &evmtypes.Head{
 				Number: 5,
-				Parent: h4,
 			}
+			h5.Parent.Store(h4)
 			h6 := &evmtypes.Head{
 				Number: 6,
-				Parent: h5,
 			}
+			h6.Parent.Store(h5)
 
-			ht2 := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+			ht2 := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 			ht2.On("LatestChain").Return(h6)
 			ds.mercuryChainReader = evm.NewMercuryChainReader(ht2)
 
@@ -363,11 +361,11 @@ func TestMercury_Observe(t *testing.T) {
 			for i := range heads {
 				heads[i] = &evmtypes.Head{Number: int64(i)}
 				if i > 0 {
-					heads[i].Parent = heads[i-1]
+					heads[i].Parent.Store(heads[i-1])
 				}
 			}
 
-			ht2 := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+			ht2 := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 			ht2.On("LatestChain").Return(heads[len(heads)-1])
 			ds.mercuryChainReader = evm.NewMercuryChainReader(ht2)
 
@@ -412,7 +410,7 @@ func TestMercury_SetLatestBlocks(t *testing.T) {
 	}
 
 	t.Run("returns head from headtracker if present", func(t *testing.T) {
-		headTracker := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+		headTracker := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 		headTracker.On("LatestChain").Return(&h, nil)
 		ds.mercuryChainReader = evm.NewMercuryChainReader(headTracker)
 
@@ -429,7 +427,7 @@ func TestMercury_SetLatestBlocks(t *testing.T) {
 	})
 
 	t.Run("if headtracker returns nil head", func(t *testing.T) {
-		headTracker := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+		headTracker := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 		// This can happen in some cases e.g. RPC node is offline
 		headTracker.On("LatestChain").Return((*evmtypes.Head)(nil))
 		ds.mercuryChainReader = evm.NewChainReader(headTracker)

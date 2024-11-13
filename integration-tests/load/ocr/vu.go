@@ -2,21 +2,22 @@ package ocr
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
-
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-
-	"github.com/goplugin/wasp"
 	"go.uber.org/ratelimit"
 
-	client2 "github.com/goplugin/plugin-testing-framework/client"
+	client2 "github.com/goplugin/plugin-testing-framework/lib/client"
+	"github.com/goplugin/plugin-testing-framework/seth"
+	"github.com/goplugin/plugin-testing-framework/wasp"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/actions"
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
+	"github.com/goplugin/pluginv3.0/integration-tests/testconfig/ocr"
 )
 
 // VU is a virtual user for the OCR load test
@@ -27,23 +28,23 @@ type VU struct {
 	rate          int
 	rateUnit      time.Duration
 	roundNum      atomic.Int64
-	cc            blockchain.EVMClient
-	lt            contracts.LinkToken
-	cd            contracts.ContractDeployer
+	seth          *seth.Client
+	lta           common.Address
 	bootstrapNode *client.PluginK8sClient
 	workerNodes   []*client.PluginK8sClient
 	msClient      *client2.MockserverClient
 	l             zerolog.Logger
 	ocrInstances  []contracts.OffchainAggregator
+	config        ocr.OffChainAggregatorsConfig
 }
 
 func NewVU(
 	l zerolog.Logger,
+	seth *seth.Client,
+	config ocr.OffChainAggregatorsConfig,
 	rate int,
 	rateUnit time.Duration,
-	cc blockchain.EVMClient,
-	lt contracts.LinkToken,
-	cd contracts.ContractDeployer,
+	lta common.Address,
 	bootstrapNode *client.PluginK8sClient,
 	workerNodes []*client.PluginK8sClient,
 	msClient *client2.MockserverClient,
@@ -54,12 +55,12 @@ func NewVU(
 		rate:          rate,
 		rateUnit:      rateUnit,
 		l:             l,
-		cc:            cc,
-		lt:            lt,
-		cd:            cd,
+		seth:          seth,
+		lta:           lta,
 		msClient:      msClient,
 		bootstrapNode: bootstrapNode,
 		workerNodes:   workerNodes,
+		config:        config,
 	}
 }
 
@@ -70,21 +71,21 @@ func (m *VU) Clone(_ *wasp.Generator) wasp.VirtualUser {
 		rate:          m.rate,
 		rateUnit:      m.rateUnit,
 		l:             m.l,
-		cc:            m.cc,
-		lt:            m.lt,
-		cd:            m.cd,
+		seth:          m.seth,
+		lta:           m.lta,
 		msClient:      m.msClient,
 		bootstrapNode: m.bootstrapNode,
 		workerNodes:   m.workerNodes,
+		config:        m.config,
 	}
 }
 
 func (m *VU) Setup(_ *wasp.Generator) error {
-	ocrInstances, err := actions.DeployOCRContracts(1, m.lt, m.cd, m.workerNodes, m.cc)
+	ocrInstances, err := actions.SetupOCRv1Contracts(m.l, m.seth, m.config, m.lta, contracts.PluginK8sClientToPluginNodeWithKeysAndAddress(m.workerNodes))
 	if err != nil {
 		return err
 	}
-	err = actions.CreateOCRJobs(ocrInstances, m.bootstrapNode, m.workerNodes, 5, m.msClient, m.cc.GetChainID().String())
+	err = actions.CreateOCRJobs(ocrInstances, m.bootstrapNode, m.workerNodes, 5, m.msClient, fmt.Sprint(m.seth.ChainID))
 	if err != nil {
 		return err
 	}

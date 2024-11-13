@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rs/zerolog"
 
-	"github.com/goplugin/wasp"
+	"github.com/goplugin/plugin-testing-framework/wasp"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
 )

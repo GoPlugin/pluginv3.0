@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/goplugin/plugin-common/pkg/utils"
 
 	"github.com/goplugin/pluginv3.0/v2/common/client"
+	commonfee "github.com/goplugin/pluginv3.0/v2/common/fee"
 	feetypes "github.com/goplugin/pluginv3.0/v2/common/fee/types"
 	txmgrtypes "github.com/goplugin/pluginv3.0/v2/common/txmgr/types"
 	"github.com/goplugin/pluginv3.0/v2/common/types"
@@ -35,6 +35,13 @@ const (
 	// TransmitCheckTimeout controls the maximum amount of time that will be
 	// spent on the transmit check.
 	TransmitCheckTimeout = 2 * time.Second
+
+	// maxBroadcastRetries is the number of times a transaction broadcast is retried when the sequence fails to increment on Hedera
+	maxHederaBroadcastRetries = 3
+
+	// hederaChainType is the string representation of the Hedera chain type
+	// Temporary solution until the Broadcaster is moved to the EVM code base
+	hederaChainType = "hedera"
 )
 
 var (
@@ -112,13 +119,14 @@ type Broadcaster[
 	txStore txmgrtypes.TransactionStore[ADDR, CHAIN_ID, TX_HASH, BLOCK_HASH, SEQ, FEE]
 	client  txmgrtypes.TransactionClient[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]
 	txmgrtypes.TxAttemptBuilder[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]
-	sequenceSyncer SequenceSyncer[ADDR, TX_HASH, BLOCK_HASH, SEQ]
-	resumeCallback ResumeCallback
-	chainID        CHAIN_ID
-	config         txmgrtypes.BroadcasterChainConfig
-	feeConfig      txmgrtypes.BroadcasterFeeConfig
-	txConfig       txmgrtypes.BroadcasterTransactionsConfig
-	listenerConfig txmgrtypes.BroadcasterListenerConfig
+	sequenceTracker txmgrtypes.SequenceTracker[ADDR, SEQ]
+	resumeCallback  ResumeCallback
+	chainID         CHAIN_ID
+	chainType       string
+	config          txmgrtypes.BroadcasterChainConfig
+	feeConfig       txmgrtypes.BroadcasterFeeConfig
+	txConfig        txmgrtypes.BroadcasterTransactionsConfig
+	listenerConfig  txmgrtypes.BroadcasterListenerConfig
 
 	// autoSyncSequence, if set, will cause Broadcaster to fast-forward the sequence
 	// when Start is called
@@ -141,10 +149,6 @@ type Broadcaster[
 
 	initSync  sync.Mutex
 	isStarted bool
-
-	sequenceLock         sync.RWMutex
-	nextSequenceMap      map[ADDR]SEQ
-	generateNextSequence types.GenerateNextSequenceFunc[SEQ]
 }
 
 func NewBroadcaster[
@@ -164,11 +168,11 @@ func NewBroadcaster[
 	listenerConfig txmgrtypes.BroadcasterListenerConfig,
 	keystore txmgrtypes.KeyStore[ADDR, CHAIN_ID, SEQ],
 	txAttemptBuilder txmgrtypes.TxAttemptBuilder[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE],
-	sequenceSyncer SequenceSyncer[ADDR, TX_HASH, BLOCK_HASH, SEQ],
+	sequenceTracker txmgrtypes.SequenceTracker[ADDR, SEQ],
 	lggr logger.Logger,
 	checkerFactory TransmitCheckerFactory[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE],
 	autoSyncSequence bool,
-	generateNextSequence types.GenerateNextSequenceFunc[SEQ],
+	chainType string,
 ) *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE] {
 	lggr = logger.Named(lggr, "Broadcaster")
 	b := &Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]{
@@ -176,8 +180,8 @@ func NewBroadcaster[
 		txStore:          txStore,
 		client:           client,
 		TxAttemptBuilder: txAttemptBuilder,
-		sequenceSyncer:   sequenceSyncer,
 		chainID:          client.ConfiguredChainID(),
+		chainType:        chainType,
 		config:           config,
 		feeConfig:        feeConfig,
 		txConfig:         txConfig,
@@ -185,10 +189,10 @@ func NewBroadcaster[
 		ks:               keystore,
 		checkerFactory:   checkerFactory,
 		autoSyncSequence: autoSyncSequence,
+		sequenceTracker:  sequenceTracker,
 	}
 
 	b.processUnstartedTxsImpl = b.processUnstartedTxs
-	b.generateNextSequence = generateNextSequence
 	return b
 }
 
@@ -208,7 +212,7 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) star
 		return errors.New("Broadcaster is already started")
 	}
 	var err error
-	eb.enabledAddresses, err = eb.ks.EnabledAddressesForChain(eb.chainID)
+	eb.enabledAddresses, err = eb.ks.EnabledAddressesForChain(ctx, eb.chainID)
 	if err != nil {
 		return fmt.Errorf("Broadcaster: failed to load EnabledAddressesForChain: %w", err)
 	}
@@ -222,9 +226,7 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) star
 	eb.wg = sync.WaitGroup{}
 	eb.wg.Add(len(eb.enabledAddresses))
 	eb.triggers = make(map[ADDR]chan struct{})
-	eb.sequenceLock.Lock()
-	eb.nextSequenceMap = eb.loadNextSequenceMap(ctx, eb.enabledAddresses)
-	eb.sequenceLock.Unlock()
+	eb.sequenceTracker.LoadNextSequences(ctx, eb.enabledAddresses)
 	for _, addr := range eb.enabledAddresses {
 		triggerCh := make(chan struct{}, 1)
 		eb.triggers[addr] = triggerCh
@@ -284,46 +286,6 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) Trig
 	}
 }
 
-// Load the next sequence map using the tx table or on-chain (if not found in tx table)
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) loadNextSequenceMap(ctx context.Context, addresses []ADDR) map[ADDR]SEQ {
-	nextSequenceMap := make(map[ADDR]SEQ)
-	for _, address := range addresses {
-		seq, err := eb.getSequenceForAddr(ctx, address)
-		if err == nil {
-			nextSequenceMap[address] = seq
-		}
-	}
-
-	return nextSequenceMap
-}
-
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) getSequenceForAddr(ctx context.Context, address ADDR) (seq SEQ, err error) {
-	// Get the highest sequence from the tx table
-	// Will need to be incremented since this sequence is already used
-	seq, err = eb.txStore.FindLatestSequence(ctx, address, eb.chainID)
-	if err == nil {
-		seq = eb.generateNextSequence(seq)
-		return seq, nil
-	}
-	// Look for nonce on-chain if no tx found for address in TxStore or if error occurred
-	// Returns the nonce that should be used for the next transaction so no need to increment
-	seq, err = eb.client.PendingSequenceAt(ctx, address)
-	if err == nil {
-		return seq, nil
-	}
-	eb.lggr.Criticalw("failed to retrieve next sequence from on-chain for address: ", "address", address.String())
-	return seq, err
-
-}
-
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) newSequenceSyncBackoff() backoff.Backoff {
-	return backoff.Backoff{
-		Min:    100 * time.Millisecond,
-		Max:    5 * time.Second,
-		Jitter: true,
-	}
-}
-
 func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) newResendBackoff() backoff.Backoff {
 	return backoff.Backoff{
 		Min:    1 * time.Second,
@@ -340,7 +302,7 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) moni
 
 	if eb.autoSyncSequence {
 		eb.lggr.Debugw("Auto-syncing sequence", "address", addr.String())
-		eb.SyncSequence(ctx, addr)
+		eb.sequenceTracker.SyncSequence(ctx, addr, eb.chStop)
 		if ctx.Err() != nil {
 			return
 		}
@@ -389,46 +351,6 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) moni
 		case <-errorRetryCh:
 			// Error backoff period reached
 			continue
-		}
-	}
-}
-
-// syncSequence tries to sync the key sequence, retrying indefinitely until success or stop signal is sent
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) SyncSequence(ctx context.Context, addr ADDR) {
-	sequenceSyncRetryBackoff := eb.newSequenceSyncBackoff()
-	localSequence, err := eb.GetNextSequence(ctx, addr)
-	// Address not found in map so skip sync
-	if err != nil {
-		eb.lggr.Criticalw("Failed to retrieve local next sequence for address", "address", addr.String(), "err", err)
-		return
-	}
-
-	// Enter loop with retries
-	var attempt int
-	for {
-		select {
-		case <-eb.chStop:
-			return
-		case <-time.After(sequenceSyncRetryBackoff.Duration()):
-			attempt++
-			newNextSequence, err := eb.sequenceSyncer.Sync(ctx, addr, localSequence)
-			if err != nil {
-				if attempt > 5 {
-					eb.lggr.Criticalw("Failed to sync with on-chain sequence", "address", addr.String(), "attempt", attempt, "err", err)
-					eb.SvcErrBuffer.Append(err)
-				} else {
-					eb.lggr.Warnw("Failed to sync with on-chain sequence", "address", addr.String(), "attempt", attempt, "err", err)
-				}
-				continue
-			}
-			// Found new sequence to use from on-chain
-			if localSequence.String() != newNextSequence.String() {
-				eb.lggr.Infow("Fast-forward sequence", "address", addr, "newNextSequence", newNextSequence, "oldNextSequence", localSequence)
-				// Set new sequence in the map
-				eb.SetNextSequence(addr, newNextSequence)
-			}
-			return
-
 		}
 	}
 }
@@ -500,7 +422,7 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 		return fmt.Errorf("handleAnyInProgressTx failed: %w", err), true
 	}
 	if etx != nil {
-		if err, retryable := eb.handleInProgressTx(ctx, *etx, etx.TxAttempts[0], etx.CreatedAt); err != nil {
+		if err, retryable := eb.handleInProgressTx(ctx, *etx, etx.TxAttempts[0], etx.CreatedAt, 0); err != nil {
 			return fmt.Errorf("handleAnyInProgressTx failed: %w", err), retryable
 		}
 	}
@@ -513,7 +435,11 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 	}
 
 	attempt, _, _, retryable, err := eb.NewTxAttempt(ctx, *etx, eb.lggr)
-	if err != nil {
+	// Mark transaction as fatal if provided gas limit is set too low
+	if errors.Is(err, commonfee.ErrFeeLimitTooLow) {
+		etx.Error = null.StringFrom(commonfee.ErrFeeLimitTooLow.Error())
+		return eb.saveFatallyErroredTransaction(eb.lggr, etx), false
+	} else if err != nil {
 		return fmt.Errorf("processUnstartedTxs failed on NewAttempt: %w", err), retryable
 	}
 
@@ -553,30 +479,35 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 		return fmt.Errorf("processUnstartedTxs failed on UpdateTxUnstartedToInProgress: %w", err), true
 	}
 
-	return eb.handleInProgressTx(ctx, *etx, attempt, time.Now())
+	return eb.handleInProgressTx(ctx, *etx, attempt, time.Now(), 0)
 }
 
 // There can be at most one in_progress transaction per address.
 // Here we complete the job that we didn't finish last time.
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) handleInProgressTx(ctx context.Context, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], initialBroadcastAt time.Time) (error, bool) {
+func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) handleInProgressTx(ctx context.Context, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], initialBroadcastAt time.Time, retryCount int) (error, bool) {
 	if etx.State != TxInProgress {
 		return fmt.Errorf("invariant violation: expected transaction %v to be in_progress, it was %s", etx.ID, etx.State), false
 	}
 
 	lgr := etx.GetLogger(logger.With(eb.lggr, "fee", attempt.TxFee))
-	lgr.Infow("Sending transaction", "txAttemptID", attempt.ID, "txHash", attempt.Hash, "meta", etx.Meta, "feeLimit", etx.FeeLimit, "attempt", attempt, "etx", etx)
+	lgr.Infow("Sending transaction", "txAttemptID", attempt.ID, "txHash", attempt.Hash, "meta", etx.Meta, "feeLimit", attempt.ChainSpecificFeeLimit, "callerProvidedFeeLimit", etx.FeeLimit, "attempt", attempt, "etx", etx)
 	errType, err := eb.client.SendTransactionReturnCode(ctx, etx, attempt, lgr)
 
-	if errType != client.Fatal {
-		etx.InitialBroadcastAt = &initialBroadcastAt
-		etx.BroadcastAt = &initialBroadcastAt
+	// The validation below is only applicable to Hedera because it has instant finality and a unique sequence behavior
+	if eb.chainType == hederaChainType {
+		errType, err = eb.validateOnChainSequence(ctx, lgr, errType, err, etx, retryCount)
 	}
 
-	switch errType {
-	case client.Fatal:
+	if errType == client.Fatal || errType == client.TerminallyStuck {
 		eb.SvcErrBuffer.Append(err)
 		etx.Error = null.StringFrom(err.Error())
 		return eb.saveFatallyErroredTransaction(lgr, &etx), true
+	}
+
+	etx.InitialBroadcastAt = &initialBroadcastAt
+	etx.BroadcastAt = &initialBroadcastAt
+
+	switch errType {
 	case client.TransactionAlreadyKnown:
 		fallthrough
 	case client.Successful:
@@ -619,35 +550,41 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 		// and hand off to the confirmer to get the receipt (or mark as
 		// failed).
 		observeTimeUntilBroadcast(eb.chainID, etx.CreatedAt, time.Now())
-		// Check if from_address exists in map to ensure it is valid before broadcasting
-		var sequence SEQ
-		sequence, err = eb.GetNextSequence(ctx, etx.FromAddress)
-		if err != nil {
-			return err, true
-		}
 		err = eb.txStore.UpdateTxAttemptInProgressToBroadcast(ctx, &etx, attempt, txmgrtypes.TxAttemptBroadcast)
 		if err != nil {
 			return err, true
 		}
 		// Increment sequence if successfully broadcasted
-		eb.IncrementNextSequence(etx.FromAddress, sequence)
+		eb.sequenceTracker.GenerateNextSequence(etx.FromAddress, *etx.Sequence)
 		return err, true
 	case client.Underpriced:
-		return eb.tryAgainBumpingGas(ctx, lgr, err, etx, attempt, initialBroadcastAt)
+		bumpedAttempt, retryable, replaceErr := eb.replaceAttemptWithBumpedGas(ctx, lgr, err, etx, attempt)
+		if replaceErr != nil {
+			return replaceErr, retryable
+		}
+
+		return eb.handleInProgressTx(ctx, etx, bumpedAttempt, initialBroadcastAt, retryCount+1)
 	case client.InsufficientFunds:
-		// NOTE: This bails out of the entire cycle and essentially "blocks" on
-		// any transaction that gets insufficient_funds. This is OK if a
-		// transaction with a large VALUE blocks because this always comes last
-		// in the processing list.
-		// If it blocks because of a transaction that is expensive due to large
-		// gas limit, we could have smaller transactions "above" it that could
-		// theoretically be sent, but will instead be blocked.
+		// NOTE: This can occur due to either insufficient funds or a gas spike
+		// combined with a high gas limit. Regardless of the cause, we need to obtain a new estimate,
+		// replace the current attempt, and retry after the backoff duration.
+		// The new attempt must be replaced immediately because of a database constraint.
 		eb.SvcErrBuffer.Append(err)
-		fallthrough
+		if _, _, replaceErr := eb.replaceAttemptWithNewEstimation(ctx, lgr, etx, attempt); replaceErr != nil {
+			return replaceErr, true
+		}
+		return err, true
 	case client.Retryable:
 		return err, true
 	case client.FeeOutOfValidRange:
-		return eb.tryAgainWithNewEstimation(ctx, lgr, err, etx, attempt, initialBroadcastAt)
+		replacementAttempt, retryable, replaceErr := eb.replaceAttemptWithNewEstimation(ctx, lgr, etx, attempt)
+		if replaceErr != nil {
+			return replaceErr, retryable
+		}
+
+		lgr.Warnw("L2 rejected transaction due to incorrect fee, re-estimated and will try again",
+			"etxID", etx.ID, "err", err, "newGasPrice", replacementAttempt.TxFee, "newGasLimit", replacementAttempt.ChainSpecificFeeLimit)
+		return eb.handleInProgressTx(ctx, etx, *replacementAttempt, initialBroadcastAt, 0)
 	case client.Unsupported:
 		return err, false
 	case client.ExceedsMaxFee:
@@ -677,18 +614,12 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 			// transaction to have been accepted. In this case, the right thing to
 			// do is assume success and hand off to Confirmer
 
-			// Check if from_address exists in map to ensure it is valid before broadcasting
-			var sequence SEQ
-			sequence, err = eb.GetNextSequence(ctx, etx.FromAddress)
-			if err != nil {
-				return err, true
-			}
 			err = eb.txStore.UpdateTxAttemptInProgressToBroadcast(ctx, &etx, attempt, txmgrtypes.TxAttemptBroadcast)
 			if err != nil {
 				return err, true
 			}
 			// Increment sequence if successfully broadcasted
-			eb.IncrementNextSequence(etx.FromAddress, sequence)
+			eb.sequenceTracker.GenerateNextSequence(etx.FromAddress, *etx.Sequence)
 			return err, true
 		}
 		// Either the unknown error prevented the transaction from being mined, or
@@ -699,7 +630,44 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 		// trying to send the transaction over again.
 		return fmt.Errorf("retryable error while sending transaction %s (tx ID %d): %w", attempt.Hash.String(), etx.ID, err), true
 	}
+}
 
+func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) validateOnChainSequence(ctx context.Context, lgr logger.SugaredLogger, errType client.SendTxReturnCode, err error, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], retryCount int) (client.SendTxReturnCode, error) {
+	// Only check if sequence was incremented if broadcast was successful, otherwise return the existing err type
+	if errType != client.Successful {
+		return errType, err
+	}
+	// Transaction sequence cannot be nil here since a sequence is required to broadcast
+	txSeq := *etx.Sequence
+	// Retrieve the latest mined sequence from on-chain
+	nextSeqOnChain, err := eb.client.SequenceAt(ctx, etx.FromAddress, nil)
+	if err != nil {
+		return errType, err
+	}
+
+	// Check that the transaction count has incremented on-chain to include the broadcasted transaction
+	// Insufficient transaction fee is a common scenario in which the sequence is not incremented by the chain even though we got a successful response
+	// If the sequence failed to increment and hasn't reached the max retries, return the Underpriced error to try again with a bumped attempt
+	if nextSeqOnChain.Int64() == txSeq.Int64() && retryCount < maxHederaBroadcastRetries {
+		return client.Underpriced, nil
+	}
+
+	// If the transaction reaches the retry limit and fails to get included, mark it as fatally errored
+	// Some unknown error other than insufficient tx fee could be the cause
+	if nextSeqOnChain.Int64() == txSeq.Int64() && retryCount >= maxHederaBroadcastRetries {
+		err := fmt.Errorf("failed to broadcast transaction on %s after %d retries", hederaChainType, retryCount)
+		lgr.Error(err.Error())
+		return client.Fatal, err
+	}
+
+	// Belts and braces approach to detect and handle sqeuence gaps if the broadcast is considered successful
+	if nextSeqOnChain.Int64() < txSeq.Int64() {
+		err := fmt.Errorf("next expected sequence on-chain (%s) is less than the broadcasted transaction's sequence (%s)", nextSeqOnChain.String(), txSeq.String())
+		lgr.Criticalw("Sequence gap has been detected and needs to be filled", "error", err)
+		return client.Fatal, err
+	}
+
+	return client.Successful, nil
 }
 
 // Finds next transaction in the queue, assigns a sequence, and moves it to "in_progress" state ready for broadcast.
@@ -707,8 +675,8 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) hand
 func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) nextUnstartedTransactionWithSequence(fromAddress ADDR) (*txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], error) {
 	ctx, cancel := eb.chStop.NewCtx()
 	defer cancel()
-	etx := &txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]{}
-	if err := eb.txStore.FindNextUnstartedTransactionFromAddress(ctx, etx, fromAddress, eb.chainID); err != nil {
+	etx, err := eb.txStore.FindNextUnstartedTransactionFromAddress(ctx, fromAddress, eb.chainID)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Finish. No more transactions left to process. Hoorah!
 			return nil, nil
@@ -716,7 +684,7 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) next
 		return nil, fmt.Errorf("findNextUnstartedTransactionFromAddress failed: %w", err)
 	}
 
-	sequence, err := eb.GetNextSequence(ctx, etx.FromAddress)
+	sequence, err := eb.sequenceTracker.GetNextSequence(ctx, etx.FromAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -724,48 +692,47 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) next
 	return etx, nil
 }
 
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) tryAgainBumpingGas(ctx context.Context, lgr logger.Logger, txError error, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], initialBroadcastAt time.Time) (err error, retryable bool) {
-	logger.With(lgr,
-		"sendError", txError,
-		"attemptFee", attempt.TxFee,
-		"maxGasPriceConfig", eb.feeConfig.MaxFeePrice(),
-	).Errorf("attempt fee %v was rejected by the node for being too low. "+
-		"Node returned: '%s'. "+
-		"Will bump and retry. ACTION REQUIRED: This is a configuration error. "+
-		"Consider increasing FeeEstimator.PriceDefault (current value: %s)",
-		attempt.TxFee, txError.Error(), eb.feeConfig.FeePriceDefault())
-
-	replacementAttempt, bumpedFee, bumpedFeeLimit, retryable, err := eb.NewBumpTxAttempt(ctx, etx, attempt, nil, lgr)
-	if err != nil {
-		return fmt.Errorf("tryAgainBumpFee failed: %w", err), retryable
+// replaceAttemptWithBumpedGas performs the replacement of the existing tx attempt with a new bumped fee attempt.
+func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) replaceAttemptWithBumpedGas(ctx context.Context, lgr logger.Logger, txError error, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) (replacedAttempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], retryable bool, err error) {
+	// This log error is not applicable to Hedera since the action required would not be needed for its gas estimator
+	if eb.chainType != hederaChainType {
+		logger.With(lgr,
+			"sendError", txError,
+			"attemptFee", attempt.TxFee,
+			"maxGasPriceConfig", eb.feeConfig.MaxFeePrice(),
+		).Errorf("attempt fee %v was rejected by the node for being too low. "+
+			"Node returned: '%s'. "+
+			"Will bump and retry. ACTION REQUIRED: This is a configuration error. "+
+			"Consider increasing FeeEstimator.PriceDefault (current value: %s)",
+			attempt.TxFee, txError.Error(), eb.feeConfig.FeePriceDefault())
 	}
 
-	return eb.saveTryAgainAttempt(ctx, lgr, etx, attempt, replacementAttempt, initialBroadcastAt, bumpedFee, bumpedFeeLimit)
+	bumpedAttempt, bumpedFee, bumpedFeeLimit, retryable, err := eb.NewBumpTxAttempt(ctx, etx, attempt, nil, lgr)
+	if err != nil {
+		return bumpedAttempt, retryable, err
+	}
+
+	if err = eb.txStore.SaveReplacementInProgressAttempt(ctx, attempt, &bumpedAttempt); err != nil {
+		return bumpedAttempt, true, err
+	}
+
+	lgr.Debugw("Bumped fee on initial send", "oldFee", attempt.TxFee.String(), "newFee", bumpedFee.String(), "newFeeLimit", bumpedFeeLimit)
+	return bumpedAttempt, true, err
 }
 
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) tryAgainWithNewEstimation(ctx context.Context, lgr logger.Logger, txError error, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], initialBroadcastAt time.Time) (err error, retryable bool) {
-	if attempt.TxType == 0x2 {
-		err = fmt.Errorf("re-estimation is not supported for EIP-1559 transactions. Node returned error: %v. This is a bug", txError.Error())
-		logger.Sugared(eb.lggr).AssumptionViolation(err.Error())
-		return err, false
-	}
-
-	replacementAttempt, fee, feeLimit, retryable, err := eb.NewTxAttemptWithType(ctx, etx, lgr, attempt.TxType, feetypes.OptForceRefetch)
+// replaceAttemptWithNewEstimation performs the replacement of the existing tx attempt with a new estimated fee attempt.
+func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) replaceAttemptWithNewEstimation(ctx context.Context, lgr logger.Logger, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) (updatedAttempt *txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], retryable bool, err error) {
+	newEstimatedAttempt, fee, feeLimit, retryable, err := eb.NewTxAttemptWithType(ctx, etx, lgr, attempt.TxType, feetypes.OptForceRefetch)
 	if err != nil {
-		return fmt.Errorf("tryAgainWithNewEstimation failed to build new attempt: %w", err), retryable
+		return &newEstimatedAttempt, retryable, err
 	}
-	lgr.Warnw("L2 rejected transaction due to incorrect fee, re-estimated and will try again",
-		"etxID", etx.ID, "err", err, "newGasPrice", fee, "newGasLimit", feeLimit)
 
-	return eb.saveTryAgainAttempt(ctx, lgr, etx, attempt, replacementAttempt, initialBroadcastAt, fee, feeLimit)
-}
-
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) saveTryAgainAttempt(ctx context.Context, lgr logger.Logger, etx txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], attempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], replacementAttempt txmgrtypes.TxAttempt[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE], initialBroadcastAt time.Time, newFee FEE, newFeeLimit uint32) (err error, retyrable bool) {
-	if err = eb.txStore.SaveReplacementInProgressAttempt(ctx, attempt, &replacementAttempt); err != nil {
-		return fmt.Errorf("tryAgainWithNewFee failed: %w", err), true
+	if err = eb.txStore.SaveReplacementInProgressAttempt(ctx, attempt, &newEstimatedAttempt); err != nil {
+		return &newEstimatedAttempt, true, err
 	}
-	lgr.Debugw("Bumped fee on initial send", "oldFee", attempt.TxFee.String(), "newFee", newFee.String(), "newFeeLimit", newFeeLimit)
-	return eb.handleInProgressTx(ctx, etx, replacementAttempt, initialBroadcastAt)
+
+	lgr.Debugw("new estimated fee on initial send", "oldFee", attempt.TxFee.String(), "newFee", fee.String(), "newFeeLimit", feeLimit)
+	return &newEstimatedAttempt, true, err
 }
 
 func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) saveFatallyErroredTransaction(lgr logger.Logger, etx *txmgrtypes.Tx[CHAIN_ID, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) error {
@@ -789,8 +756,8 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) save
 	// Now we have an errored pipeline even though the tx succeeded. This case
 	// is relatively benign and probably nobody will ever run into it in
 	// practice, but something to be aware of.
-	if etx.PipelineTaskRunID.Valid && eb.resumeCallback != nil && etx.SignalCallback {
-		err := eb.resumeCallback(etx.PipelineTaskRunID.UUID, nil, fmt.Errorf("fatal error while sending transaction: %s", etx.Error.String))
+	if etx.PipelineTaskRunID.Valid && eb.resumeCallback != nil && etx.SignalCallback && !etx.CallbackCompleted {
+		err := eb.resumeCallback(ctx, etx.PipelineTaskRunID.UUID, nil, fmt.Errorf("fatal error while sending transaction: %s", etx.Error.String))
 		if errors.Is(err, sql.ErrNoRows) {
 			lgr.Debugw("callback missing or already resumed", "etxID", etx.ID)
 		} else if err != nil {
@@ -803,49 +770,6 @@ func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) save
 		}
 	}
 	return eb.txStore.UpdateTxFatalError(ctx, etx)
-}
-
-// Used to get the next usable sequence for a transaction
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) GetNextSequence(ctx context.Context, address ADDR) (seq SEQ, err error) {
-	eb.sequenceLock.Lock()
-	defer eb.sequenceLock.Unlock()
-	// Get next sequence from map
-	seq, exists := eb.nextSequenceMap[address]
-	if exists {
-		return seq, nil
-	}
-
-	eb.lggr.Infow("address not found in local next sequence map. Attempting to search and populate sequence.", "address", address.String())
-	// Check if address is in the enabled address list
-	if !slices.Contains(eb.enabledAddresses, address) {
-		return seq, fmt.Errorf("address disabled: %s", address)
-	}
-
-	// Try to retrieve next sequence from tx table or on-chain to load the map
-	// A scenario could exist where loading the map during startup failed (e.g. All configured RPC's are unreachable at start)
-	// The expectation is that the node does not fail startup so sequences need to be loaded during runtime
-	foundSeq, err := eb.getSequenceForAddr(ctx, address)
-	if err != nil {
-		return seq, fmt.Errorf("failed to find next sequence for address: %s", address)
-	}
-
-	// Set sequence in map
-	eb.nextSequenceMap[address] = foundSeq
-	return foundSeq, nil
-}
-
-// Used to increment the sequence in the mapping to have the next usable one available for the next transaction
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) IncrementNextSequence(address ADDR, seq SEQ) {
-	eb.sequenceLock.Lock()
-	defer eb.sequenceLock.Unlock()
-	eb.nextSequenceMap[address] = eb.generateNextSequence(seq)
-}
-
-// Used to set the next sequence explicitly to a certain value
-func (eb *Broadcaster[CHAIN_ID, HEAD, ADDR, TX_HASH, BLOCK_HASH, SEQ, FEE]) SetNextSequence(address ADDR, seq SEQ) {
-	eb.sequenceLock.Lock()
-	defer eb.sequenceLock.Unlock()
-	eb.nextSequenceMap[address] = seq
 }
 
 func observeTimeUntilBroadcast[CHAIN_ID types.ID](chainID CHAIN_ID, createdAt, broadcastAt time.Time) {

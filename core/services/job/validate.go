@@ -28,6 +28,8 @@ var (
 		VRF:                     {},
 		Webhook:                 {},
 		Workflow:                {},
+		StandardCapabilities:    {},
+		CCIP:                    {},
 	}
 )
 

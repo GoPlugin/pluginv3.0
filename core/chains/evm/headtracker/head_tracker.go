@@ -2,36 +2,29 @@ package headtracker
 
 import (
 	"context"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"
 
 	"github.com/goplugin/pluginv3.0/v2/common/headtracker"
-	commontypes "github.com/goplugin/pluginv3.0/v2/common/types"
-	evmclient "github.com/goplugin/pluginv3.0/v2/core/chains/evm/client"
+	commontypes "github.com/goplugin/pluginv3.0/v2/common/headtracker/types"
 	httypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/headtracker/types"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 )
 
-type headTracker = headtracker.HeadTracker[*evmtypes.Head, ethereum.Subscription, *big.Int, common.Hash]
-
-var _ commontypes.HeadTracker[*evmtypes.Head, common.Hash] = (*headTracker)(nil)
-
 func NewHeadTracker(
 	lggr logger.Logger,
-	ethClient evmclient.Client,
-	config Config,
-	htConfig HeadTrackerConfig,
+	ethClient httypes.Client,
+	config commontypes.Config,
+	htConfig commontypes.HeadTrackerConfig,
 	headBroadcaster httypes.HeadBroadcaster,
 	headSaver httypes.HeadSaver,
 	mailMon *mailbox.Monitor,
 ) httypes.HeadTracker {
-	return headtracker.NewHeadTracker[*evmtypes.Head, ethereum.Subscription, *big.Int, common.Hash](
+	return headtracker.NewHeadTracker[*evmtypes.Head, ethereum.Subscription](
 		lggr,
 		ethClient,
 		config,
@@ -53,7 +46,10 @@ func (*nullTracker) Ready() error                   { return nil }
 func (*nullTracker) HealthReport() map[string]error { return map[string]error{} }
 func (*nullTracker) Name() string                   { return "" }
 func (*nullTracker) SetLogLevel(zapcore.Level)      {}
-func (*nullTracker) Backfill(ctx context.Context, headWithChain *evmtypes.Head, depth uint) (err error) {
+func (*nullTracker) Backfill(ctx context.Context, headWithChain *evmtypes.Head) (err error) {
 	return nil
 }
 func (*nullTracker) LatestChain() *evmtypes.Head { return nil }
+func (*nullTracker) LatestAndFinalizedBlock(ctx context.Context) (latest, finalized *evmtypes.Head, err error) {
+	return nil, nil, nil
+}

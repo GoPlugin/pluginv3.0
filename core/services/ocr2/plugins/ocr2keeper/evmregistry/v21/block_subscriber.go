@@ -9,15 +9,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	ocr2keepers "github.com/goplugin/plugin-common/pkg/types/automation"
-
+	"github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/plugin-common/pkg/services"
+	ocr2keepers "github.com/goplugin/plugin-common/pkg/types/automation"
 
 	httypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/headtracker/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 	"github.com/goplugin/pluginv3.0/v2/core/utils"
 )
 
@@ -75,12 +73,12 @@ func NewBlockSubscriber(hb httypes.HeadBroadcaster, lp logpoller.LogPoller, fina
 		blockSize:        lookbackDepth,
 		finalityDepth:    finalityDepth,
 		latestBlock:      atomic.Pointer[ocr2keepers.BlockKey]{},
-		lggr:             lggr.Named("BlockSubscriber"),
+		lggr:             logger.Named(lggr, "BlockSubscriber"),
 	}
 }
 
 func (bs *BlockSubscriber) getBlockRange(ctx context.Context) ([]uint64, error) {
-	h, err := bs.lp.LatestBlock(pg.WithParentCtx(ctx))
+	h, err := bs.lp.LatestBlock(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +146,11 @@ func (bs *BlockSubscriber) initialize(ctx context.Context) {
 	// initialize the blocks map with the recent blockSize blocks
 	blocks, err := bs.getBlockRange(ctx)
 	if err != nil {
-		bs.lggr.Errorf("failed to get block range", err)
+		bs.lggr.Errorf("failed to get block range; error %v", err)
 	}
 	err = bs.initializeBlocks(ctx, blocks)
 	if err != nil {
-		bs.lggr.Errorf("failed to get log poller blocks", err)
+		bs.lggr.Errorf("failed to get log poller blocks; error %v", err)
 	}
 	_, bs.unsubscribe = bs.hb.Subscribe(&headWrapper{headC: bs.headC, lggr: bs.lggr})
 }
@@ -236,7 +234,7 @@ func (bs *BlockSubscriber) processHead(h *evmtypes.Head) {
 	// head parent is a linked list with EVM finality depth
 	// when re-org happens, new heads will have pointers to the new blocks
 	i := int64(0)
-	for cp := h; cp != nil; cp = cp.Parent {
+	for cp := h; cp != nil; cp = cp.Parent.Load() {
 		// we don't stop when a matching (block number/hash) entry is seen in the map because parent linked list may be
 		// cut short during a re-org if head broadcaster backfill is not complete. This can cause some re-orged blocks
 		// left in the map. for example, re-org happens for block 98, 99, 100. next head 101 from broadcaster has parent list

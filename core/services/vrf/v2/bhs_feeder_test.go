@@ -7,13 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
+
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest/heavyweight"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	"github.com/goplugin/pluginv3.0/v2/core/services/vrf/vrftesthelpers"
+	"github.com/goplugin/pluginv3.0/v2/core/utils/testutils/heavyweight"
 )
 
 func TestStartHeartbeats(t *testing.T) {
@@ -37,14 +39,14 @@ func TestStartHeartbeats(t *testing.T) {
 		bhsKeyAddresses = append(bhsKeyAddresses, bhsKey.Address.String())
 		keys = append(keys, bhsKey)
 		keySpecificOverrides = append(keySpecificOverrides, toml.KeySpecific{
-			Key:          ptr(bhsKey.EIP55Address),
+			Key:          ptr[types.EIP55Address](bhsKey.EIP55Address),
 			GasEstimator: toml.KeySpecificGasEstimator{PriceMax: gasLanePriceWei},
 		})
 		sendEth(t, ownerKey, uni.backend, bhsKey.Address, 10)
 	}
 	keySpecificOverrides = append(keySpecificOverrides, toml.KeySpecific{
 		// Gas lane.
-		Key:          ptr(vrfKey.EIP55Address),
+		Key:          ptr[types.EIP55Address](vrfKey.EIP55Address),
 		GasEstimator: toml.KeySpecificGasEstimator{PriceMax: gasLanePriceWei},
 	})
 
@@ -55,7 +57,7 @@ func TestStartHeartbeats(t *testing.T) {
 		c.EVM[0].MinIncomingConfirmations = ptr[uint32](2)
 		c.Feature.LogPoller = ptr(true)
 		c.EVM[0].FinalityDepth = ptr[uint32](2)
-		c.EVM[0].GasEstimator.LimitDefault = ptr(uint32(gasLimit))
+		c.EVM[0].GasEstimator.LimitDefault = ptr(uint64(gasLimit))
 		c.EVM[0].LogPollInterval = commonconfig.MustNewDuration(time.Second)
 	})
 

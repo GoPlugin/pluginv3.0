@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/goplugin/plugin-common/pkg/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains"
 	"github.com/goplugin/pluginv3.0/v2/core/logger/audit"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
@@ -23,7 +24,7 @@ type SolanaTransfersController struct {
 
 // Create sends SOL and other native coins from the Plugin's account to a specified address.
 func (tc *SolanaTransfersController) Create(c *gin.Context) {
-	relayers := tc.App.GetRelayers().List(plugin.FilterRelayersByType(relay.Solana))
+	relayers := tc.App.GetRelayers().List(plugin.FilterRelayersByType(relay.NetworkSolana))
 	if relayers == nil {
 		jsonAPIError(c, http.StatusBadRequest, ErrSolanaNotEnabled)
 		return
@@ -48,7 +49,7 @@ func (tc *SolanaTransfersController) Create(c *gin.Context) {
 	}
 
 	amount := new(big.Int).SetUint64(tr.Amount)
-	relayerID := relay.ID{Network: relay.Solana, ChainID: tr.SolanaChainID}
+	relayerID := types.RelayID{Network: relay.NetworkSolana, ChainID: tr.SolanaChainID}
 	relayer, err := relayers.Get(relayerID)
 	if err != nil {
 		if errors.Is(err, plugin.ErrNoSuchRelayer) {
@@ -59,7 +60,7 @@ func (tc *SolanaTransfersController) Create(c *gin.Context) {
 		return
 	}
 
-	err = relayer.Transact(c, tr.From.String(), tr.To.String(), amount, !tr.AllowHigherAmounts)
+	err = relayer.Transact(c.Request.Context(), tr.From.String(), tr.To.String(), amount, !tr.AllowHigherAmounts)
 	if err != nil {
 		if errors.Is(err, chains.ErrNotFound) || errors.Is(err, chains.ErrChainIDEmpty) {
 			jsonAPIError(c, http.StatusBadRequest, err)

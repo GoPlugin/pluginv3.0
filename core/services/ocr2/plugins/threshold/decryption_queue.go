@@ -13,7 +13,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 )
 
-//go:generate mockery --quiet --name Decryptor --output ./mocks/ --case=underscore
 type Decryptor interface {
 	Decrypt(ctx context.Context, ciphertextId decryptionPlugin.CiphertextId, ciphertext []byte) ([]byte, error)
 }

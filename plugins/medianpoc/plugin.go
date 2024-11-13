@@ -3,10 +3,10 @@ package medianpoc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/goplugin/plugin-libocr/offchainreporting2/reportingplugin/median"
-
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
 	"github.com/goplugin/plugin-common/pkg/logger"
@@ -14,6 +14,7 @@ import (
 	"github.com/goplugin/plugin-common/pkg/loop/reportingplugins"
 	"github.com/goplugin/plugin-common/pkg/services"
 	"github.com/goplugin/plugin-common/pkg/types"
+	"github.com/goplugin/plugin-common/pkg/types/core"
 )
 
 func NewPlugin(lggr logger.Logger) *Plugin {
@@ -28,6 +29,20 @@ type Plugin struct {
 	loop.Plugin
 	stop services.StopChan
 	reportingplugins.MedianProviderServer
+}
+
+type PipelineNotFoundError struct {
+	Key string
+}
+
+func (e *PipelineNotFoundError) Error() string {
+	return fmt.Sprintf("no pipeline found for %s", e.Key)
+}
+
+func (p *Plugin) NewValidationService(ctx context.Context) (core.ValidationService, error) {
+	s := &reportingPluginValidationService{Service: services.Config{Name: "ValidationService"}.NewService(p.Logger)}
+	p.SubService(s)
+	return s, nil
 }
 
 type pipelineSpec struct {
@@ -49,27 +64,32 @@ func (j jsonConfig) getPipeline(key string) (string, error) {
 			return v.Spec, nil
 		}
 	}
-	return "", fmt.Errorf("no pipeline found for %s", key)
+	return "", &PipelineNotFoundError{key}
 }
 
 func (p *Plugin) NewReportingPluginFactory(
 	ctx context.Context,
-	config types.ReportingPluginServiceConfig,
+	config core.ReportingPluginServiceConfig,
 	provider types.MedianProvider,
-	pipelineRunner types.PipelineRunnerService,
-	telemetry types.TelemetryClient,
-	errorLog types.ErrorLog,
+	pipelineRunner core.PipelineRunnerService,
+	telemetry core.TelemetryClient,
+	errorLog core.ErrorLog,
+	keyValueStore core.KeyValueStore,
+	relayerSet core.RelayerSet,
 ) (types.ReportingPluginFactory, error) {
 	f, err := p.newFactory(ctx, config, provider, pipelineRunner, telemetry, errorLog)
 	if err != nil {
 		return nil, err
 	}
-	s := &reportingPluginFactoryService{lggr: p.Logger, ReportingPluginFactory: f}
+	s := &reportingPluginFactoryService{
+		Service:                services.Config{Name: "ReportingPluginFactory"}.NewService(p.Logger),
+		ReportingPluginFactory: f,
+	}
 	p.SubService(s)
 	return s, nil
 }
 
-func (p *Plugin) newFactory(ctx context.Context, config types.ReportingPluginServiceConfig, provider types.MedianProvider, pipelineRunner types.PipelineRunnerService, telemetry types.TelemetryClient, errorLog types.ErrorLog) (*median.NumericalMedianFactory, error) {
+func (p *Plugin) newFactory(ctx context.Context, config core.ReportingPluginServiceConfig, provider types.MedianProvider, pipelineRunner core.PipelineRunnerService, telemetry core.TelemetryClient, errorLog core.ErrorLog) (*median.NumericalMedianFactory, error) {
 	jc := &jsonConfig{}
 	err := json.Unmarshal([]byte(config.PluginConfig), jc)
 	if err != nil {
@@ -95,10 +115,39 @@ func (p *Plugin) newFactory(ctx context.Context, config types.ReportingPluginSer
 		spec:           jfp,
 		lggr:           p.Logger,
 	}
+
+	var gds median.DataSource
+	gp, err := jc.getPipeline("gasPriceSubunitsPipeline")
+
+	var pnf *PipelineNotFoundError
+	pipelineNotFound := errors.As(err, &pnf)
+	if !pipelineNotFound && err != nil {
+		return nil, err
+	}
+
+	// We omit gas price in observation to maintain backwards compatibility in libocr (with older nodes).
+	// Once all plugin nodes have updated to libocr version >= fd3cab206b2c
+	// the IncludeGasPriceSubunitsInObservation field can be removed
+
+	var includeGasPriceSubunitsInObservation bool
+	if pipelineNotFound {
+		gds = &ZeroDataSource{}
+		includeGasPriceSubunitsInObservation = false
+	} else {
+		gds = &DataSource{
+			pipelineRunner: pipelineRunner,
+			spec:           gp,
+			lggr:           p.Logger,
+		}
+		includeGasPriceSubunitsInObservation = true
+	}
+
 	factory := &median.NumericalMedianFactory{
-		ContractTransmitter:       provider.MedianContract(),
-		DataSource:                ds,
-		JuelsPerFeeCoinDataSource: jds,
+		ContractTransmitter:                  provider.MedianContract(),
+		DataSource:                           ds,
+		JuelsPerFeeCoinDataSource:            jds,
+		GasPriceSubunitsDataSource:           gds,
+		IncludeGasPriceSubunitsInObservation: includeGasPriceSubunitsInObservation,
 		Logger: logger.NewOCRWrapper(
 			p.Logger,
 			true,
@@ -111,21 +160,26 @@ func (p *Plugin) newFactory(ctx context.Context, config types.ReportingPluginSer
 }
 
 type reportingPluginFactoryService struct {
-	services.StateMachine
-	lggr logger.Logger
+	services.Service
 	ocrtypes.ReportingPluginFactory
 }
 
-func (r *reportingPluginFactoryService) Name() string { return r.lggr.Name() }
-
-func (r *reportingPluginFactoryService) Start(ctx context.Context) error {
-	return r.StartOnce("ReportingPluginFactory", func() error { return nil })
+type reportingPluginValidationService struct {
+	services.Service
 }
 
-func (r *reportingPluginFactoryService) Close() error {
-	return r.StopOnce("ReportingPluginFactory", func() error { return nil })
-}
+func (r *reportingPluginValidationService) ValidateConfig(ctx context.Context, config map[string]interface{}) error {
+	tt, ok := config["telemetryType"]
+	if !ok {
+		return fmt.Errorf("expected telemtry type")
+	}
+	telemetryType, ok := tt.(string)
+	if !ok {
+		return fmt.Errorf("expected telemtry type to be of type string but got %T", tt)
+	}
+	if telemetryType != "median" {
+		return fmt.Errorf("expected telemtry type to be median but got %q", telemetryType)
+	}
 
-func (r *reportingPluginFactoryService) HealthReport() map[string]error {
-	return map[string]error{r.Name(): r.Healthy()}
+	return nil
 }

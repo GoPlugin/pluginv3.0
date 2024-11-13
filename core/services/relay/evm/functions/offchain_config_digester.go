@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 var (
 	_                     types.OffchainConfigDigester        = &functionsOffchainConfigDigester{}
 	_                     evmRelayTypes.RouteUpdateSubscriber = &functionsOffchainConfigDigester{}
-	FunctionsDigestPrefix                                     = types.ConfigDigestPrefixEVM
+	FunctionsDigestPrefix                                     = types.ConfigDigestPrefixEVMSimple
 	// In order to support multiple OCR plugins with a single jobspec & OCR2Base contract, each plugin must have a unique config digest.
 	// This is accomplished by overriding the single config digest from the contract with a unique prefix for each plugin via this custom offchain digester & config poller.
 	ThresholdDigestPrefix = types.ConfigDigestPrefix(7)
@@ -36,7 +37,7 @@ func NewFunctionsOffchainConfigDigester(pluginType FunctionsPluginType, chainID 
 	}
 }
 
-func (d *functionsOffchainConfigDigester) ConfigDigest(cc types.ContractConfig) (types.ConfigDigest, error) {
+func (d *functionsOffchainConfigDigester) ConfigDigest(ctx context.Context, cc types.ContractConfig) (types.ConfigDigest, error) {
 	contractAddress := d.contractAddress.Load()
 	if contractAddress == nil {
 		return types.ConfigDigest{}, errors.New("contract address not set")
@@ -46,7 +47,7 @@ func (d *functionsOffchainConfigDigester) ConfigDigest(cc types.ContractConfig) 
 		ContractAddress: *contractAddress,
 	}
 
-	configDigest, err := baseDigester.ConfigDigest(cc)
+	configDigest, err := baseDigester.ConfigDigest(ctx, cc)
 	if err != nil {
 		return types.ConfigDigest{}, err
 	}
@@ -68,7 +69,7 @@ func (d *functionsOffchainConfigDigester) ConfigDigest(cc types.ContractConfig) 
 	return configDigest, nil
 }
 
-func (d *functionsOffchainConfigDigester) ConfigDigestPrefix() (types.ConfigDigestPrefix, error) {
+func (d *functionsOffchainConfigDigester) ConfigDigestPrefix(ctx context.Context) (types.ConfigDigestPrefix, error) {
 	switch d.pluginType {
 	case FunctionsPlugin:
 		return FunctionsDigestPrefix, nil
@@ -82,7 +83,7 @@ func (d *functionsOffchainConfigDigester) ConfigDigestPrefix() (types.ConfigDige
 }
 
 // called from LogPollerWrapper in a separate goroutine
-func (d *functionsOffchainConfigDigester) UpdateRoutes(activeCoordinator common.Address, proposedCoordinator common.Address) error {
+func (d *functionsOffchainConfigDigester) UpdateRoutes(ctx context.Context, activeCoordinator common.Address, proposedCoordinator common.Address) error {
 	d.contractAddress.Store(&activeCoordinator)
 	return nil
 }

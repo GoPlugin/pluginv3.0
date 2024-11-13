@@ -157,7 +157,6 @@ func (c *coordinatorV2) Version() vrfcommon.Version {
 func (c *coordinatorV2) RegisterProvingKey(opts *bind.TransactOpts, oracle *common.Address, publicProvingKey [2]*big.Int, maxGasPrice *uint64) (*types.Transaction, error) {
 	if maxGasPrice != nil {
 		return nil, fmt.Errorf("max gas price not supported for registering proving key in v2")
-
 	}
 	return c.coordinator.RegisterProvingKey(opts, *oracle, publicProvingKey)
 }
@@ -251,7 +250,7 @@ func (c *coordinatorV2_5) ParseRandomWordsFulfilled(log types.Log) (RandomWordsF
 }
 
 func (c *coordinatorV2_5) RequestRandomWords(opts *bind.TransactOpts, keyHash [32]byte, subID *big.Int, requestConfirmations uint16, callbackGasLimit uint32, numWords uint32, payInEth bool) (*types.Transaction, error) {
-	extraArgs, err := extraargs.ExtraArgsV1(payInEth)
+	extraArgs, err := extraargs.EncodeV1(payInEth)
 	if err != nil {
 		return nil, err
 	}
@@ -570,7 +569,7 @@ func (r *v2_5RandomWordsRequested) CallbackGasLimit() uint32 {
 }
 
 func (r *v2_5RandomWordsRequested) NativePayment() bool {
-	nativePayment, err := extraargs.FromExtraArgsV1(r.event.ExtraArgs)
+	nativePayment, err := extraargs.DecodeV1(r.event.ExtraArgs)
 	if err != nil {
 		panic(err)
 	}
@@ -656,6 +655,7 @@ type RandomWordsFulfilled interface {
 	SubID() *big.Int
 	Payment() *big.Int
 	Raw() types.Log
+	NativePayment() bool
 }
 
 func NewV2RandomWordsFulfilled(event *vrf_coordinator_v2.VRFCoordinatorV2RandomWordsFulfilled) RandomWordsFulfilled {
@@ -724,6 +724,10 @@ func (rwf *v2_5RandomWordsFulfilled) Payment() *big.Int {
 
 func (rwf *v2_5RandomWordsFulfilled) Raw() types.Log {
 	return rwf.event.Raw
+}
+
+func (rwf *v2_5RandomWordsFulfilled) NativePayment() bool {
+	return rwf.event.NativePayment
 }
 
 var (
@@ -910,7 +914,7 @@ func (s *v2_5Subscription) NativeBalance() *big.Int {
 }
 
 func (s *v2_5Subscription) Owner() common.Address {
-	return s.event.Owner
+	return s.event.SubOwner
 }
 
 func (s *v2_5Subscription) Consumers() []common.Address {
@@ -1069,7 +1073,7 @@ func (r *RequestCommitment) NativePayment() bool {
 	if r.VRFVersion == vrfcommon.V2 {
 		return false
 	}
-	nativePayment, err := extraargs.FromExtraArgsV1(r.V2Plus.ExtraArgs)
+	nativePayment, err := extraargs.DecodeV1(r.V2Plus.ExtraArgs)
 	if err != nil {
 		panic(err)
 	}

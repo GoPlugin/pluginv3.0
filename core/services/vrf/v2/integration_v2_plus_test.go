@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
+
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
@@ -40,7 +41,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/vrfv2plus_consumer_example"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/vrfv2plus_reverting_example"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest/heavyweight"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/configtest"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
@@ -51,6 +51,7 @@ import (
 	v22 "github.com/goplugin/pluginv3.0/v2/core/services/vrf/v2"
 	"github.com/goplugin/pluginv3.0/v2/core/services/vrf/vrfcommon"
 	"github.com/goplugin/pluginv3.0/v2/core/services/vrf/vrftesthelpers"
+	"github.com/goplugin/pluginv3.0/v2/core/utils/testutils/heavyweight"
 )
 
 type coordinatorV2PlusUniverse struct {
@@ -186,7 +187,7 @@ func newVRFCoordinatorV2PlusUniverse(t *testing.T, key ethkey.KeyV2, numConsumer
 		backend.Commit()
 	}
 
-	// Deploy malicious consumer with 1 pli
+	// Deploy malicious consumer with 1 link
 	maliciousConsumerContractAddress, _, maliciousConsumerContract, err :=
 		vrf_malicious_consumer_v2_plus.DeployVRFMaliciousConsumerV2Plus(
 			evil, backend, coordinatorAddress, linkAddress)
@@ -646,29 +647,13 @@ func TestVRFV2PlusIntegration_SingleConsumer_NeedsTopUp(t *testing.T) {
 func TestVRFV2PlusIntegration_SingleConsumer_BigGasCallback_Sandwich(t *testing.T) {
 	ownerKey := cltest.MustGenerateRandomKey(t)
 	uni := newVRFCoordinatorV2PlusUniverse(t, ownerKey, 1, false)
-	testSingleConsumerBigGasCallbackSandwich(
-		t,
-		ownerKey,
-		uni.coordinatorV2UniverseCommon,
-		uni.batchCoordinatorContractAddress,
-		false,
-		vrfcommon.V2Plus,
-		false,
-	)
+	testSingleConsumerBigGasCallbackSandwich(t, ownerKey, uni.coordinatorV2UniverseCommon, uni.batchCoordinatorContractAddress, vrfcommon.V2Plus, false)
 }
 
 func TestVRFV2PlusIntegration_SingleConsumer_MultipleGasLanes(t *testing.T) {
 	ownerKey := cltest.MustGenerateRandomKey(t)
 	uni := newVRFCoordinatorV2PlusUniverse(t, ownerKey, 1, false)
-	testSingleConsumerMultipleGasLanes(
-		t,
-		ownerKey,
-		uni.coordinatorV2UniverseCommon,
-		uni.batchCoordinatorContractAddress,
-		false,
-		vrfcommon.V2Plus,
-		false,
-	)
+	testSingleConsumerMultipleGasLanes(t, ownerKey, uni.coordinatorV2UniverseCommon, uni.batchCoordinatorContractAddress, vrfcommon.V2Plus, false)
 }
 
 func TestVRFV2PlusIntegration_SingleConsumer_AlwaysRevertingCallback_StillFulfilled(t *testing.T) {
@@ -847,6 +832,7 @@ func TestVRFV2PlusIntegration_TestMaliciousConsumer(t *testing.T) {
 }
 
 func TestVRFV2PlusIntegration_RequestCost(t *testing.T) {
+	ctx := testutils.Context(t)
 	key := cltest.MustGenerateRandomKey(t)
 	uni := newVRFCoordinatorV2PlusUniverse(t, key, 1, false)
 
@@ -854,7 +840,7 @@ func TestVRFV2PlusIntegration_RequestCost(t *testing.T) {
 	app := cltest.NewApplicationWithConfigV2AndKeyOnSimulatedBlockchain(t, cfg, uni.backend, key)
 	require.NoError(t, app.Start(testutils.Context(t)))
 
-	vrfkey, err := app.GetKeyStore().VRF().Create()
+	vrfkey, err := app.GetKeyStore().VRF().Create(ctx)
 	require.NoError(t, err)
 	registerProvingKeyHelper(t, uni.coordinatorV2UniverseCommon, uni.rootContract, vrfkey, &defaultMaxGasPrice)
 	t.Run("non-proxied consumer", func(tt *testing.T) {
@@ -948,7 +934,7 @@ func TestVRFV2PlusIntegration_MaxConsumersCost(t *testing.T) {
 		uni.rootContractAddress, uni.coordinatorABI,
 		"removeConsumer", subId, carolContractAddress)
 	t.Log(estimate)
-	assert.Less(t, estimate, uint64(320000))
+	assert.Less(t, estimate, uint64(540000))
 	estimate = estimateGas(t, uni.backend, carolContractAddress,
 		uni.rootContractAddress, uni.coordinatorABI,
 		"addConsumer", subId, testutils.NewAddress())
@@ -980,7 +966,7 @@ func requestAndEstimateFulfillmentCost(
 	requestLog := FindLatestRandomnessRequestedLog(t, uni.rootContract, vrfkey.PublicKey.MustHash(), nil)
 	s, err := proof.BigToSeed(requestLog.PreSeed())
 	require.NoError(t, err)
-	extraArgs, err := extraargs.ExtraArgsV1(nativePayment)
+	extraArgs, err := extraargs.EncodeV1(nativePayment)
 	require.NoError(t, err)
 	proof, rc, err := proof.GenerateProofResponseV2Plus(app.GetKeyStore().VRF(), vrfkey.ID(), proof.PreSeedDataV2Plus{
 		PreSeed:          s,
@@ -1002,6 +988,7 @@ func requestAndEstimateFulfillmentCost(
 }
 
 func TestVRFV2PlusIntegration_FulfillmentCost(t *testing.T) {
+	ctx := testutils.Context(t)
 	key := cltest.MustGenerateRandomKey(t)
 	uni := newVRFCoordinatorV2PlusUniverse(t, key, 1, false)
 
@@ -1009,7 +996,7 @@ func TestVRFV2PlusIntegration_FulfillmentCost(t *testing.T) {
 	app := cltest.NewApplicationWithConfigV2AndKeyOnSimulatedBlockchain(t, cfg, uni.backend, key)
 	require.NoError(t, app.Start(testutils.Context(t)))
 
-	vrfkey, err := app.GetKeyStore().VRF().Create()
+	vrfkey, err := app.GetKeyStore().VRF().Create(ctx)
 	require.NoError(t, err)
 	registerProvingKeyHelper(t, uni.coordinatorV2UniverseCommon, uni.rootContract, vrfkey, &defaultMaxGasPrice)
 
@@ -1141,6 +1128,7 @@ func setupSubscriptionAndFund(
 
 func TestVRFV2PlusIntegration_Migration(t *testing.T) {
 	t.Parallel()
+	ctx := testutils.Context(t)
 	ownerKey := cltest.MustGenerateRandomKey(t)
 	uni := newVRFCoordinatorV2PlusUniverse(t, ownerKey, 1, false)
 	key1 := cltest.MustGenerateRandomKey(t)
@@ -1151,7 +1139,7 @@ func TestVRFV2PlusIntegration_Migration(t *testing.T) {
 			Key:          ptr(key1.EIP55Address),
 			GasEstimator: toml.KeySpecificGasEstimator{PriceMax: gasLanePriceWei},
 		})(c, s)
-		c.EVM[0].GasEstimator.LimitDefault = ptr[uint32](5_000_000)
+		c.EVM[0].GasEstimator.LimitDefault = ptr[uint64](5_000_000)
 		c.EVM[0].MinIncomingConfirmations = ptr[uint32](2)
 		c.Feature.LogPoller = ptr(true)
 		c.EVM[0].LogPollInterval = commonconfig.MustNewDuration(1 * time.Second)
@@ -1175,7 +1163,7 @@ func TestVRFV2PlusIntegration_Migration(t *testing.T) {
 
 	// Fund gas lane.
 	sendEth(t, ownerKey, uni.backend, key1.Address, 10)
-	require.NoError(t, app.Start(testutils.Context(t)))
+	require.NoError(t, app.Start(ctx))
 
 	// Create VRF job using key1 and key2 on the same gas lane.
 	jbs := createVRFJobs(
@@ -1200,7 +1188,7 @@ func TestVRFV2PlusIntegration_Migration(t *testing.T) {
 	// Wait for fulfillment to be queued.
 	gomega.NewGomegaWithT(t).Eventually(func() bool {
 		uni.backend.Commit()
-		runs, err := app.PipelineORM().GetAllRuns()
+		runs, err := app.PipelineORM().GetAllRuns(ctx)
 		require.NoError(t, err)
 		t.Log("runs", len(runs))
 		return len(runs) == 1
@@ -1231,7 +1219,7 @@ func TestVRFV2PlusIntegration_Migration(t *testing.T) {
 	require.NoError(t, err)
 	linkContractBalance, err := uni.linkContract.BalanceOf(nil, uni.migrationTestCoordinatorAddress)
 	require.NoError(t, err)
-	balance, err := uni.backend.BalanceAt(testutils.Context(t), uni.migrationTestCoordinatorAddress, nil)
+	balance, err := uni.backend.BalanceAt(ctx, uni.migrationTestCoordinatorAddress, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, subV1.Balance(), totalLinkBalance)

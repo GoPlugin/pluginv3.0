@@ -3,7 +3,7 @@ package templates
 import (
 	"github.com/google/uuid"
 
-	"github.com/goplugin/plugin-testing-framework/utils/templates"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/templates"
 )
 
 // NodeSecretsTemplate are used as text templates because of secret redacted fields of plugin.Secrets

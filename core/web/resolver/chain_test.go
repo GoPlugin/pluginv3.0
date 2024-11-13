@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/goplugin/plugin-common/pkg/loop"
 	commontypes "github.com/goplugin/plugin-common/pkg/types"
+
 	evmtoml "github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils/big"
 	pluginmocks "github.com/goplugin/pluginv3.0/v2/core/services/plugin/mocks"
@@ -44,8 +46,10 @@ LinkContractAddress = '0x538aAaB4ea120b2bC2fe5D296852D948F07D849e'
 LogBackfillBatchSize = 17
 LogPollInterval = '1m0s'
 LogKeepBlocksDepth = 100000
+LogPrunePageSize = 0
+BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 13
-MinContractPayment = '9.223372036854775807 pli'
+MinContractPayment = '9.223372036854775807 link'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 OperatorFactoryAddress = '0xa5B85635Be42F21f94F28034B7DA440EeFF0F418'
@@ -73,8 +77,7 @@ ResendAfterThreshold = '1h0m0s'
 		{
 			name:          "success",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
-
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				chainConf := evmtoml.EVMConfig{
 					ChainID: &chainID,
 					Enabled: chain.Enabled,
@@ -91,7 +94,6 @@ ResendAfterThreshold = '1h0m0s'
 						Config:  chainConfToml,
 					}},
 				}})
-
 			},
 			query: query,
 			result: fmt.Sprintf(`
@@ -112,9 +114,8 @@ ResendAfterThreshold = '1h0m0s'
 		{
 			name:          "no chains",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				f.App.On("GetRelayers").Return(&pluginmocks.FakeRelayerChainInteroperators{Relayers: []loop.Relayer{}})
-
 			},
 			query: query,
 			result: `
@@ -161,8 +162,10 @@ LinkContractAddress = '0x538aAaB4ea120b2bC2fe5D296852D948F07D849e'
 LogBackfillBatchSize = 17
 LogPollInterval = '1m0s'
 LogKeepBlocksDepth = 100000
+LogPrunePageSize = 0
+BackupLogPollerBlockDelay = 100
 MinIncomingConfirmations = 13
-MinContractPayment = '9.223372036854775807 pli'
+MinContractPayment = '9.223372036854775807 link'
 NonceAutoSync = true
 NoNewHeadsThreshold = '1m0s'
 OperatorFactoryAddress = '0xa5B85635Be42F21f94F28034B7DA440EeFF0F418'
@@ -190,7 +193,7 @@ ResendAfterThreshold = '1h0m0s'
 		{
 			name:          "success",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				f.App.On("EVMORM").Return(f.Mocks.evmORM)
 				f.Mocks.evmORM.PutChains(evmtoml.EVMConfig{
 					ChainID: &chainID,
@@ -210,7 +213,7 @@ ResendAfterThreshold = '1h0m0s'
 		{
 			name:          "not found error",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				f.App.On("EVMORM").Return(f.Mocks.evmORM)
 			},
 			query: query,

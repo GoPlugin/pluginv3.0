@@ -11,8 +11,6 @@ import (
 
 	"github.com/goplugin/plugin-common/pkg/loop"
 
-	"github.com/goplugin/pluginv3.0/v2/core/services/relay"
-
 	"github.com/goplugin/plugin-common/pkg/types"
 )
 
@@ -29,7 +27,7 @@ func (f *FakeRelayerChainInteroperators) LegacyEVMChains() legacyevm.LegacyChain
 	return f.EVMChains
 }
 
-func (f *FakeRelayerChainInteroperators) NodeStatuses(ctx context.Context, offset, limit int, relayIDs ...relay.ID) (nodes []types.NodeStatus, count int, err error) {
+func (f *FakeRelayerChainInteroperators) NodeStatuses(ctx context.Context, offset, limit int, relayIDs ...types.RelayID) (nodes []types.NodeStatus, count int, err error) {
 	return slices.Clone(f.Nodes), len(f.Nodes), f.NodesErr
 }
 
@@ -41,7 +39,11 @@ func (f *FakeRelayerChainInteroperators) List(filter plugin.FilterFn) plugin.Rel
 	panic("unimplemented")
 }
 
-func (f *FakeRelayerChainInteroperators) Get(id relay.ID) (loop.Relayer, error) {
+func (f *FakeRelayerChainInteroperators) Get(id types.RelayID) (loop.Relayer, error) {
+	panic("unimplemented")
+}
+
+func (f *FakeRelayerChainInteroperators) GetIDToRelayerMap() (map[types.RelayID]loop.Relayer, error) {
 	panic("unimplemented")
 }
 
@@ -53,7 +55,7 @@ func (f *FakeRelayerChainInteroperators) LegacyCosmosChains() plugin.LegacyCosmo
 	panic("unimplemented")
 }
 
-func (f *FakeRelayerChainInteroperators) ChainStatus(ctx context.Context, id relay.ID) (types.ChainStatus, error) {
+func (f *FakeRelayerChainInteroperators) ChainStatus(ctx context.Context, id types.RelayID) (types.ChainStatus, error) {
 	panic("unimplemented")
 }
 

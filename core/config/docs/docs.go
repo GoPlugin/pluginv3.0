@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/multierr"
 
-	"github.com/goplugin/pluginv3.0/v2/core/utils"
+	"github.com/goplugin/plugin-common/pkg/config"
 )
 
 const (
@@ -220,7 +220,7 @@ func (k keyval) String() string {
 }
 
 func parseTOMLDocs(s string) (items []fmt.Stringer, err error) {
-	defer func() { _, err = utils.MultiErrorList(err) }()
+	defer func() { _, err = config.MultiErrorList(err) }()
 	globalTable := table{name: "Global"}
 	currentTable := &globalTable
 	items = append(items, currentTable)

@@ -16,27 +16,28 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/goplugin/plugin-common/pkg/config"
-	"github.com/goplugin/plugin-solana/pkg/solana"
 	solanaClient "github.com/goplugin/plugin-solana/pkg/solana/client"
 	solcfg "github.com/goplugin/plugin-solana/pkg/solana/config"
+	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 
 	"github.com/goplugin/pluginv3.0/v2/core/cmd"
 )
 
 func TestShell_SolanaSendSol(t *testing.T) {
+	ctx := testutils.Context(t)
 	chainID := "localnet"
 	url := solanaClient.SetupLocalSolNode(t)
 	node := solcfg.Node{
 		Name: ptr(t.Name()),
 		URL:  config.MustParseURL(url),
 	}
-	cfg := solana.TOMLConfig{
+	cfg := solcfg.TOMLConfig{
 		ChainID: &chainID,
-		Nodes:   solana.SolanaNodes{&node},
+		Nodes:   solcfg.Nodes{&node},
 		Enabled: ptr(true),
 	}
 	app := solanaStartNewApplication(t, &cfg)
-	from, err := app.GetKeyStore().Solana().Create()
+	from, err := app.GetKeyStore().Solana().Create(ctx)
 	require.NoError(t, err)
 	to, err := solanago.NewRandomPrivateKey()
 	require.NoError(t, err)

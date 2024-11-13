@@ -3,14 +3,23 @@ package ocrcommon_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 
 	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
 	"github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3types"
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
+	"github.com/goplugin/pluginv3.0/v2/core/logger"
+	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/chaintype"
+	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ocr2key"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocrcommon"
 )
 
@@ -105,13 +114,124 @@ func TestOCR3OnchainKeyringAdapter(t *testing.T) {
 	require.Equal(t, maxSignatureLength, kr.MaxSignatureLength())
 }
 
+func TestNewOCR3OnchainKeyringMultiChainAdapter(t *testing.T) {
+	evmBundle, err := ocr2key.New(chaintype.EVM)
+	require.NoError(t, err)
+
+	aptosBundle, err := ocr2key.New(chaintype.Aptos)
+	require.NoError(t, err)
+
+	bundles := map[string]ocr2key.KeyBundle{
+		"evm":   evmBundle,
+		"aptos": aptosBundle,
+	}
+	adapter, err := ocrcommon.NewOCR3OnchainKeyringMultiChainAdapter(bundles, logger.TestLogger(t))
+	require.NoError(t, err)
+
+	maxLength := math.Max(float64(evmBundle.MaxSignatureLength()), float64(aptosBundle.MaxSignatureLength()))
+	assert.Equal(t, int(maxLength), adapter.MaxSignatureLength())
+
+	// evm signature
+	info, err := structpb.NewStruct(map[string]any{
+		"keyBundleName": "evm",
+	})
+	require.NoError(t, err)
+
+	infob, err := proto.Marshal(info)
+	require.NoError(t, err)
+	r := ocr3types.ReportWithInfo[[]byte]{
+		Report: []byte("report"),
+		Info:   infob,
+	}
+
+	sig, err := adapter.Sign(configDigest, seqNr, r)
+	require.NoError(t, err)
+	assert.True(t, adapter.Verify(adapter.PublicKey(), configDigest, seqNr, r, sig))
+
+	// aptos signature
+	info, err = structpb.NewStruct(map[string]any{
+		"keyBundleName": "aptos",
+	})
+	require.NoError(t, err)
+
+	infob, err = proto.Marshal(info)
+	require.NoError(t, err)
+	r = ocr3types.ReportWithInfo[[]byte]{
+		Report: []byte("report"),
+		Info:   infob,
+	}
+
+	sig, err = adapter.Sign(configDigest, seqNr, r)
+	require.NoError(t, err)
+	assert.True(t, adapter.Verify(adapter.PublicKey(), configDigest, seqNr, r, sig))
+
+	// no bundles
+	_, err = ocrcommon.NewOCR3OnchainKeyringMultiChainAdapter(map[string]ocr2key.KeyBundle{}, logger.TestLogger(t))
+	require.Error(t, err, "no key bundles provided")
+}
+
+func newMultichainAdapter(t *testing.T) *ocrcommon.OCR3OnchainKeyringMultiChainAdapter {
+	evmBundle, err := ocr2key.New(chaintype.EVM)
+	require.NoError(t, err)
+
+	aptosBundle, err := ocr2key.New(chaintype.Aptos)
+	require.NoError(t, err)
+
+	bundles := map[string]ocr2key.KeyBundle{
+		"evm":   evmBundle,
+		"aptos": aptosBundle,
+	}
+	adapter, err := ocrcommon.NewOCR3OnchainKeyringMultiChainAdapter(bundles, logger.TestLogger(t))
+	require.NoError(t, err)
+
+	return adapter
+}
+
+func TestNewOCR3OnchainKeyringMultiChainAdapter_VerifyFromDifferentNodesPublicKeys(t *testing.T) {
+	firstNodeAdapter := newMultichainAdapter(t)
+	secondNodeAdapter := newMultichainAdapter(t)
+
+	// evm signature
+	info, err := structpb.NewStruct(map[string]any{
+		"keyBundleName": "evm",
+	})
+	require.NoError(t, err)
+
+	infob, err := proto.Marshal(info)
+	require.NoError(t, err)
+	r := ocr3types.ReportWithInfo[[]byte]{
+		Report: []byte("report"),
+		Info:   infob,
+	}
+
+	sig, err := firstNodeAdapter.Sign(configDigest, seqNr, r)
+	require.NoError(t, err)
+	assert.True(t, secondNodeAdapter.Verify(firstNodeAdapter.PublicKey(), configDigest, seqNr, r, sig))
+
+	// aptos signature
+	info, err = structpb.NewStruct(map[string]any{
+		"keyBundleName": "aptos",
+	})
+	require.NoError(t, err)
+
+	infob, err = proto.Marshal(info)
+	require.NoError(t, err)
+	r = ocr3types.ReportWithInfo[[]byte]{
+		Report: []byte("report"),
+		Info:   infob,
+	}
+
+	sig, err = secondNodeAdapter.Sign(configDigest, seqNr, r)
+	require.NoError(t, err)
+	assert.True(t, firstNodeAdapter.Verify(secondNodeAdapter.PublicKey(), configDigest, seqNr, r, sig))
+}
+
 var _ ocrtypes.ContractTransmitter = (*fakeContractTransmitter)(nil)
 
 type fakeContractTransmitter struct {
 }
 
 func (f fakeContractTransmitter) Transmit(ctx context.Context, rc ocrtypes.ReportContext, report ocrtypes.Report, s []ocrtypes.AttributedOnchainSignature) error {
-
 	if !reflect.DeepEqual(report, rwi.Report) {
 		return fmt.Errorf("expected Report %v but got %v", rwi.Report, report)
 	}
@@ -139,16 +259,17 @@ func (f fakeContractTransmitter) LatestConfigDigestAndEpoch(ctx context.Context)
 	panic("not implemented")
 }
 
-func (f fakeContractTransmitter) FromAccount() (ocrtypes.Account, error) {
+func (f fakeContractTransmitter) FromAccount(context.Context) (ocrtypes.Account, error) {
 	return account, nil
 }
 
 func TestContractTransmitter(t *testing.T) {
+	ctx := testutils.Context(t)
 	ct := ocrcommon.NewOCR3ContractTransmitterAdapter(fakeContractTransmitter{})
 
-	require.NoError(t, ct.Transmit(context.Background(), configDigest, seqNr, rwi, signatures))
+	require.NoError(t, ct.Transmit(ctx, configDigest, seqNr, rwi, signatures))
 
-	a, err := ct.FromAccount()
+	a, err := ct.FromAccount(ctx)
 	require.NoError(t, err)
 	require.Equal(t, a, account)
 }

@@ -4,144 +4,57 @@ package actions
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
-	"errors"
 	"fmt"
+	"math"
 	"math/big"
+	"math/rand"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/pelletier/go-toml/v2"
+
+	geth "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/rpc"
+	"go.uber.org/zap/zapcore"
+
+	"github.com/goplugin/plugin-testing-framework/lib/blockchain"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/environment"
+	"github.com/goplugin/plugin-testing-framework/lib/logging"
+	"github.com/goplugin/plugin-testing-framework/lib/testreporters"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/conversions"
+
+	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
+	ethContracts "github.com/goplugin/pluginv3.0/integration-tests/contracts/ethereum"
+	"github.com/goplugin/pluginv3.0/integration-tests/wrappers"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/rs/zerolog"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
-	"go.uber.org/zap/zapcore"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-	ctfClient "github.com/goplugin/plugin-testing-framework/client"
-	"github.com/goplugin/plugin-testing-framework/k8s/environment"
-	"github.com/goplugin/plugin-testing-framework/logging"
-	"github.com/goplugin/plugin-testing-framework/testreporters"
-	"github.com/goplugin/plugin-testing-framework/utils/conversions"
-	"github.com/goplugin/plugin-testing-framework/utils/testcontext"
+	"github.com/goplugin/plugin-testing-framework/seth"
+
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
+	"github.com/test-go/testify/require"
+
+	ctfconfig "github.com/goplugin/plugin-testing-framework/lib/config"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/testcontext"
+
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
-	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
+	"github.com/goplugin/pluginv3.0/integration-tests/testconfig/ocr"
+	"github.com/goplugin/pluginv3.0/integration-tests/types/config/node"
+	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/link_token_interface"
+	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/operator_factory"
 )
-
-// ContractDeploymentInterval After how many contract actions to wait before starting any more
-// Example: When deploying 1000 contracts, stop every ContractDeploymentInterval have been deployed to wait before continuing
-var ContractDeploymentInterval = 200
-
-// FundPluginNodes will fund all of the provided Plugin nodes with a set amount of native currency
-func FundPluginNodes(
-	nodes []*client.PluginK8sClient,
-	client blockchain.EVMClient,
-	amount *big.Float,
-) error {
-	for _, cl := range nodes {
-		toAddress, err := cl.PrimaryEthAddress()
-		if err != nil {
-			return err
-		}
-		recipient := common.HexToAddress(toAddress)
-		msg := ethereum.CallMsg{
-			From:  common.HexToAddress(client.GetDefaultWallet().Address()),
-			To:    &recipient,
-			Value: conversions.EtherToWei(amount),
-		}
-		gasEstimates, err := client.EstimateGas(msg)
-		if err != nil {
-			return err
-		}
-		err = client.Fund(toAddress, amount, gasEstimates)
-		if err != nil {
-			return err
-		}
-	}
-	return client.WaitForEvents()
-}
-
-// FundPluginNodesAddress will fund all of the provided Plugin nodes address at given index with a set amount of native currency
-func FundPluginNodesAddress(
-	nodes []*client.PluginK8sClient,
-	client blockchain.EVMClient,
-	amount *big.Float,
-	keyIndex int,
-) error {
-	for _, cl := range nodes {
-		toAddress, err := cl.EthAddresses()
-		if err != nil {
-			return err
-		}
-		toAddr := common.HexToAddress(toAddress[keyIndex])
-		gasEstimates, err := client.EstimateGas(ethereum.CallMsg{
-			To: &toAddr,
-		})
-		if err != nil {
-			return err
-		}
-		err = client.Fund(toAddress[keyIndex], amount, gasEstimates)
-		if err != nil {
-			return err
-		}
-	}
-	return client.WaitForEvents()
-}
-
-// FundPluginNodesAddress will fund all of the provided Plugin nodes addresses with a set amount of native currency
-func FundPluginNodesAddresses(
-	nodes []*client.PluginClient,
-	client blockchain.EVMClient,
-	amount *big.Float,
-) error {
-	for _, cl := range nodes {
-		toAddress, err := cl.EthAddressesForChain(client.GetChainID().String())
-		if err != nil {
-			return err
-		}
-		for _, addr := range toAddress {
-			toAddr := common.HexToAddress(addr)
-			gasEstimates, err := client.EstimateGas(ethereum.CallMsg{
-				To: &toAddr,
-			})
-			if err != nil {
-				return err
-			}
-			err = client.Fund(addr, amount, gasEstimates)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return client.WaitForEvents()
-}
-
-// FundPluginNodes will fund all of the provided Plugin nodes with a set amount of native currency
-func FundPluginNodesLink(
-	nodes []*client.PluginK8sClient,
-	blockchain blockchain.EVMClient,
-	linkToken contracts.LinkToken,
-	linkAmount *big.Int,
-) error {
-	for _, cl := range nodes {
-		toAddress, err := cl.PrimaryEthAddress()
-		if err != nil {
-			return err
-		}
-		err = linkToken.Transfer(toAddress, linkAmount)
-		if err != nil {
-			return err
-		}
-	}
-	return blockchain.WaitForEvents()
-}
 
 // PluginNodeAddresses will return all the on-chain wallet addresses for a set of Plugin nodes
 func PluginNodeAddresses(nodes []*client.PluginK8sClient) ([]common.Address, error) {
@@ -169,29 +82,6 @@ func PluginNodeAddressesAtIndex(nodes []*client.PluginK8sClient, keyIndex int) (
 	return addresses, nil
 }
 
-// SetPluginAPIPageSize specifies the page size from the Plugin API, useful for high volume testing
-func SetPluginAPIPageSize(nodes []*client.PluginK8sClient, pageSize int) {
-	for _, n := range nodes {
-		n.SetPageSize(pageSize)
-	}
-}
-
-// ExtractRequestIDFromJobRun extracts RequestID from job runs response
-func ExtractRequestIDFromJobRun(jobDecodeData client.RunsResponseData) ([]byte, error) {
-	var taskRun client.TaskRun
-	for _, tr := range jobDecodeData.Attributes.TaskRuns {
-		if tr.Type == "ethabidecodelog" {
-			taskRun = tr
-		}
-	}
-	var decodeLogTaskRun *client.DecodeLogTaskRun
-	if err := json.Unmarshal([]byte(taskRun.Output), &decodeLogTaskRun); err != nil {
-		return nil, err
-	}
-	rqInts := decodeLogTaskRun.RequestID
-	return rqInts, nil
-}
-
 // EncodeOnChainVRFProvingKey encodes uncompressed public VRF key to on-chain representation
 func EncodeOnChainVRFProvingKey(vrfKey client.VRFKey) ([2]*big.Int, error) {
 	uncompressed := vrfKey.Data.Attributes.Uncompressed
@@ -210,61 +100,609 @@ func EncodeOnChainVRFProvingKey(vrfKey client.VRFKey) ([2]*big.Int, error) {
 	return provingKey, nil
 }
 
-// GetMockserverInitializerDataForOTPE creates mocked weiwatchers data needed for otpe
-func GetMockserverInitializerDataForOTPE(
-	OCRInstances []contracts.OffchainAggregator,
-	pluginNodes []*client.PluginK8sClient,
-) (interface{}, error) {
-	var contractsInfo []ctfClient.ContractInfoJSON
+// EncodeOnChainExternalJobID encodes external job uuid to on-chain representation
+func EncodeOnChainExternalJobID(jobID uuid.UUID) [32]byte {
+	var ji [32]byte
+	copy(ji[:], strings.Replace(jobID.String(), "-", "", 4))
+	return ji
+}
 
-	for index, OCRInstance := range OCRInstances {
-		contractInfo := ctfClient.ContractInfoJSON{
-			ContractVersion: 4,
-			Path:            fmt.Sprintf("contract_%d", index),
-			Status:          "live",
-			ContractAddress: OCRInstance.Address(),
+// todo - move to CTF
+func GenerateWallet() (common.Address, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return common.Address{}, err
+	}
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return common.Address{}, fmt.Errorf("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+	return crypto.PubkeyToAddress(*publicKeyECDSA), nil
+}
+
+// todo - move to CTF
+func GetTxFromAddress(tx *types.Transaction) (string, error) {
+	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	return from.String(), err
+}
+
+// todo - move to CTF
+func DecodeTxInputData(abiString string, data []byte) (map[string]interface{}, error) {
+	jsonABI, err := abi.JSON(strings.NewReader(abiString))
+	if err != nil {
+		return nil, err
+	}
+	methodSigData := data[:4]
+	inputsSigData := data[4:]
+	method, err := jsonABI.MethodById(methodSigData)
+	if err != nil {
+		return nil, err
+	}
+	inputsMap := make(map[string]interface{})
+	if err := method.Inputs.UnpackIntoMap(inputsMap, inputsSigData); err != nil {
+		return nil, err
+	}
+	return inputsMap, nil
+}
+
+// todo - move to CTF
+func WaitForBlockNumberToBe(
+	ctx context.Context,
+	waitForBlockNumberToBe uint64,
+	client *seth.Client,
+	wg *sync.WaitGroup,
+	desiredBlockNumberReached chan<- bool,
+	timeout time.Duration,
+	l zerolog.Logger,
+) (uint64, error) {
+	blockNumberChannel := make(chan uint64)
+	errorChannel := make(chan error)
+	testContext, testCancel := context.WithTimeout(context.Background(), timeout)
+	defer testCancel()
+	ticker := time.NewTicker(time.Second * 5)
+	var latestBlockNumber uint64
+	for {
+		select {
+		case <-testContext.Done():
+			ticker.Stop()
+			wg.Done()
+			return latestBlockNumber,
+				fmt.Errorf("timeout waiting for Block Number to be: %d. Last recorded block number was: %d",
+					waitForBlockNumberToBe, latestBlockNumber)
+		case <-ticker.C:
+			go func() {
+				currentBlockNumber, err := client.Client.BlockNumber(ctx)
+				if err != nil {
+					errorChannel <- err
+				}
+				l.Info().
+					Uint64("Latest Block Number", currentBlockNumber).
+					Uint64("Desired Block Number", waitForBlockNumberToBe).
+					Msg("Waiting for Block Number to be")
+				blockNumberChannel <- currentBlockNumber
+			}()
+		case latestBlockNumber = <-blockNumberChannel:
+			if latestBlockNumber >= waitForBlockNumberToBe {
+				ticker.Stop()
+				wg.Done()
+				if desiredBlockNumberReached != nil {
+					desiredBlockNumberReached <- true
+				}
+				l.Info().
+					Uint64("Latest Block Number", latestBlockNumber).
+					Uint64("Desired Block Number", waitForBlockNumberToBe).
+					Msg("Desired Block Number reached!")
+				return latestBlockNumber, nil
+			}
+		case err := <-errorChannel:
+			ticker.Stop()
+			wg.Done()
+			return 0, err
 		}
+	}
+}
 
-		contractsInfo = append(contractsInfo, contractInfo)
+var ContractDeploymentInterval = 200
+
+// FundPluginNodesFromRootAddress sends native token amount (expressed in human-scale) to each Plugin Node
+// from root private key. It returns an error if any of the transactions failed.
+func FundPluginNodesFromRootAddress(
+	logger zerolog.Logger,
+	client *seth.Client,
+	nodes []contracts.PluginNodeWithKeysAndAddress,
+	amount *big.Float,
+) error {
+	if len(client.PrivateKeys) == 0 {
+		return errors.Wrap(errors.New(seth.ErrNoKeyLoaded), fmt.Sprintf("requested key: %d", 0))
 	}
 
-	contractsInitializer := ctfClient.HttpInitializer{
-		Request:  ctfClient.HttpRequest{Path: "/contracts.json"},
-		Response: ctfClient.HttpResponse{Body: contractsInfo},
+	return FundPluginNodes(logger, client, nodes, client.PrivateKeys[0], amount)
+}
+
+// FundPluginNodes sends native token amount (expressed in human-scale) to each Plugin Node
+// from private key's address. It returns an error if any of the transactions failed.
+func FundPluginNodes(
+	logger zerolog.Logger,
+	client *seth.Client,
+	nodes []contracts.PluginNodeWithKeysAndAddress,
+	privateKey *ecdsa.PrivateKey,
+	amount *big.Float,
+) error {
+	keyAddressFn := func(cl contracts.PluginNodeWithKeysAndAddress) (string, error) {
+		return cl.PrimaryEthAddress()
+	}
+	return fundPluginNodesAtAnyKey(logger, client, nodes, privateKey, amount, keyAddressFn)
+}
+
+// FundPluginNodesAtKeyIndexFromRootAddress sends native token amount (expressed in human-scale) to each Plugin Node
+// from root private key.It returns an error if any of the transactions failed. It sends the funds to
+// node address at keyIndex (as each node can have multiple addresses).
+func FundPluginNodesAtKeyIndexFromRootAddress(
+	logger zerolog.Logger,
+	client *seth.Client,
+	nodes []contracts.PluginNodeWithKeysAndAddress,
+	amount *big.Float,
+	keyIndex int,
+) error {
+	if len(client.PrivateKeys) == 0 {
+		return errors.Wrap(errors.New(seth.ErrNoKeyLoaded), fmt.Sprintf("requested key: %d", 0))
 	}
 
-	var nodesInfo []ctfClient.NodeInfoJSON
+	return FundPluginNodesAtKeyIndex(logger, client, nodes, client.PrivateKeys[0], amount, keyIndex)
+}
 
-	for _, plugin := range pluginNodes {
-		ocrKeys, err := plugin.MustReadOCRKeys()
+// FundPluginNodesAtKeyIndex sends native token amount (expressed in human-scale) to each Plugin Node
+// from private key's address. It returns an error if any of the transactions failed. It sends the funds to
+// node address at keyIndex (as each node can have multiple addresses).
+func FundPluginNodesAtKeyIndex(
+	logger zerolog.Logger,
+	client *seth.Client,
+	nodes []contracts.PluginNodeWithKeysAndAddress,
+	privateKey *ecdsa.PrivateKey,
+	amount *big.Float,
+	keyIndex int,
+) error {
+	keyAddressFn := func(cl contracts.PluginNodeWithKeysAndAddress) (string, error) {
+		toAddress, err := cl.EthAddresses()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		nodeInfo := ctfClient.NodeInfoJSON{
-			NodeAddress: []string{ocrKeys.Data[0].Attributes.OnChainSigningAddress},
-			ID:          ocrKeys.Data[0].ID,
+		return toAddress[keyIndex], nil
+	}
+	return fundPluginNodesAtAnyKey(logger, client, nodes, privateKey, amount, keyAddressFn)
+}
+
+func fundPluginNodesAtAnyKey(
+	logger zerolog.Logger,
+	client *seth.Client,
+	nodes []contracts.PluginNodeWithKeysAndAddress,
+	privateKey *ecdsa.PrivateKey,
+	amount *big.Float,
+	keyAddressFn func(contracts.PluginNodeWithKeysAndAddress) (string, error),
+) error {
+	for _, cl := range nodes {
+		toAddress, err := keyAddressFn(cl)
+		if err != nil {
+			return err
 		}
-		nodesInfo = append(nodesInfo, nodeInfo)
+
+		fromAddress, err := PrivateKeyToAddress(privateKey)
+		if err != nil {
+			return err
+		}
+
+		receipt, err := SendFunds(logger, client, FundsToSendPayload{
+			ToAddress:  common.HexToAddress(toAddress),
+			Amount:     conversions.EtherToWei(amount),
+			PrivateKey: privateKey,
+		})
+		if err != nil {
+			logger.Err(err).
+				Str("From", fromAddress.Hex()).
+				Str("To", toAddress).
+				Msg("Failed to fund Plugin node")
+
+			return err
+		}
+
+		txHash := "(none)"
+		if receipt != nil {
+			txHash = receipt.TxHash.String()
+		}
+
+		logger.Info().
+			Str("From", fromAddress.Hex()).
+			Str("To", toAddress).
+			Str("TxHash", txHash).
+			Str("Amount", amount.String()).
+			Msg("Funded Plugin node")
 	}
 
-	nodesInitializer := ctfClient.HttpInitializer{
-		Request:  ctfClient.HttpRequest{Path: "/nodes.json"},
-		Response: ctfClient.HttpResponse{Body: nodesInfo},
+	return nil
+}
+
+type FundsToSendPayload struct {
+	ToAddress  common.Address
+	Amount     *big.Int
+	PrivateKey *ecdsa.PrivateKey
+	GasLimit   *int64
+	GasPrice   *big.Int
+	GasFeeCap  *big.Int
+	GasTipCap  *big.Int
+	TxTimeout  *time.Duration
+}
+
+// TODO: move to CTF?
+// SendFunds sends native token amount (expressed in human-scale) from address controlled by private key
+// to given address. You can override any or none of the following: gas limit, gas price, gas fee cap, gas tip cap.
+// Values that are not set will be estimated or taken from config.
+func SendFunds(logger zerolog.Logger, client *seth.Client, payload FundsToSendPayload) (*types.Receipt, error) {
+	fromAddress, err := PrivateKeyToAddress(payload.PrivateKey)
+	if err != nil {
+		return nil, err
 	}
-	initializers := []ctfClient.HttpInitializer{contractsInitializer, nodesInitializer}
-	return initializers, nil
+
+	ctx, cancel := context.WithTimeout(context.Background(), client.Cfg.Network.TxnTimeout.Duration())
+	nonce, err := client.Client.PendingNonceAt(ctx, fromAddress)
+	defer cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	var gasLimit int64
+	gasLimitRaw, err := client.EstimateGasLimitForFundTransfer(fromAddress, payload.ToAddress, payload.Amount)
+	if err != nil {
+		gasLimit = client.Cfg.Network.TransferGasFee
+	} else {
+		gasLimit = int64(gasLimitRaw)
+	}
+
+	gasPrice := big.NewInt(0)
+	gasFeeCap := big.NewInt(0)
+	gasTipCap := big.NewInt(0)
+
+	if payload.GasLimit != nil {
+		gasLimit = *payload.GasLimit
+	}
+
+	if client.Cfg.Network.EIP1559DynamicFees {
+		// if any of the dynamic fees are not set, we need to either estimate them or read them from config
+		if payload.GasFeeCap == nil || payload.GasTipCap == nil {
+			// estimation or config reading happens here
+			txOptions := client.NewTXOpts(seth.WithGasLimit(uint64(gasLimit)))
+			gasFeeCap = txOptions.GasFeeCap
+			gasTipCap = txOptions.GasTipCap
+		}
+
+		// override with payload values if they are set
+		if payload.GasFeeCap != nil {
+			gasFeeCap = payload.GasFeeCap
+		}
+
+		if payload.GasTipCap != nil {
+			gasTipCap = payload.GasTipCap
+		}
+	} else {
+		if payload.GasPrice == nil {
+			txOptions := client.NewTXOpts(seth.WithGasLimit(uint64(gasLimit)))
+			gasPrice = txOptions.GasPrice
+		} else {
+			gasPrice = payload.GasPrice
+		}
+	}
+
+	var rawTx types.TxData
+
+	if client.Cfg.Network.EIP1559DynamicFees {
+		rawTx = &types.DynamicFeeTx{
+			Nonce:     nonce,
+			To:        &payload.ToAddress,
+			Value:     payload.Amount,
+			Gas:       uint64(gasLimit),
+			GasFeeCap: gasFeeCap,
+			GasTipCap: gasTipCap,
+		}
+	} else {
+		rawTx = &types.LegacyTx{
+			Nonce:    nonce,
+			To:       &payload.ToAddress,
+			Value:    payload.Amount,
+			Gas:      uint64(gasLimit),
+			GasPrice: gasPrice,
+		}
+	}
+
+	signedTx, err := types.SignNewTx(payload.PrivateKey, types.LatestSignerForChainID(big.NewInt(client.ChainID)), rawTx)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to sign tx")
+	}
+
+	txTimeout := client.Cfg.Network.TxnTimeout.Duration()
+	if payload.TxTimeout != nil {
+		txTimeout = *payload.TxTimeout
+	}
+
+	logger.Debug().
+		Str("From", fromAddress.Hex()).
+		Str("To", payload.ToAddress.Hex()).
+		Str("Amount (wei/ether)", fmt.Sprintf("%s/%s", payload.Amount, conversions.WeiToEther(payload.Amount).Text('f', -1))).
+		Uint64("Nonce", nonce).
+		Int64("Gas Limit", gasLimit).
+		Str("Gas Price", gasPrice.String()).
+		Str("Gas Fee Cap", gasFeeCap.String()).
+		Str("Gas Tip Cap", gasTipCap.String()).
+		Bool("Dynamic fees", client.Cfg.Network.EIP1559DynamicFees).
+		Msg("About to send funds")
+
+	ctx, cancel = context.WithTimeout(ctx, txTimeout)
+	defer cancel()
+	err = client.Client.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to send transaction")
+	}
+
+	logger.Debug().
+		Str("From", fromAddress.Hex()).
+		Str("To", payload.ToAddress.Hex()).
+		Str("TxHash", signedTx.Hash().String()).
+		Str("Amount (wei/ether)", fmt.Sprintf("%s/%s", payload.Amount, conversions.WeiToEther(payload.Amount).Text('f', -1))).
+		Uint64("Nonce", nonce).
+		Int64("Gas Limit", gasLimit).
+		Str("Gas Price", gasPrice.String()).
+		Str("Gas Fee Cap", gasFeeCap.String()).
+		Str("Gas Tip Cap", gasTipCap.String()).
+		Bool("Dynamic fees", client.Cfg.Network.EIP1559DynamicFees).
+		Msg("Sent funds")
+
+	receipt, receiptErr := client.WaitMined(ctx, logger, client.Client, signedTx)
+	if receiptErr != nil {
+		return nil, errors.Wrap(receiptErr, "failed to wait for transaction to be mined")
+	}
+
+	if receipt.Status == 1 {
+		return receipt, nil
+	}
+
+	tx, _, err := client.Client.TransactionByHash(ctx, signedTx.Hash())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get transaction by hash ")
+	}
+
+	_, err = client.Decode(tx, receiptErr)
+	if err != nil {
+		return nil, err
+	}
+
+	return receipt, nil
+}
+
+// DeployForwarderContracts first deploys Operator Factory and then uses it to deploy given number of
+// operator and forwarder pairs. It waits for each transaction to be mined and then extracts operator and
+// forwarder addresses from emitted events.
+func DeployForwarderContracts(
+	t *testing.T,
+	seth *seth.Client,
+	linkTokenAddress common.Address,
+	numberOfOperatorForwarderPairs int,
+) (operators []common.Address, authorizedForwarders []common.Address, operatorFactoryInstance contracts.OperatorFactory) {
+	instance, err := contracts.DeployEthereumOperatorFactory(seth, linkTokenAddress)
+	require.NoError(t, err, "failed to create new instance of operator factory")
+	operatorFactoryInstance = &instance
+
+	for i := 0; i < numberOfOperatorForwarderPairs; i++ {
+		tx, deployErr := operatorFactoryInstance.DeployNewOperatorAndForwarder()
+		decodedTx, err := seth.Decode(tx, deployErr)
+		require.NoError(t, err, "Deploying new operator with proposed ownership with forwarder shouldn't fail")
+
+		for i, event := range decodedTx.Events {
+			require.True(t, len(event.Topics) > 0, fmt.Sprintf("Event %d should have topics", i))
+			switch event.Topics[0] {
+			case operator_factory.OperatorFactoryOperatorCreated{}.Topic().String():
+				if address, ok := event.EventData["operator"]; ok {
+					operators = append(operators, address.(common.Address))
+				} else {
+					require.Fail(t, "Operator address not found in event", event)
+				}
+			case operator_factory.OperatorFactoryAuthorizedForwarderCreated{}.Topic().String():
+				if address, ok := event.EventData["forwarder"]; ok {
+					authorizedForwarders = append(authorizedForwarders, address.(common.Address))
+				} else {
+					require.Fail(t, "Forwarder address not found in event", event)
+				}
+			}
+		}
+	}
+	return operators, authorizedForwarders, operatorFactoryInstance
+}
+
+// WatchNewOCRRound watches for a new OCR round, similarly to StartNewRound, but it does not explicitly request a new
+// round from the contract, as this can cause some odd behavior in some cases. It announces success if latest round
+// is >= roundNumber.
+func WatchNewOCRRound(
+	l zerolog.Logger,
+	seth *seth.Client,
+	roundNumber int64,
+	ocrInstances []contracts.OffChainAggregatorWithRounds,
+	timeout time.Duration,
+) error {
+	confirmed := make(map[string]bool)
+	timeoutC := time.After(timeout)
+	ticker := time.NewTicker(time.Millisecond * 200)
+	defer ticker.Stop()
+
+	l.Info().Msgf("Waiting for round %d to be confirmed by all nodes", roundNumber)
+
+	for {
+		select {
+		case <-timeoutC:
+			return fmt.Errorf("timeout waiting for round %d to be confirmed. %d/%d nodes confirmed it", roundNumber, len(confirmed), len(ocrInstances))
+		case <-ticker.C:
+			for i := 0; i < len(ocrInstances); i++ {
+				if confirmed[ocrInstances[i].Address()] {
+					continue
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), seth.Cfg.Network.TxnTimeout.Duration())
+				roundData, err := ocrInstances[i].GetLatestRound(ctx)
+				if err != nil {
+					cancel()
+					return fmt.Errorf("getting latest round from OCR instance %d have failed: %w", i+1, err)
+				}
+				cancel()
+				if roundData.RoundId.Cmp(big.NewInt(roundNumber)) >= 0 {
+					l.Debug().Msgf("OCR instance %d/%d confirmed round %d", i+1, len(ocrInstances), roundNumber)
+					confirmed[ocrInstances[i].Address()] = true
+				}
+			}
+			if len(confirmed) == len(ocrInstances) {
+				return nil
+			}
+		}
+	}
+}
+
+// AcceptAuthorizedReceiversOperator sets authorized receivers for each operator contract to
+// authorizedForwarder and authorized EA to nodeAddresses. Once done, it confirms that authorizations
+// were set correctly.
+func AcceptAuthorizedReceiversOperator(
+	t *testing.T,
+	logger zerolog.Logger,
+	seth *seth.Client,
+	operator common.Address,
+	authorizedForwarder common.Address,
+	nodeAddresses []common.Address,
+) {
+	operatorInstance, err := contracts.LoadEthereumOperator(logger, seth, operator)
+	require.NoError(t, err, "Loading operator contract shouldn't fail")
+	forwarderInstance, err := contracts.LoadEthereumAuthorizedForwarder(seth, authorizedForwarder)
+	require.NoError(t, err, "Loading authorized forwarder contract shouldn't fail")
+
+	err = operatorInstance.AcceptAuthorizedReceivers([]common.Address{authorizedForwarder}, nodeAddresses)
+	require.NoError(t, err, "Accepting authorized forwarder shouldn't fail")
+
+	senders, err := forwarderInstance.GetAuthorizedSenders(testcontext.Get(t))
+	require.NoError(t, err, "Getting authorized senders shouldn't fail")
+	var nodesAddrs []string
+	for _, o := range nodeAddresses {
+		nodesAddrs = append(nodesAddrs, o.Hex())
+	}
+	require.Equal(t, nodesAddrs, senders, "Senders addresses should match node addresses")
+
+	owner, err := forwarderInstance.Owner(testcontext.Get(t))
+	require.NoError(t, err, "Getting authorized forwarder owner shouldn't fail")
+	require.Equal(t, operator.Hex(), owner, "Forwarder owner should match operator")
+}
+
+// TrackForwarder creates forwarder track for a given Plugin node
+func TrackForwarder(
+	t *testing.T,
+	seth *seth.Client,
+	authorizedForwarder common.Address,
+	node contracts.PluginNodeWithForwarder,
+) {
+	l := logging.GetTestLogger(t)
+	chainID := big.NewInt(seth.ChainID)
+	_, _, err := node.TrackForwarder(chainID, authorizedForwarder)
+	require.NoError(t, err, "Forwarder track should be created")
+	l.Info().Str("NodeURL", node.GetConfig().URL).
+		Str("ForwarderAddress", authorizedForwarder.Hex()).
+		Str("ChaindID", chainID.String()).
+		Msg("Forwarder tracked")
+}
+
+// SetupOCRv2Contracts deploys a number of OCRv2 contracts and configures them with defaults
+func SetupOCRv2Contracts(
+	l zerolog.Logger,
+	seth *seth.Client,
+	ocrContractsConfig ocr.OffChainAggregatorsConfig,
+	linkTokenAddress common.Address,
+	transmitters []string,
+	ocrOptions contracts.OffchainOptions,
+) ([]contracts.OffchainAggregatorV2, error) {
+	var ocrInstances []contracts.OffchainAggregatorV2
+
+	if ocrContractsConfig == nil {
+		return nil, fmt.Errorf("you need to pass non-nil OffChainAggregatorsConfig to setup OCR contracts")
+	}
+
+	if !ocrContractsConfig.UseExistingOffChainAggregatorsContracts() {
+		for contractCount := 0; contractCount < ocrContractsConfig.NumberOfContractsToDeploy(); contractCount++ {
+			ocrInstance, err := contracts.DeployOffchainAggregatorV2(
+				l,
+				seth,
+				linkTokenAddress,
+				ocrOptions,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("OCRv2 instance deployment have failed: %w", err)
+			}
+			ocrInstances = append(ocrInstances, &ocrInstance)
+			if (contractCount+1)%ContractDeploymentInterval == 0 { // For large amounts of contract deployments, space things out some
+				time.Sleep(2 * time.Second)
+			}
+		}
+	} else {
+		for _, address := range ocrContractsConfig.OffChainAggregatorsContractsAddresses() {
+			ocrInstance, err := contracts.LoadOffchainAggregatorV2(l, seth, address)
+			if err != nil {
+				return nil, fmt.Errorf("OCRv2 instance loading have failed: %w", err)
+			}
+			ocrInstances = append(ocrInstances, &ocrInstance)
+		}
+
+		if !ocrContractsConfig.ConfigureExistingOffChainAggregatorsContracts() {
+			return ocrInstances, nil
+		}
+	}
+
+	// Gather address payees
+	var payees []string
+	for range transmitters {
+		payees = append(payees, seth.Addresses[0].Hex())
+	}
+
+	// Set Payees
+	for contractCount, ocrInstance := range ocrInstances {
+		err := ocrInstance.SetPayees(transmitters, payees)
+		if err != nil {
+			return nil, fmt.Errorf("error settings OCR payees: %w", err)
+		}
+		if (contractCount+1)%ContractDeploymentInterval == 0 { // For large amounts of contract deployments, space things out some
+			time.Sleep(2 * time.Second)
+		}
+	}
+	return ocrInstances, nil
+}
+
+// ConfigureOCRv2AggregatorContracts sets configuration for a number of OCRv2 contracts
+func ConfigureOCRv2AggregatorContracts(
+	contractConfig *contracts.OCRv2Config,
+	ocrv2Contracts []contracts.OffchainAggregatorV2,
+) error {
+	for contractCount, ocrInstance := range ocrv2Contracts {
+		// Exclude the first node, which will be used as a bootstrapper
+		err := ocrInstance.SetConfig(contractConfig)
+		if err != nil {
+			return fmt.Errorf("error setting OCR config for contract '%s': %w", ocrInstance.Address(), err)
+		}
+		if (contractCount+1)%ContractDeploymentInterval == 0 { // For large amounts of contract deployments, space things out some
+			time.Sleep(2 * time.Second)
+		}
+	}
+	return nil
 }
 
 // TeardownSuite tears down networks/clients and environment and creates a logs folder for failed tests in the
 // specified path. Can also accept a testreporter (if one was used) to log further results
 func TeardownSuite(
 	t *testing.T,
+	chainClient *seth.Client,
 	env *environment.Environment,
 	pluginNodes []*client.PluginK8sClient,
 	optionalTestReporter testreporters.TestReporter, // Optionally pass in a test reporter to log further metrics
 	failingLogLevel zapcore.Level, // Examines logs after the test, and fails the test if any Plugin logs are found at or above provided level
 	grafnaUrlProvider testreporters.GrafanaURLProvider,
-	clients ...blockchain.EVMClient,
 ) error {
 	l := logging.GetTestLogger(t)
 	if err := testreporters.WriteTeardownLogs(t, env, optionalTestReporter, failingLogLevel, grafnaUrlProvider); err != nil {
@@ -276,60 +714,52 @@ func TeardownSuite(
 		l.Warn().Msgf("Error deleting jobs %+v", err)
 	}
 
-	for _, c := range clients {
-		if c != nil && pluginNodes != nil && len(pluginNodes) > 0 {
-			if err := ReturnFunds(pluginNodes, c); err != nil {
-				// This printed line is required for tests that use real funds to propagate the failure
-				// out to the system running the test. Do not remove
-				fmt.Println(environment.FAILED_FUND_RETURN)
-				l.Error().Err(err).Str("Namespace", env.Cfg.Namespace).
-					Msg("Error attempting to return funds from plugin nodes to network's default wallet. " +
-						"Environment is left running so you can try manually!")
-			}
-		} else {
-			l.Info().Msg("Successfully returned funds from plugin nodes to default network wallets")
+	if pluginNodes != nil && chainClient != nil {
+		if err := ReturnFundsFromNodes(l, chainClient, contracts.PluginK8sClientToPluginNodeWithKeysAndAddress(pluginNodes)); err != nil {
+			// This printed line is required for tests that use real funds to propagate the failure
+			// out to the system running the test. Do not remove
+			fmt.Println(environment.FAILED_FUND_RETURN)
+			l.Error().Err(err).Str("Namespace", env.Cfg.Namespace).
+				Msg("Error attempting to return funds from plugin nodes to network's default wallet. " +
+					"Environment is left running so you can try manually!")
 		}
-		// nolint
-		if c != nil {
-			err := c.Close()
-			if err != nil {
-				return err
-			}
-		}
+	} else {
+		l.Info().Msg("Successfully returned funds from plugin nodes to default network wallets")
 	}
 
 	return env.Shutdown()
 }
 
-// TeardownRemoteSuite is used when running a test within a remote-test-runner, like for long-running performance and
-// soak tests
+// TeardownRemoteSuite sends a report and returns funds from plugin nodes to network's default wallet
 func TeardownRemoteSuite(
 	t *testing.T,
+	client *seth.Client,
 	namespace string,
 	pluginNodes []*client.PluginK8sClient,
 	optionalTestReporter testreporters.TestReporter, // Optionally pass in a test reporter to log further metrics
 	grafnaUrlProvider testreporters.GrafanaURLProvider,
-	client blockchain.EVMClient,
 ) error {
 	l := logging.GetTestLogger(t)
-	var err error
-	if err = testreporters.SendReport(t, namespace, "./", optionalTestReporter, grafnaUrlProvider); err != nil {
+	if err := testreporters.SendReport(t, namespace, "./", optionalTestReporter, grafnaUrlProvider); err != nil {
 		l.Warn().Err(err).Msg("Error writing test report")
 	}
 	// Delete all jobs to stop depleting the funds
-	err = DeleteAllJobs(pluginNodes)
+	err := DeleteAllJobs(pluginNodes)
 	if err != nil {
 		l.Warn().Msgf("Error deleting jobs %+v", err)
 	}
 
-	if err = ReturnFunds(pluginNodes, client); err != nil {
+	if err = ReturnFundsFromNodes(l, client, contracts.PluginK8sClientToPluginNodeWithKeysAndAddress(pluginNodes)); err != nil {
 		l.Error().Err(err).Str("Namespace", namespace).
 			Msg("Error attempting to return funds from plugin nodes to network's default wallet. " +
 				"Environment is left running so you can try manually!")
 	}
+
 	return err
 }
 
+// DeleteAllJobs deletes all jobs from all plugin nodes
+// added here temporarily to avoid circular import
 func DeleteAllJobs(pluginNodes []*client.PluginK8sClient) error {
 	for _, node := range pluginNodes {
 		if node == nil {
@@ -353,210 +783,556 @@ func DeleteAllJobs(pluginNodes []*client.PluginK8sClient) error {
 	return nil
 }
 
-// ReturnFunds attempts to return all the funds from the plugin nodes to the network's default address
-// all from a remote, k8s style environment
-func ReturnFunds(pluginNodes []*client.PluginK8sClient, blockchainClient blockchain.EVMClient) error {
-	if blockchainClient == nil {
-		return fmt.Errorf("blockchain client is nil, unable to return funds from plugin nodes")
-	}
-	log.Info().Msg("Attempting to return Plugin node funds to default network wallets")
-	if blockchainClient.NetworkSimulated() {
-		log.Info().Str("Network Name", blockchainClient.GetNetworkName()).
-			Msg("Network is a simulated network. Skipping fund return.")
-		return nil
-	}
-
-	for _, pluginNode := range pluginNodes {
-		fundedKeys, err := pluginNode.ExportEVMKeysForChain(blockchainClient.GetChainID().String())
-		if err != nil {
-			return err
-		}
-		for _, key := range fundedKeys {
-			keyToDecrypt, err := json.Marshal(key)
-			if err != nil {
-				return err
-			}
-			// This can take up a good bit of RAM and time. When running on the remote-test-runner, this can lead to OOM
-			// issues. So we avoid running in parallel; slower, but safer.
-			decryptedKey, err := keystore.DecryptKey(keyToDecrypt, client.PluginKeyPassword)
-			if err != nil {
-				return err
-			}
-			err = blockchainClient.ReturnFunds(decryptedKey.PrivateKey)
-			if err != nil {
-				log.Error().Err(err).Str("Address", fundedKeys[0].Address).Msg("Error returning funds from Plugin node")
-			}
-		}
-	}
-	return blockchainClient.WaitForEvents()
-}
-
-// FundAddresses will fund a list of addresses with an amount of native currency
-func FundAddresses(blockchain blockchain.EVMClient, amount *big.Float, addresses ...string) error {
-	for _, address := range addresses {
-		toAddr := common.HexToAddress(address)
-		gasEstimates, err := blockchain.EstimateGas(ethereum.CallMsg{
-			To: &toAddr,
-		})
-		if err != nil {
-			return err
-		}
-		if err := blockchain.Fund(address, amount, gasEstimates); err != nil {
-			return err
-		}
-	}
-	return blockchain.WaitForEvents()
-}
-
-// EncodeOnChainExternalJobID encodes external job uuid to on-chain representation
-func EncodeOnChainExternalJobID(jobID uuid.UUID) [32]byte {
-	var ji [32]byte
-	copy(ji[:], strings.Replace(jobID.String(), "-", "", 4))
-	return ji
-}
-
-// UpgradePluginNodeVersions upgrades all Plugin nodes to a new version, and then runs the test environment
-// to apply the upgrades
-func UpgradePluginNodeVersions(
-	testEnvironment *environment.Environment,
-	newImage, newVersion string,
-	nodes ...*client.PluginK8sClient,
+// StartNewRound requests a new round from the ocr contracts and returns once transaction was mined
+func StartNewRound(
+	ocrInstances []contracts.OffChainAggregatorWithRounds,
 ) error {
-	if newImage == "" || newVersion == "" {
-		return errors.New("New image and new version is needed to upgrade the node")
-	}
-	for _, node := range nodes {
-		if err := node.UpgradeVersion(testEnvironment, newImage, newVersion); err != nil {
-			return err
+	for i := 0; i < len(ocrInstances); i++ {
+		err := ocrInstances[i].RequestNewRound()
+		if err != nil {
+			return fmt.Errorf("requesting new OCR round %d have failed: %w", i+1, err)
 		}
-	}
-	err := testEnvironment.RunUpdated(len(nodes))
-	if err != nil { // Run the new environment and wait for changes to show
-		return err
-	}
-	return client.ReconnectPluginNodes(testEnvironment, nodes)
-}
-
-func DeployPLIToken(cd contracts.ContractDeployer) (contracts.LinkToken, error) {
-	linkToken, err := cd.DeployLinkTokenContract()
-	if err != nil {
-		return nil, err
-	}
-	return linkToken, err
-}
-
-func DeployMockETHLinkFeed(cd contracts.ContractDeployer, answer *big.Int) (contracts.MockETHPLIFeed, error) {
-	mockETHPLIFeed, err := cd.DeployMockETHPLIFeed(answer)
-	if err != nil {
-		return nil, err
-	}
-	return mockETHPLIFeed, err
-}
-
-// todo - move to CTF
-func GenerateWallet() (common.Address, error) {
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		return common.Address{}, err
-	}
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return common.Address{}, fmt.Errorf("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
-	}
-	return crypto.PubkeyToAddress(*publicKeyECDSA), nil
-}
-
-// todo - move to CTF
-func FundAddress(client blockchain.EVMClient, sendingKey string, fundingToSendEth *big.Float) error {
-	address := common.HexToAddress(sendingKey)
-	gasEstimates, err := client.EstimateGas(ethereum.CallMsg{
-		To: &address,
-	})
-	if err != nil {
-		return err
-	}
-	err = client.Fund(sendingKey, fundingToSendEth, gasEstimates)
-	if err != nil {
-		return err
 	}
 	return nil
 }
 
-// todo - move to CTF
-func GetTxFromAddress(tx *types.Transaction) (string, error) {
-	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
-	return from.String(), err
+// DeployOCRContractsForwarderFlow deploys and funds a certain number of offchain
+// aggregator contracts with forwarders as effectiveTransmitters
+func DeployOCRContractsForwarderFlow(
+	logger zerolog.Logger,
+	seth *seth.Client,
+	ocrContractsConfig ocr.OffChainAggregatorsConfig,
+	linkTokenContractAddress common.Address,
+	workerNodes []contracts.PluginNodeWithKeysAndAddress,
+	forwarderAddresses []common.Address,
+) ([]contracts.OffchainAggregator, error) {
+	transmitterPayeesFn := func() (transmitters []string, payees []string, err error) {
+		transmitters = make([]string, 0)
+		payees = make([]string, 0)
+		for _, forwarderCommonAddress := range forwarderAddresses {
+			forwarderAddress := forwarderCommonAddress.Hex()
+			transmitters = append(transmitters, forwarderAddress)
+			payees = append(payees, seth.Addresses[0].Hex())
+		}
+
+		return
+	}
+
+	transmitterAddressesFn := func() ([]common.Address, error) {
+		return forwarderAddresses, nil
+	}
+
+	return setupAnyOCRv1Contracts(logger, seth, ocrContractsConfig, linkTokenContractAddress, workerNodes, transmitterPayeesFn, transmitterAddressesFn)
 }
 
-// todo - move to CTF
-func GetTxByHash(ctx context.Context, client blockchain.EVMClient, hash common.Hash) (*types.Transaction, bool, error) {
-	return client.(*blockchain.EthereumMultinodeClient).
-		DefaultClient.(*blockchain.EthereumClient).
-		Client.
-		TransactionByHash(ctx, hash)
-}
-
-// todo - move to CTF
-func DecodeTxInputData(abiString string, data []byte) (map[string]interface{}, error) {
-	jsonABI, err := abi.JSON(strings.NewReader(abiString))
-	if err != nil {
-		return nil, err
-	}
-	methodSigData := data[:4]
-	inputsSigData := data[4:]
-	method, err := jsonABI.MethodById(methodSigData)
-	if err != nil {
-		return nil, err
-	}
-	inputsMap := make(map[string]interface{})
-	if err := method.Inputs.UnpackIntoMap(inputsMap, inputsSigData); err != nil {
-		return nil, err
-	}
-	return inputsMap, nil
-}
-
-// todo - move to EVMClient
-func WaitForBlockNumberToBe(
-	waitForBlockNumberToBe uint64,
-	client blockchain.EVMClient,
-	wg *sync.WaitGroup,
-	timeout time.Duration,
-	t testing.TB,
-) (uint64, error) {
-	blockNumberChannel := make(chan uint64)
-	errorChannel := make(chan error)
-	testContext, testCancel := context.WithTimeout(context.Background(), timeout)
-	defer testCancel()
-
-	ticker := time.NewTicker(time.Second * 1)
-	var blockNumber uint64
-	for {
-		select {
-		case <-testContext.Done():
-			ticker.Stop()
-			wg.Done()
-			return blockNumber,
-				fmt.Errorf("timeout waiting for Block Number to be: %d. Last recorded block number was: %d",
-					waitForBlockNumberToBe, blockNumber)
-		case <-ticker.C:
-			go func() {
-				currentBlockNumber, err := client.LatestBlockNumber(testcontext.Get(t))
-				if err != nil {
-					errorChannel <- err
-				}
-				blockNumberChannel <- currentBlockNumber
-			}()
-		case blockNumber = <-blockNumberChannel:
-			if blockNumber == waitForBlockNumberToBe {
-				ticker.Stop()
-				wg.Done()
-				return blockNumber, nil
+// SetupOCRv1Contracts deploys and funds a certain number of offchain aggregator contracts or uses existing ones and returns a slice of contract wrappers.
+func SetupOCRv1Contracts(
+	logger zerolog.Logger,
+	seth *seth.Client,
+	ocrContractsConfig ocr.OffChainAggregatorsConfig,
+	linkTokenContractAddress common.Address,
+	workerNodes []contracts.PluginNodeWithKeysAndAddress,
+) ([]contracts.OffchainAggregator, error) {
+	transmitterPayeesFn := func() (transmitters []string, payees []string, err error) {
+		transmitters = make([]string, 0)
+		payees = make([]string, 0)
+		for _, n := range workerNodes {
+			var addr string
+			addr, err = n.PrimaryEthAddress()
+			if err != nil {
+				err = fmt.Errorf("error getting node's primary ETH address: %w", err)
+				return
 			}
-		case err := <-errorChannel:
-			ticker.Stop()
-			wg.Done()
-			return 0, err
+			transmitters = append(transmitters, addr)
+			payees = append(payees, seth.Addresses[0].Hex())
+		}
+
+		return
+	}
+
+	transmitterAddressesFn := func() ([]common.Address, error) {
+		transmitterAddresses := make([]common.Address, 0)
+		for _, n := range workerNodes {
+			primaryAddress, err := n.PrimaryEthAddress()
+			if err != nil {
+				return nil, err
+			}
+			transmitterAddresses = append(transmitterAddresses, common.HexToAddress(primaryAddress))
+		}
+
+		return transmitterAddresses, nil
+	}
+
+	return setupAnyOCRv1Contracts(logger, seth, ocrContractsConfig, linkTokenContractAddress, workerNodes, transmitterPayeesFn, transmitterAddressesFn)
+}
+
+func setupAnyOCRv1Contracts(
+	logger zerolog.Logger,
+	seth *seth.Client,
+	ocrContractsConfig ocr.OffChainAggregatorsConfig,
+	linkTokenContractAddress common.Address,
+	workerNodes []contracts.PluginNodeWithKeysAndAddress,
+	getTransmitterAndPayeesFn func() ([]string, []string, error),
+	getTransmitterAddressesFn func() ([]common.Address, error),
+) ([]contracts.OffchainAggregator, error) {
+	var ocrInstances []contracts.OffchainAggregator
+
+	if ocrContractsConfig == nil {
+		return nil, fmt.Errorf("you need to pass non-nil OffChainAggregatorsConfig to setup OCR contracts")
+	}
+
+	if !ocrContractsConfig.UseExistingOffChainAggregatorsContracts() {
+		// Deploy contracts
+		for contractCount := 0; contractCount < ocrContractsConfig.NumberOfContractsToDeploy(); contractCount++ {
+			ocrInstance, err := contracts.DeployOffchainAggregator(logger, seth, linkTokenContractAddress, contracts.DefaultOffChainAggregatorOptions())
+			if err != nil {
+				return nil, fmt.Errorf("OCR instance deployment have failed: %w", err)
+			}
+			ocrInstances = append(ocrInstances, &ocrInstance)
+			if (contractCount+1)%ContractDeploymentInterval == 0 { // For large amounts of contract deployments, space things out some
+				time.Sleep(2 * time.Second)
+			}
+		}
+	} else {
+		// Load contract wrappers
+		for _, address := range ocrContractsConfig.OffChainAggregatorsContractsAddresses() {
+			ocrInstance, err := contracts.LoadOffChainAggregator(logger, seth, address)
+			if err != nil {
+				return nil, fmt.Errorf("OCR instance loading have failed: %w", err)
+			}
+			ocrInstances = append(ocrInstances, &ocrInstance)
+		}
+
+		if !ocrContractsConfig.ConfigureExistingOffChainAggregatorsContracts() {
+			return ocrInstances, nil
 		}
 	}
+
+	// Gather transmitter and address payees
+	var transmitters, payees []string
+	var err error
+	transmitters, payees, err = getTransmitterAndPayeesFn()
+	if err != nil {
+		return nil, fmt.Errorf("error getting transmitter and payees: %w", err)
+	}
+
+	// Set Payees
+	for contractCount, ocrInstance := range ocrInstances {
+		err := ocrInstance.SetPayees(transmitters, payees)
+		if err != nil {
+			return nil, fmt.Errorf("error settings OCR payees: %w", err)
+		}
+		if (contractCount+1)%ContractDeploymentInterval == 0 { // For large amounts of contract deployments, space things out some
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	// Set Config
+	transmitterAddresses, err := getTransmitterAddressesFn()
+	if err != nil {
+		return nil, fmt.Errorf("getting transmitter addresses should not fail: %w", err)
+	}
+
+	for contractCount, ocrInstance := range ocrInstances {
+		// Exclude the first node, which will be used as a bootstrapper
+		err = ocrInstance.SetConfig(
+			workerNodes,
+			contracts.DefaultOffChainAggregatorConfig(len(workerNodes)),
+			transmitterAddresses,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error setting OCR config for contract '%s': %w", ocrInstance.Address(), err)
+		}
+		if (contractCount+1)%ContractDeploymentInterval == 0 { // For large amounts of contract deployments, space things out some
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	return ocrInstances, nil
+}
+
+func PrivateKeyToAddress(privateKey *ecdsa.PrivateKey) (common.Address, error) {
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return common.Address{}, errors.New("error casting public key to ECDSA")
+	}
+	return crypto.PubkeyToAddress(*publicKeyECDSA), nil
+}
+
+func WatchNewFluxRound(
+	l zerolog.Logger,
+	seth *seth.Client,
+	roundNumber int64,
+	fluxInstance contracts.FluxAggregator,
+	timeout time.Duration,
+) error {
+	timeoutC := time.After(timeout)
+	ticker := time.NewTicker(time.Millisecond * 200)
+	defer ticker.Stop()
+
+	l.Info().Msgf("Waiting for flux round %d to be confirmed by flux aggregator", roundNumber)
+
+	for {
+		select {
+		case <-timeoutC:
+			return fmt.Errorf("timeout waiting for round %d to be confirmed", roundNumber)
+		case <-ticker.C:
+			ctx, cancel := context.WithTimeout(context.Background(), seth.Cfg.Network.TxnTimeout.Duration())
+			roundId, err := fluxInstance.LatestRoundID(ctx)
+			if err != nil {
+				cancel()
+				return fmt.Errorf("getting latest round from flux instance has failed: %w", err)
+			}
+			cancel()
+			if roundId.Cmp(big.NewInt(roundNumber)) >= 0 {
+				l.Debug().Msgf("Flux instance confirmed round %d", roundNumber)
+				return nil
+			}
+		}
+	}
+}
+
+// EstimateCostForPluginOperations estimates the cost of running a number of operations on the Plugin node based on estimated gas costs. It supports
+// both legacy and EIP-1559 transactions.
+func EstimateCostForPluginOperations(l zerolog.Logger, client *seth.Client, network blockchain.EVMNetwork, amountOfOperations int) (*big.Float, error) {
+	bigAmountOfOperations := big.NewInt(int64(amountOfOperations))
+	estimations := client.CalculateGasEstimations(client.NewDefaultGasEstimationRequest())
+
+	gasLimit := network.GasEstimationBuffer + network.PluginTransactionLimit
+
+	var gasPriceInWei *big.Int
+	if client.Cfg.Network.EIP1559DynamicFees {
+		gasPriceInWei = estimations.GasFeeCap
+	} else {
+		gasPriceInWei = estimations.GasPrice
+	}
+
+	gasCostPerOperationWei := big.NewInt(1).Mul(big.NewInt(1).SetUint64(gasLimit), gasPriceInWei)
+	gasCostPerOperationETH := conversions.WeiToEther(gasCostPerOperationWei)
+	// total Wei needed for all TXs = total value for TX * number of TXs
+	totalWeiForAllOperations := big.NewInt(1).Mul(gasCostPerOperationWei, bigAmountOfOperations)
+	totalEthForAllOperations := conversions.WeiToEther(totalWeiForAllOperations)
+
+	l.Debug().
+		Int("Number of Operations", amountOfOperations).
+		Uint64("Gas Limit per Operation", gasLimit).
+		Str("Value per Operation (ETH)", gasCostPerOperationETH.String()).
+		Str("Total (ETH)", totalEthForAllOperations.String()).
+		Msg("Calculated ETH for Plugin Operations")
+
+	return totalEthForAllOperations, nil
+}
+
+// GetLatestFinalizedBlockHeader returns latest finalised block header for given network (taking into account finality tag/depth)
+func GetLatestFinalizedBlockHeader(ctx context.Context, client *seth.Client, network blockchain.EVMNetwork) (*types.Header, error) {
+	if network.FinalityTag {
+		return client.Client.HeaderByNumber(ctx, big.NewInt(rpc.FinalizedBlockNumber.Int64()))
+	}
+	if network.FinalityDepth == 0 {
+		return nil, fmt.Errorf("finality depth is 0 and finality tag is not enabled")
+	}
+	header, err := client.Client.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	latestBlockNumber := header.Number.Uint64()
+	finalizedBlockNumber := latestBlockNumber - network.FinalityDepth
+	return client.Client.HeaderByNumber(ctx, big.NewInt(int64(finalizedBlockNumber)))
+}
+
+// SendLinkFundsToDeploymentAddresses sends PLI token to all addresses, but the root one, from the root address. It uses
+// Multicall contract to batch all transfers in a single transaction. It also checks if the funds were transferred correctly.
+// It's primary use case is to fund addresses that will be used for Upkeep registration (as that requires PLI balance) during
+// Automation/Keeper test setup.
+func SendLinkFundsToDeploymentAddresses(
+	chainClient *seth.Client,
+	concurrency,
+	totalUpkeeps,
+	operationsPerAddress int,
+	multicallAddress common.Address,
+	linkAmountPerUpkeep *big.Int,
+	linkToken contracts.LinkToken,
+) error {
+	var generateCallData = func(receiver common.Address, amount *big.Int) ([]byte, error) {
+		abi, err := link_token_interface.LinkTokenMetaData.GetAbi()
+		if err != nil {
+			return nil, err
+		}
+		data, err := abi.Pack("transfer", receiver, amount)
+		if err != nil {
+			return nil, err
+		}
+		return data, nil
+	}
+
+	toTransferToMultiCallContract := big.NewInt(0).Mul(linkAmountPerUpkeep, big.NewInt(int64(totalUpkeeps+concurrency)))
+	toTransferPerClient := big.NewInt(0).Mul(linkAmountPerUpkeep, big.NewInt(int64(operationsPerAddress+1)))
+
+	// As a hack we use the geth wrapper directly, because we need to access receipt to get block number, which we will use to query the balance
+	// This is needed as querying with 'latest' block number very rarely, but still, return stale balance. That's happening even though we wait for
+	// the transaction to be mined.
+	linkInstance, err := link_token_interface.NewLinkToken(common.HexToAddress(linkToken.Address()), wrappers.MustNewWrappedContractBackend(nil, chainClient))
+	if err != nil {
+		return err
+	}
+
+	tx, err := chainClient.Decode(linkInstance.Transfer(chainClient.NewTXOpts(), multicallAddress, toTransferToMultiCallContract))
+	if err != nil {
+		return err
+	}
+
+	if tx.Receipt == nil {
+		return fmt.Errorf("transaction receipt for PLI transfer to multicall contract is nil")
+	}
+
+	multiBalance, err := linkInstance.BalanceOf(&bind.CallOpts{From: chainClient.Addresses[0], BlockNumber: tx.Receipt.BlockNumber}, multicallAddress)
+	if err != nil {
+		return errors.Wrapf(err, "Error getting PLI balance of multicall contract")
+	}
+
+	// Old code that's querying latest block
+	//err := linkToken.Transfer(multicallAddress.Hex(), toTransferToMultiCallContract)
+	//if err != nil {
+	//	return errors.Wrapf(err, "Error transferring PLI to multicall contract")
+	//}
+	//
+	//balance, err := linkToken.BalanceOf(context.Background(), multicallAddress.Hex())
+	//if err != nil {
+	//	return errors.Wrapf(err, "Error getting PLI balance of multicall contract")
+	//}
+
+	if multiBalance.Cmp(toTransferToMultiCallContract) < 0 {
+		return fmt.Errorf("Incorrect PLI balance of multicall contract. Expected at least: %s. Got: %s", toTransferToMultiCallContract.String(), multiBalance.String())
+	}
+
+	// Transfer PLI to ephemeral keys
+	multiCallData := make([][]byte, 0)
+	for i := 1; i <= concurrency; i++ {
+		data, err := generateCallData(chainClient.Addresses[i], toTransferPerClient)
+		if err != nil {
+			return errors.Wrapf(err, "Error generating call data for PLI transfer")
+		}
+		multiCallData = append(multiCallData, data)
+	}
+
+	var call []contracts.Call
+	for _, d := range multiCallData {
+		data := contracts.Call{Target: common.HexToAddress(linkToken.Address()), AllowFailure: false, CallData: d}
+		call = append(call, data)
+	}
+
+	multiCallABI, err := abi.JSON(strings.NewReader(contracts.MultiCallABI))
+	if err != nil {
+		return errors.Wrapf(err, "Error getting Multicall contract ABI")
+	}
+	boundContract := bind.NewBoundContract(multicallAddress, multiCallABI, chainClient.Client, chainClient.Client, chainClient.Client)
+	// call aggregate3 to group all msg call data and send them in a single transaction
+	ephemeralTx, err := chainClient.Decode(boundContract.Transact(chainClient.NewTXOpts(), "aggregate3", call))
+	if err != nil {
+		return errors.Wrapf(err, "Error calling Multicall contract")
+	}
+
+	if ephemeralTx.Receipt == nil {
+		return fmt.Errorf("transaction receipt for PLI transfer to ephemeral keys is nil")
+	}
+
+	for i := 1; i <= concurrency; i++ {
+		ephemeralBalance, err := linkInstance.BalanceOf(&bind.CallOpts{From: chainClient.Addresses[0], BlockNumber: ephemeralTx.Receipt.BlockNumber}, chainClient.Addresses[i])
+		// Old code that's querying latest block, for now we prefer to use block number from the transaction receipt
+		//balance, err := linkToken.BalanceOf(context.Background(), chainClient.Addresses[i].Hex())
+		if err != nil {
+			return errors.Wrapf(err, "Error getting PLI balance of ephemeral key %d", i)
+		}
+		if ephemeralBalance.Cmp(toTransferPerClient) < 0 {
+			return fmt.Errorf("Incorrect PLI balance after transfer. Ephemeral key %d. Expected: %s. Got: %s", i, toTransferPerClient.String(), ephemeralBalance.String())
+		}
+	}
+
+	return nil
+}
+
+// GenerateUpkeepReport generates a report of performed, successful, reverted and stale upkeeps for a given registry contract based on transaction logs. In case of test failure it can help us
+// to triage the issue by providing more context.
+func GenerateUpkeepReport(t *testing.T, chainClient *seth.Client, startBlock, endBlock *big.Int, instance contracts.KeeperRegistry, registryVersion ethContracts.KeeperRegistryVersion) (performedUpkeeps, successfulUpkeeps, revertedUpkeeps, staleUpkeeps int, err error) {
+	registryLogs := []gethtypes.Log{}
+	l := logging.GetTestLogger(t)
+
+	var (
+		blockBatchSize  int64 = 100
+		logs            []gethtypes.Log
+		timeout         = 5 * time.Second
+		addr            = common.HexToAddress(instance.Address())
+		queryStartBlock = startBlock
+	)
+
+	// Gather logs from the registry in 100 block chunks to avoid read limits
+	for queryStartBlock.Cmp(endBlock) < 0 {
+		filterQuery := geth.FilterQuery{
+			Addresses: []common.Address{addr},
+			FromBlock: queryStartBlock,
+			ToBlock:   big.NewInt(0).Add(queryStartBlock, big.NewInt(blockBatchSize)),
+		}
+
+		// This RPC call can possibly time out or otherwise die. Failure is not an option, keep retrying to get our stats.
+		err = fmt.Errorf("initial error") // to ensure our for loop runs at least once
+		for err != nil {
+			ctx, cancel := context.WithTimeout(testcontext.Get(t), timeout)
+			logs, err = chainClient.Client.FilterLogs(ctx, filterQuery)
+			cancel()
+			if err != nil {
+				l.Error().
+					Err(err).
+					Interface("Filter Query", filterQuery).
+					Str("Timeout", timeout.String()).
+					Msg("Error getting logs from chain, trying again")
+				timeout = time.Duration(math.Min(float64(timeout)*2, float64(2*time.Minute)))
+				continue
+			}
+			l.Info().
+				Uint64("From Block", queryStartBlock.Uint64()).
+				Uint64("To Block", filterQuery.ToBlock.Uint64()).
+				Int("Log Count", len(logs)).
+				Str("Registry Address", addr.Hex()).
+				Msg("Collected logs")
+			queryStartBlock.Add(queryStartBlock, big.NewInt(blockBatchSize))
+			registryLogs = append(registryLogs, logs...)
+		}
+	}
+
+	var contractABI *abi.ABI
+	contractABI, err = contracts.GetRegistryContractABI(registryVersion)
+	if err != nil {
+		return
+	}
+
+	for _, allLogs := range registryLogs {
+		log := allLogs
+		var eventDetails *abi.Event
+		eventDetails, err = contractABI.EventByID(log.Topics[0])
+		if err != nil {
+			l.Error().Err(err).Str("Log Hash", log.TxHash.Hex()).Msg("Error getting event details for log, report data inaccurate")
+			break
+		}
+		if eventDetails.Name == "UpkeepPerformed" {
+			performedUpkeeps++
+			var parsedLog *contracts.UpkeepPerformedLog
+			parsedLog, err = instance.ParseUpkeepPerformedLog(&log)
+			if err != nil {
+				l.Error().Err(err).Str("Log Hash", log.TxHash.Hex()).Msg("Error parsing upkeep performed log, report data inaccurate")
+				break
+			}
+			if !parsedLog.Success {
+				revertedUpkeeps++
+			} else {
+				successfulUpkeeps++
+			}
+		} else if eventDetails.Name == "StaleUpkeepReport" {
+			staleUpkeeps++
+		}
+	}
+
+	return
+}
+
+func GetStalenessReportCleanupFn(t *testing.T, logger zerolog.Logger, chainClient *seth.Client, startBlock uint64, registry contracts.KeeperRegistry, registryVersion ethContracts.KeeperRegistryVersion) func() {
+	return func() {
+		if t.Failed() {
+			endBlock, err := chainClient.Client.BlockNumber(context.Background())
+			require.NoError(t, err, "Failed to get end block")
+
+			total, ok, reverted, stale, err := GenerateUpkeepReport(t, chainClient, big.NewInt(int64(startBlock)), big.NewInt(int64(endBlock)), registry, registryVersion)
+			require.NoError(t, err, "Failed to get staleness data")
+			if stale > 0 || reverted > 0 {
+				logger.Warn().Int("Total upkeeps", total).Int("Successful upkeeps", ok).Int("Reverted Upkeeps", reverted).Int("Stale Upkeeps", stale).Msg("Staleness data")
+			} else {
+				logger.Info().Int("Total upkeeps", total).Int("Successful upkeeps", ok).Int("Reverted Upkeeps", reverted).Int("Stale Upkeeps", stale).Msg("Staleness data")
+			}
+		}
+	}
+}
+
+func BuildTOMLNodeConfigForK8s(testConfig ctfconfig.GlobalTestConfig, testNetwork blockchain.EVMNetwork) (string, error) {
+	nodeConfigInToml := testConfig.GetNodeConfig()
+
+	nodeConfig, _, err := node.BuildPluginNodeConfig(
+		[]blockchain.EVMNetwork{testNetwork},
+		nodeConfigInToml.BaseConfigTOML,
+		nodeConfigInToml.CommonChainConfigTOML,
+		nodeConfigInToml.ChainConfigTOMLByChainID,
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	if testConfig.GetPyroscopeConfig() != nil && *testConfig.GetPyroscopeConfig().Enabled {
+		nodeConfig.Pyroscope.Environment = testConfig.GetPyroscopeConfig().Environment
+		nodeConfig.Pyroscope.ServerAddress = testConfig.GetPyroscopeConfig().ServerUrl
+	}
+
+	asStr, err := toml.Marshal(nodeConfig)
+	if err != nil {
+		return "", err
+	}
+
+	return string(asStr), nil
+}
+
+func IsOPStackChain(chainID int64) bool {
+	return chainID == 8453 || //BASE MAINNET
+		chainID == 84532 || //BASE SEPOLIA
+		chainID == 10 || //OPTIMISM MAINNET
+		chainID == 11155420 //OPTIMISM SEPOLIA
+}
+
+func IsArbitrumChain(chainID int64) bool {
+	return chainID == 42161 || //Arbitrum MAINNET
+		chainID == 421614 //Arbitrum Sepolia
+}
+
+func RandBool() bool {
+	return rand.Intn(2) == 1
+}
+
+func ContinuouslyGenerateTXsOnChain(sethClient *seth.Client, stopChannel chan bool, wg *sync.WaitGroup, l zerolog.Logger) (bool, error) {
+	counterContract, err := contracts.DeployCounterContract(sethClient)
+	if err != nil {
+		return false, err
+	}
+	err = counterContract.Reset()
+	if err != nil {
+		return false, err
+	}
+	var count *big.Int
+	for {
+		select {
+		case <-stopChannel:
+			l.Info().Str("Number of generated transactions on chain", count.String()).Msg("Stopping generating txs on chain. Desired block number reached.")
+			sleepDuration := time.Second * 10
+			l.Info().Str("Waiting for", sleepDuration.String()).Msg("Waiting for transactions to be mined and avoid nonce issues")
+			time.Sleep(sleepDuration)
+			wg.Done()
+			return true, nil
+		default:
+			err = counterContract.Increment()
+			if err != nil {
+				return false, err
+			}
+			count, err = counterContract.Count()
+			if err != nil {
+				return false, err
+			}
+			l.Info().Str("Count", count.String()).Msg("Number of generated transactions on chain")
+		}
+	}
+}
+
+func WithinTolerance(a, b, tolerance float64) (bool, float64) {
+	if a == b {
+		return true, 0
+	}
+	diff := math.Abs(a - b)
+	isWithinTolerance := diff < tolerance
+	return isWithinTolerance, diff
 }

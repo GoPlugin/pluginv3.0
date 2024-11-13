@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -33,6 +32,10 @@ var (
 		Name: "pool_rpc_node_num_transitions_to_unusable",
 		Help: transitionString(nodeStateUnusable),
 	}, []string{"chainID", "nodeName"})
+	promPoolRPCNodeTransitionsToSyncing = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "pool_rpc_node_num_transitions_to_syncing",
+		Help: transitionString(nodeStateSyncing),
+	}, []string{"chainID", "nodeName"})
 )
 
 // nodeState represents the current state of the node
@@ -57,6 +60,10 @@ func (n nodeState) String() string {
 		return "OutOfSync"
 	case nodeStateClosed:
 		return "Closed"
+	case nodeStateSyncing:
+		return "Syncing"
+	case nodeStateFinalizedBlockOutOfSync:
+		return "FinalizedBlockOutOfSync"
 	default:
 		return fmt.Sprintf("nodeState(%d)", n)
 	}
@@ -87,6 +94,13 @@ const (
 	nodeStateUnusable
 	// nodeStateClosed is after the connection has been closed and the node is at the end of its lifecycle
 	nodeStateClosed
+	// nodeStateSyncing is a node that is actively back-filling blockchain. Usually, it's a newly set up node that is
+	// still syncing the chain. The main difference from `nodeStateOutOfSync` is that it represents state relative
+	// to other primary nodes configured in the MultiNode. In contrast, `nodeStateSyncing` represents the internal state of
+	// the node (RPC).
+	nodeStateSyncing
+	// nodeStateFinalizedBlockOutOfSync - node is lagging behind on latest finalized block
+	nodeStateFinalizedBlockOutOfSync
 	// nodeStateLen tracks the number of states
 	nodeStateLen
 )
@@ -106,13 +120,57 @@ func init() {
 func (n *node[CHAIN_ID, HEAD, RPC]) State() nodeState {
 	n.stateMu.RLock()
 	defer n.stateMu.RUnlock()
+	return n.recalculateState()
+}
+
+func (n *node[CHAIN_ID, HEAD, RPC]) getCachedState() nodeState {
+	n.stateMu.RLock()
+	defer n.stateMu.RUnlock()
 	return n.state
 }
 
-func (n *node[CHAIN_ID, HEAD, RPC]) StateAndLatest() (nodeState, int64, *big.Int) {
+func (n *node[CHAIN_ID, HEAD, RPC]) recalculateState() nodeState {
+	if n.state != nodeStateAlive {
+		return n.state
+	}
+
+	// double check that node is not lagging on finalized block
+	if n.nodePoolCfg.EnforceRepeatableRead() && n.isFinalizedBlockOutOfSync() {
+		return nodeStateFinalizedBlockOutOfSync
+	}
+
+	return nodeStateAlive
+}
+
+func (n *node[CHAIN_ID, HEAD, RPC]) isFinalizedBlockOutOfSync() bool {
+	if n.poolInfoProvider == nil {
+		return false
+	}
+
+	highestObservedByCaller := n.poolInfoProvider.HighestUserObservations()
+	latest, _ := n.rpc.GetInterceptedChainInfo()
+	if n.chainCfg.FinalityTagEnabled() {
+		return latest.FinalizedBlockNumber < highestObservedByCaller.FinalizedBlockNumber-int64(n.chainCfg.FinalizedBlockOffset())
+	}
+
+	return latest.BlockNumber < highestObservedByCaller.BlockNumber-int64(n.chainCfg.FinalizedBlockOffset())
+}
+
+// StateAndLatest returns nodeState with the latest ChainInfo observed by Node during current lifecycle.
+func (n *node[CHAIN_ID, HEAD, RPC]) StateAndLatest() (nodeState, ChainInfo) {
 	n.stateMu.RLock()
 	defer n.stateMu.RUnlock()
-	return n.state, n.stateLatestBlockNumber, n.stateLatestTotalDifficulty
+	latest, _ := n.rpc.GetInterceptedChainInfo()
+	return n.recalculateState(), latest
+}
+
+// HighestUserObservations - returns highest ChainInfo ever observed by external user of the Node
+func (n *node[CHAIN_ID, HEAD, RPC]) HighestUserObservations() ChainInfo {
+	_, highestUserObservations := n.rpc.GetInterceptedChainInfo()
+	return highestUserObservations
+}
+func (n *node[CHAIN_ID, HEAD, RPC]) SetPoolChainInfoProvider(poolInfoProvider PoolChainInfoProvider) {
+	n.poolInfoProvider = poolInfoProvider
 }
 
 // setState is only used by internal state management methods.
@@ -144,7 +202,7 @@ func (n *node[CHAIN_ID, HEAD, RPC]) transitionToAlive(fn func()) {
 		return
 	}
 	switch n.state {
-	case nodeStateDialed, nodeStateInvalidChainID:
+	case nodeStateDialed, nodeStateInvalidChainID, nodeStateSyncing:
 		n.state = nodeStateAlive
 	default:
 		panic(transitionFail(n.state, nodeStateAlive))
@@ -171,7 +229,7 @@ func (n *node[CHAIN_ID, HEAD, RPC]) transitionToInSync(fn func()) {
 		return
 	}
 	switch n.state {
-	case nodeStateOutOfSync:
+	case nodeStateOutOfSync, nodeStateSyncing:
 		n.state = nodeStateAlive
 	default:
 		panic(transitionFail(n.state, nodeStateAlive))
@@ -181,11 +239,11 @@ func (n *node[CHAIN_ID, HEAD, RPC]) transitionToInSync(fn func()) {
 
 // declareOutOfSync puts a node into OutOfSync state, disconnecting all current
 // clients and making it unavailable for use until back in-sync.
-func (n *node[CHAIN_ID, HEAD, RPC]) declareOutOfSync(isOutOfSync func(num int64, td *big.Int) bool) {
+func (n *node[CHAIN_ID, HEAD, RPC]) declareOutOfSync(syncIssues syncStatus) {
 	n.transitionToOutOfSync(func() {
-		n.lfcLog.Errorw("RPC Node is out of sync", "nodeState", n.state)
+		n.lfcLog.Errorw("RPC Node is out of sync", "nodeState", n.state, "syncIssues", syncIssues)
 		n.wg.Add(1)
-		go n.outOfSyncLoop(isOutOfSync)
+		go n.outOfSyncLoop(syncIssues)
 	})
 }
 
@@ -222,13 +280,31 @@ func (n *node[CHAIN_ID, HEAD, RPC]) transitionToUnreachable(fn func()) {
 		return
 	}
 	switch n.state {
-	case nodeStateUndialed, nodeStateDialed, nodeStateAlive, nodeStateOutOfSync, nodeStateInvalidChainID:
+	case nodeStateUndialed, nodeStateDialed, nodeStateAlive, nodeStateOutOfSync, nodeStateInvalidChainID, nodeStateSyncing:
 		n.disconnectAll()
 		n.state = nodeStateUnreachable
 	default:
 		panic(transitionFail(n.state, nodeStateUnreachable))
 	}
 	fn()
+}
+
+func (n *node[CHAIN_ID, HEAD, RPC]) declareState(state nodeState) {
+	if n.getCachedState() == nodeStateClosed {
+		return
+	}
+	switch state {
+	case nodeStateInvalidChainID:
+		n.declareInvalidChainID()
+	case nodeStateUnreachable:
+		n.declareUnreachable()
+	case nodeStateSyncing:
+		n.declareSyncing()
+	case nodeStateAlive:
+		n.declareAlive()
+	default:
+		panic(fmt.Sprintf("%#v state declaration is not implemented", state))
+	}
 }
 
 func (n *node[CHAIN_ID, HEAD, RPC]) declareInvalidChainID() {
@@ -247,11 +323,40 @@ func (n *node[CHAIN_ID, HEAD, RPC]) transitionToInvalidChainID(fn func()) {
 		return
 	}
 	switch n.state {
-	case nodeStateDialed, nodeStateOutOfSync:
+	case nodeStateDialed, nodeStateOutOfSync, nodeStateSyncing:
 		n.disconnectAll()
 		n.state = nodeStateInvalidChainID
 	default:
 		panic(transitionFail(n.state, nodeStateInvalidChainID))
+	}
+	fn()
+}
+
+func (n *node[CHAIN_ID, HEAD, RPC]) declareSyncing() {
+	n.transitionToSyncing(func() {
+		n.lfcLog.Errorw("RPC Node is syncing", "nodeState", n.state)
+		n.wg.Add(1)
+		go n.syncingLoop()
+	})
+}
+
+func (n *node[CHAIN_ID, HEAD, RPC]) transitionToSyncing(fn func()) {
+	promPoolRPCNodeTransitionsToSyncing.WithLabelValues(n.chainID.String(), n.name).Inc()
+	n.stateMu.Lock()
+	defer n.stateMu.Unlock()
+	if n.state == nodeStateClosed {
+		return
+	}
+	switch n.state {
+	case nodeStateDialed, nodeStateOutOfSync, nodeStateInvalidChainID:
+		n.disconnectAll()
+		n.state = nodeStateSyncing
+	default:
+		panic(transitionFail(n.state, nodeStateSyncing))
+	}
+
+	if !n.nodePoolCfg.NodeIsSyncingEnabled() {
+		panic("unexpected transition to nodeStateSyncing, while it's disabled")
 	}
 	fn()
 }

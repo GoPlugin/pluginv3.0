@@ -11,7 +11,7 @@ import (
 
 	ocr2keepers "github.com/goplugin/plugin-common/pkg/types/automation"
 
-	commonmocks "github.com/goplugin/pluginv3.0/v2/common/mocks"
+	htmocks "github.com/goplugin/pluginv3.0/v2/common/headtracker/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/headtracker/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller/mocks"
@@ -155,7 +155,7 @@ func TestBlockSubscriber_InitializeBlocks(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			lp := new(mocks.LogPoller)
-			lp.On("GetBlocksRange", mock.Anything, tc.Blocks, mock.Anything).Return(tc.PollerBlocks, tc.Error)
+			lp.On("GetBlocksRange", mock.Anything, tc.Blocks).Return(tc.PollerBlocks, tc.Error)
 			bs := NewBlockSubscriber(hb, lp, finality, lggr)
 			bs.blockHistorySize = historySize
 			bs.blockSize = blockSize
@@ -275,7 +275,7 @@ func TestBlockSubscriber_Cleanup(t *testing.T) {
 
 func TestBlockSubscriber_Start(t *testing.T) {
 	lggr := logger.TestLogger(t)
-	hb := commonmocks.NewHeadBroadcaster[*evmtypes.Head, common.Hash](t)
+	hb := htmocks.NewHeadBroadcaster[*evmtypes.Head, common.Hash](t)
 	hb.On("Subscribe", mock.Anything).Return(&evmtypes.Head{Number: 42}, func() {})
 	lp := new(mocks.LogPoller)
 	lp.On("LatestBlock", mock.Anything).Return(logpoller.LogPollerBlock{BlockNumber: 100}, nil)
@@ -299,7 +299,7 @@ func TestBlockSubscriber_Start(t *testing.T) {
 		},
 	}
 
-	lp.On("GetBlocksRange", mock.Anything, blocks, mock.Anything).Return(pollerBlocks, nil)
+	lp.On("GetBlocksRange", mock.Anything, blocks).Return(pollerBlocks, nil)
 
 	bs := NewBlockSubscriber(hb, lp, finality, lggr)
 	bs.blockHistorySize = historySize
@@ -310,23 +310,22 @@ func TestBlockSubscriber_Start(t *testing.T) {
 	h97 := evmtypes.Head{
 		Number: 97,
 		Hash:   common.HexToHash("0xda2f9d1359eadd7b93338703adc07d942021a78195564038321ef53f23f87333"),
-		Parent: nil,
 	}
 	h98 := evmtypes.Head{
 		Number: 98,
 		Hash:   common.HexToHash("0xc20c7b47466c081a44a3b168994e89affe85cb894547845d938f923b67c633c0"),
-		Parent: &h97,
 	}
+	h98.Parent.Store(&h97)
 	h99 := evmtypes.Head{
 		Number: 99,
 		Hash:   common.HexToHash("0x9bc2b51e147f9cad05f1614b7f1d8181cb24c544cbcf841f3155e54e752a3b44"),
-		Parent: &h98,
 	}
+	h99.Parent.Store(&h98)
 	h100 := evmtypes.Head{
 		Number: 100,
 		Hash:   common.HexToHash("0x5e7fadfc14e1cfa9c05a91128c16a20c6cbc3be38b4723c3d482d44bf9c0e07b"),
-		Parent: &h99,
 	}
+	h100.Parent.Store(&h99)
 
 	// no subscribers yet
 	bs.headC <- &h100
@@ -353,8 +352,8 @@ func TestBlockSubscriber_Start(t *testing.T) {
 	h101 := &evmtypes.Head{
 		Number: 101,
 		Hash:   common.HexToHash("0xc20c7b47466c081a44a3b168994e89affe85cb894547845d938f923b67c633c0"),
-		Parent: &h100,
 	}
+	h101.Parent.Store(&h100)
 	bs.headC <- h101
 
 	time.Sleep(100 * time.Millisecond)
@@ -387,24 +386,24 @@ func TestBlockSubscriber_Start(t *testing.T) {
 	new99 := &evmtypes.Head{
 		Number: 99,
 		Hash:   common.HexToHash("0x70c03acc4ddbfb253ba41a25dc13fb21b25da8b63bcd1aa7fb55713d33a36c71"),
-		Parent: &h98,
 	}
+	new99.Parent.Store(&h98)
 	new100 := &evmtypes.Head{
 		Number: 100,
 		Hash:   common.HexToHash("0x8a876b62d252e63e16cf3487db3486c0a7c0a8e06bc3792a3b116c5ca480503f"),
-		Parent: new99,
 	}
+	new100.Parent.Store(new99)
 	new101 := &evmtypes.Head{
 		Number: 101,
 		Hash:   common.HexToHash("0x41b5842b8847dcf834e39556d2ac51cc7d960a7de9471ec504673d0038fd6c8e"),
-		Parent: new100,
 	}
+	new101.Parent.Store(new100)
 
 	new102 := &evmtypes.Head{
 		Number: 102,
 		Hash:   common.HexToHash("0x9ac1ebc307554cf1bcfcc2a49462278e89d6878d613a33df38a64d0aeac971b5"),
-		Parent: new101,
 	}
+	new102.Parent.Store(new101)
 
 	bs.headC <- new102
 

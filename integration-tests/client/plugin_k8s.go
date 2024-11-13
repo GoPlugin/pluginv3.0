@@ -2,12 +2,16 @@
 package client
 
 import (
-	"os"
 	"regexp"
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/goplugin/plugin-testing-framework/k8s/environment"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/environment"
+)
+
+const (
+	CLNodeTestEmail    = "notreal@fakeemail.ch"
+	CLNodeTestPassword = "fj293fbBnlQ!f9vNs"
 )
 
 type PluginK8sClient struct {
@@ -18,13 +22,9 @@ type PluginK8sClient struct {
 
 // NewPlugin creates a new Plugin model using a provided config
 func NewPluginK8sClient(c *PluginConfig, podName, chartName string) (*PluginK8sClient, error) {
-	rc, err := initRestyClient(c.URL, c.Email, c.Password, c.HTTPTimeout)
+	rc, err := initRestyClient(c.URL, c.Email, c.Password, c.Headers, c.HTTPTimeout)
 	if err != nil {
 		return nil, err
-	}
-	_, isSet := os.LookupEnv("CL_CLIENT_DEBUG")
-	if isSet {
-		rc.SetDebug(true)
 	}
 	return &PluginK8sClient{
 		PluginClient: &PluginClient{
@@ -74,8 +74,8 @@ func ConnectPluginNodes(e *environment.Environment) ([]*PluginK8sClient, error) 
 	for _, nodeDetails := range e.PluginNodeDetails {
 		c, err := NewPluginK8sClient(&PluginConfig{
 			URL:        nodeDetails.LocalIP,
-			Email:      "notreal@fakeemail.ch",
-			Password:   "fj293fbBnlQ!f9vNs",
+			Email:      CLNodeTestEmail,
+			Password:   CLNodeTestPassword,
 			InternalIP: parseHostname(nodeDetails.InternalIP),
 		}, nodeDetails.PodName, nodeDetails.ChartName)
 		if err != nil {
@@ -100,8 +100,8 @@ func ReconnectPluginNodes(testEnvironment *environment.Environment, nodes []*Plu
 			if details.ChartName == node.ChartName { // Make the link from client to pod consistent
 				node, err = NewPluginK8sClient(&PluginConfig{
 					URL:        details.LocalIP,
-					Email:      "notreal@fakeemail.ch",
-					Password:   "fj293fbBnlQ!f9vNs",
+					Email:      CLNodeTestEmail,
+					Password:   CLNodeTestPassword,
 					InternalIP: parseHostname(details.InternalIP),
 				}, details.PodName, details.ChartName)
 				if err != nil {
@@ -136,11 +136,15 @@ func ConnectPluginNodeURLs(urls []string) ([]*PluginK8sClient, error) {
 func ConnectPluginNodeURL(url string) (*PluginK8sClient, error) {
 	return NewPluginK8sClient(&PluginConfig{
 		URL:        url,
-		Email:      "notreal@fakeemail.ch",
-		Password:   "fj293fbBnlQ!f9vNs",
+		Email:      CLNodeTestEmail,
+		Password:   CLNodeTestPassword,
 		InternalIP: parseHostname(url),
 	},
 		parseHostname(url),   // a decent guess
 		"connectedNodeByURL", // an intentionally bad decision
 	)
+}
+
+func (c *PluginK8sClient) GetConfig() PluginConfig {
+	return *c.Config
 }

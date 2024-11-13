@@ -8,7 +8,7 @@
 
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/goplugin/pluginv3.0?style=flat-square)](https://hub.docker.com/r/smartcontract/plugin/tags)
 [![GitHub license](https://img.shields.io/github/license/goplugin/pluginv3.0?style=flat-square)](https://github.com/goplugin/pluginv3.0/blob/master/LICENSE)
-[![GitHub workflow changelog](https://img.shields.io/github/workflow/status/goplugin/pluginv3.0/Changelog?style=flat-square&label=github-actions)](https://github.com/goplugin/pluginv3.0/actions?query=workflow%3AChangelog)
+[![GitHub workflow changeset](https://img.shields.io/github/actions/workflow/status/goplugin/pluginv3.0/changeset.yml)](https://github.com/goplugin/pluginv3.0/actions/workflows/changeset.yml?query=workflow%3AChangeset)
 [![GitHub contributors](https://img.shields.io/github/contributors-anon/goplugin/pluginv3.0?style=flat-square)](https://github.com/goplugin/pluginv3.0/graphs/contributors)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/y/goplugin/pluginv3.0?style=flat-square)](https://github.com/goplugin/pluginv3.0/commits/master)
 [![Official documentation](https://img.shields.io/static/v1?label=docs&message=latest&color=blue)](https://docs.chain.link/)
@@ -32,12 +32,13 @@ regarding Plugin social accounts, news, and networking.
 
 ## Build Plugin
 
-1. [Install Go 1.21.1](https://golang.org/doc/install), and add your GOPATH's [bin directory to your PATH](https://golang.org/doc/code.html#GOPATH)
+1. [Install Go 1.22](https://golang.org/doc/install), and add your GOPATH's [bin directory to your PATH](https://golang.org/doc/code.html#GOPATH)
    - Example Path for macOS `export PATH=$GOPATH/bin:$PATH` & `export GOPATH=/Users/$USER/go`
-2. Install [NodeJS v16](https://nodejs.org/en/download/package-manager/) & [pnpm via npm](https://pnpm.io/installation#using-npm).
+2. Install [NodeJS v20](https://nodejs.org/en/download/package-manager/) & [pnpm v9 via npm](https://pnpm.io/installation#using-npm).
    - It might be easier long term to use [nvm](https://nodejs.org/en/download/package-manager/#nvm) to switch between node versions for different projects. For example, assuming $NODE_VERSION was set to a valid version of NodeJS, you could run: `nvm install $NODE_VERSION && nvm use $NODE_VERSION`
-3. Install [Postgres (>= 11.x and <= 15.x)](https://wiki.postgresql.org/wiki/Detailed_installation_guides).
-   - You should [configure Postgres](https://www.postgresql.org/docs/12/ssl-tcp.html) to use SSL connection (or for testing you can set `?sslmode=disable` in your Postgres query string).
+3. Install [Postgres (>= 12.x)](https://wiki.postgresql.org/wiki/Detailed_installation_guides). It is recommended to run the latest major version of postgres.
+   - Note if you are running the official Plugin docker image, the highest supported Postgres version is 16.x due to the bundled client.
+   - You should [configure Postgres](https://www.postgresql.org/docs/current/ssl-tcp.html) to use SSL connection (or for testing you can set `?sslmode=disable` in your Postgres query string).
 4. Ensure you have Python 3 installed (this is required by [solc-select](https://github.com/crytic/solc-select) which is needed to compile solidity contracts)
 5. Download Plugin: `git clone https://github.com/goplugin/pluginv3.0 && cd plugin`
 6. Build and install Plugin: `make install`
@@ -63,6 +64,7 @@ Ethereum node versions currently tested and supported:
 
 - [Parity/Openethereum](https://github.com/openethereum/openethereum) (NOTE: Parity is deprecated and support for this client may be removed in future)
 - [Geth](https://github.com/ethereum/go-ethereum/releases)
+- [Besu](https://github.com/hyperledger/besu)
 
 [Supported but broken]
 These clients are supported by Plugin, but have bugs that prevent Plugin from working reliably on these execution clients.
@@ -70,11 +72,6 @@ These clients are supported by Plugin, but have bugs that prevent Plugin from wo
 - [Nethermind](https://github.com/NethermindEth/nethermind)
   Blocking issues:
   - ~https://github.com/NethermindEth/nethermind/issues/4384~
-- [Besu](https://github.com/hyperledger/besu)
-  Blocking issues:
-  - https://github.com/hyperledger/besu/issues/4212
-  - ~https://github.com/hyperledger/besu/issues/4192~
-  - ~https://github.com/hyperledger/besu/issues/4114~
 - [Erigon](https://github.com/ledgerwatch/erigon)
   Blocking issues:
   - https://github.com/ledgerwatch/erigon/discussions/4946
@@ -135,15 +132,30 @@ External adapters are what make Plugin easily extensible, providing simple integ
 
 For more information on creating and using external adapters, please see our [external adapters page](https://docs.chain.link/docs/external-adapters).
 
+## Verify Official Plugin Releases
+
+We use `cosign` with OIDC keyless signing during the [Build, Sign and Publish Plugin](https://github.com/goplugin/pluginv3.0/actions/workflows/build-publish.yml) workflow.
+
+It is encourage for any node operator building from the official Plugin docker image to verify the tagged release version was did indeed built from this workflow.
+
+You will need `cosign` in order to do this verification. [Follow the instruction here to install cosign](https://docs.sigstore.dev/system_config/installation/).
+
+```bash
+# tag is the tagged release version - ie. v2.16.0
+cosign verify public.ecr.aws/plugin/plugin:${tag} \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      --certificate-identity "https://github.com/goplugin/pluginv3.0/.github/workflows/build-publish.yml@refs/tags/${tag}"
+```
+
 ## Development
 
 ### Running tests
 
-1. [Install pnpm via npm](https://pnpm.io/installation#using-npm)
+1. [Install pnpm 9 via npm](https://pnpm.io/installation#using-npm)
 
 2. Install [gencodec](https://github.com/fjl/gencodec) and [jq](https://stedolan.github.io/jq/download/) to be able to run `go generate ./...` and `make abigen`
 
-3. Install   mockery
+3. Install mockery
 
 `make mockery`
 
@@ -161,24 +173,40 @@ popd
 4. Generate and compile static assets:
 
 ```bash
-go generate ./...
+make generate
 ```
 
 5. Prepare your development environment:
 
-```bash
-export CL_DATABASE_URL=postgresql://127.0.0.1:5432/plugin_test?sslmode=disable
-```
+The tests require a postgres database. In turn, the environment variable
+`CL_DATABASE_URL` must be set to value that can connect to `_test` database, and the user must be able to create and drop
+the given `_test` database.
 
 Note: Other environment variables should not be set for all tests to pass
 
-6.  Drop/Create test database and run migrations:
+There helper script for initial setup to create an appropriate test user. It requires postgres to be running on localhost at port 5432. You will be prompted for
+the `postgres` user password 
 
+```bash
+make setup-testdb
 ```
+
+This script will save the `CL_DATABASE_URL` in `.dbenv`
+
+Changes to database require migrations to be run. Similarly, `pull`'ing the repo may require migrations to run.
+After the one-time setup above:
+```
+source .dbenv
 make testdb
 ```
 
-If you do end up modifying the migrations for the database, you will need to rerun
+If you encounter the error `database accessed by other users (SQLSTATE 55006) exit status 1`
+and you want force the database creation then use
+```
+source .dbenv
+make testdb-force
+```
+
 
 7. Run tests:
 
@@ -227,9 +255,9 @@ This repository contains three Go modules:
 
 ```mermaid
 flowchart RL
-    github.com/goplugin/pluginv3.0/v2
-    github.com/goplugin/pluginv3.0/integration-tests --> github.com/goplugin/pluginv3.0/v2
-    github.com/goplugin/pluginv3.0/core/scripts --> github.com/goplugin/pluginv3.0/v2
+    github.com/goplugin/pluginv3.0
+    github.com/goplugin/pluginv3.0/integration-tests --> github.com/goplugin/pluginv3.0
+    github.com/goplugin/pluginv3.0/core/scripts --> github.com/goplugin/pluginv3.0
 
 ```
 The `integration-tests` and `core/scripts` modules import the root module using a relative replace in their `go.mod` files,
@@ -263,18 +291,21 @@ Go generate is used to generate mocks in this project. Mocks are generated with 
 
 ### Nix
 
-A [shell.nix](https://nixos.wiki/wiki/Development_environment_with_nix-shell) is provided for use with the [Nix package manager](https://nixos.org/), with optional [flakes](https://nixos.wiki/wiki/Flakes) support. It defines a declarative, reproducible development environment. Flakes version use deterministic, frozen (`flake.lock`) dependencies, while non-flakes shell will use your channel's packages versions.
+A [shell.nix](https://nixos.wiki/wiki/Development_environment_with_nix-shell) is provided for use with the [Nix package manager](https://nixos.org/). By default,we utilize the shell through [Nix Flakes](https://nixos.wiki/wiki/Flakes). 
+
+Nix defines a declarative, reproducible development environment. Flakes version use deterministic, frozen (`flake.lock`) dependencies to
+gain more consistency/reproducibility on the built artifacts.
 
 To use it:
 
 1. Install [nix package manager](https://nixos.org/download.html) in your system.
 
-- Optionally, enable [flakes support](https://nixos.wiki/wiki/Flakes#Enable_flakes)
+- Enable [flakes support](https://nixos.wiki/wiki/Flakes#Enable_flakes)
 
-2. Run `nix-shell`. You will be put in shell containing all the dependencies.
+2. Run `nix develop`. You will be put in shell containing all the dependencies.
 
-- To use the flakes version, run `nix develop` instead of `nix-shell`. Optionally, `nix develop --command $SHELL` will make use of your current shell instead of the default (bash).
-- You can use `direnv` to enable it automatically when `cd`-ing into the folder; for that, enable [nix-direnv](https://github.com/nix-community/nix-direnv) and `use nix` or `use flake` on it.
+- Optionally, `nix develop --command $SHELL` will make use of your current shell instead of the default (bash).
+- You can use `direnv` to enable it automatically when `cd`-ing into the folder; for that, enable [nix-direnv](https://github.com/nix-community/nix-direnv) and `use flake` on it.
 
 3. Create a local postgres database:
 
@@ -290,6 +321,22 @@ createuser --superuser --password plugin -h localhost
 4. When re-entering project, you can restart postgres: `cd $PGDATA; pg_ctl -l postgres.log -o "--unix_socket_directories='$PWD'" start`
    Now you can run tests or compile code as usual.
 5. When you're done, stop it: `cd $PGDATA; pg_ctl -o "--unix_socket_directories='$PWD'" stop`
+
+### Changesets
+
+We use [changesets](https://github.com/changesets/changesets) to manage versioning for libs and the services.
+
+Every PR that modifies any configuration or code, should most likely accompanied by a changeset file.
+
+To install `changesets`:
+  1. Install `pnpm` if it is not already installed - [docs](https://pnpm.io/installation).
+  2. Run `pnpm install`.
+
+Either after or before you create a commit, run the `pnpm changeset` command to create an accompanying changeset entry which will reflect on the CHANGELOG for the next release.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Tips
 

@@ -13,8 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
 
+	"github.com/goplugin/plugin-common/pkg/utils/tests"
+
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 )
 
 func TestKeccak256(t *testing.T) {
@@ -208,7 +210,7 @@ func TestRetryWithBackoff(t *testing.T) {
 	t.Parallel()
 
 	var counter atomic.Int32
-	ctx, cancel := context.WithCancel(testutils.Context(t))
+	ctx, cancel := context.WithCancel(tests.Context(t))
 
 	utils.RetryWithBackoff(ctx, func() bool {
 		return false
@@ -222,7 +224,7 @@ func TestRetryWithBackoff(t *testing.T) {
 
 	assert.Eventually(t, func() bool {
 		return counter.Load() == 3
-	}, testutils.WaitTimeout(t), testutils.TestInterval)
+	}, tests.WaitTimeout(t), tests.TestInterval)
 
 	cancel()
 

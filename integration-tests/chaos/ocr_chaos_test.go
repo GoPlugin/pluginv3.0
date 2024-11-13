@@ -5,23 +5,23 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-	ctfClient "github.com/goplugin/plugin-testing-framework/client"
-	ctf_config "github.com/goplugin/plugin-testing-framework/config"
-	"github.com/goplugin/plugin-testing-framework/k8s/chaos"
-	"github.com/goplugin/plugin-testing-framework/k8s/environment"
-	"github.com/goplugin/plugin-testing-framework/k8s/pkg/helm/plugin"
-	"github.com/goplugin/plugin-testing-framework/k8s/pkg/helm/ethereum"
-	"github.com/goplugin/plugin-testing-framework/k8s/pkg/helm/mockserver"
-	mockservercfg "github.com/goplugin/plugin-testing-framework/k8s/pkg/helm/mockserver-cfg"
-	"github.com/goplugin/plugin-testing-framework/logging"
-	"github.com/goplugin/plugin-testing-framework/networks"
-	"github.com/goplugin/plugin-testing-framework/utils/ptr"
-	"github.com/goplugin/plugin-testing-framework/utils/testcontext"
+	ctfClient "github.com/goplugin/plugin-testing-framework/lib/client"
+	ctf_config "github.com/goplugin/plugin-testing-framework/lib/config"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/chaos"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/environment"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/pkg/helm/plugin"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/pkg/helm/ethereum"
+	"github.com/goplugin/plugin-testing-framework/lib/k8s/pkg/helm/mockserver"
+	mockservercfg "github.com/goplugin/plugin-testing-framework/lib/k8s/pkg/helm/mockserver-cfg"
+	"github.com/goplugin/plugin-testing-framework/lib/logging"
+	"github.com/goplugin/plugin-testing-framework/lib/networks"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/ptr"
+	seth_utils "github.com/goplugin/plugin-testing-framework/lib/utils/seth"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/testcontext"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/actions"
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
@@ -51,25 +51,23 @@ var (
 	chaosEndRound   int64 = 4
 )
 
-func getDefaultOcrSettings(config *tc.TestConfig) map[string]interface{} {
-	defaultOCRSettings["toml"] = networks.AddNetworksConfig(baseTOML, config.Pyroscope, networks.MustGetSelectedNetworkConfig(config.Network)[0])
-	return defaultAutomationSettings
-}
-
 func TestOCRChaos(t *testing.T) {
 	t.Parallel()
 	l := logging.GetTestLogger(t)
-	config, err := tc.GetConfig("Chaos", tc.OCR)
-	if err != nil {
-		t.Fatal(err)
-	}
+	config, err := tc.GetConfig([]string{"Chaos"}, tc.OCR)
+	require.NoError(t, err, "Error getting config")
 
 	var overrideFn = func(_ interface{}, target interface{}) {
-		ctf_config.MustConfigOverridePluginVersion(config.PluginImage, target)
-		ctf_config.MightConfigOverridePyroscopeKey(config.Pyroscope, target)
+		ctf_config.MustConfigOverridePluginVersion(config.GetPluginImageConfig(), target)
+		ctf_config.MightConfigOverridePyroscopeKey(config.GetPyroscopeConfig(), target)
 	}
 
-	pluginCfg := plugin.NewWithOverride(0, getDefaultOcrSettings(&config), config.PluginImage, overrideFn)
+	tomlConfig, err := actions.BuildTOMLNodeConfigForK8s(&config, networks.MustGetSelectedNetworkConfig(config.Network)[0])
+	require.NoError(t, err, "Error building TOML config")
+
+	defaultOCRSettings["toml"] = tomlConfig
+
+	pluginCfg := plugin.NewWithOverride(0, defaultOCRSettings, config.PluginImage, overrideFn)
 
 	testCases := map[string]struct {
 		networkChart environment.ConnectedChart
@@ -86,7 +84,7 @@ func TestOCRChaos(t *testing.T) {
 		// and chaos.NewNetworkPartition method (https://chaos-mesh.org/docs/simulate-network-chaos-on-kubernetes/)
 		// in order to regenerate Go bindings if k8s version will be updated
 		// you can pull new CRD spec from your current cluster and check README here
-		// https://github.com/goplugin/plugin-testing-framework/k8s/blob/master/README.md
+		// https://github.com/goplugin/plugin-testing-framework/lib/k8s/blob/master/README.md
 		NetworkChaosFailMajorityNetwork: {
 			ethereum.New(nil),
 			pluginCfg,
@@ -164,39 +162,32 @@ func TestOCRChaos(t *testing.T) {
 			err = testEnvironment.Client.LabelChaosGroup(testEnvironment.Cfg.Namespace, "instance=node-", 2, 5, ChaosGroupMajorityPlus)
 			require.NoError(t, err)
 
-			chainClient, err := blockchain.NewEVMClient(blockchain.SimulatedEVMNetwork, testEnvironment, l)
-			require.NoError(t, err, "Connecting to blockchain nodes shouldn't fail")
-			cd, err := contracts.NewContractDeployer(chainClient, l)
-			require.NoError(t, err, "Deploying contracts shouldn't fail")
+			cfg := config.MustCopy().(tc.TestConfig)
+
+			network := networks.MustGetSelectedNetworkConfig(cfg.GetNetworkConfig())[0]
+			network = seth_utils.MustReplaceSimulatedNetworkUrlWithK8(l, network, *testEnvironment)
+
+			seth, err := seth_utils.GetChainClient(&cfg, network)
+			require.NoError(t, err, "Error creating seth client")
 
 			pluginNodes, err := client.ConnectPluginNodes(testEnvironment)
 			require.NoError(t, err, "Connecting to plugin nodes shouldn't fail")
 			bootstrapNode, workerNodes := pluginNodes[0], pluginNodes[1:]
 			t.Cleanup(func() {
-				if chainClient != nil {
-					chainClient.GasStats().PrintStats()
-				}
-				err := actions.TeardownSuite(t, testEnvironment, pluginNodes, nil, zapcore.PanicLevel, &config, chainClient)
+				err := actions.TeardownRemoteSuite(t, seth, testEnvironment.Cfg.Namespace, pluginNodes, nil, &cfg)
 				require.NoError(t, err, "Error tearing down environment")
 			})
 
-			ms, err := ctfClient.ConnectMockServer(testEnvironment)
-			require.NoError(t, err, "Creating mockserver clients shouldn't fail")
+			ms := ctfClient.ConnectMockServer(testEnvironment)
+			linkContract, err := actions.LinkTokenContract(l, seth, config.OCR)
+			require.NoError(t, err, "Error deploying link token contract")
 
-			chainClient.ParallelTransactions(true)
+			err = actions.FundPluginNodesFromRootAddress(l, seth, contracts.PluginK8sClientToPluginNodeWithKeysAndAddress(pluginNodes), big.NewFloat(10))
 			require.NoError(t, err)
 
-			lt, err := cd.DeployLinkTokenContract()
-			require.NoError(t, err, "Deploying Link Token Contract shouldn't fail")
-
-			err = actions.FundPluginNodes(pluginNodes, chainClient, big.NewFloat(10))
+			ocrInstances, err := actions.SetupOCRv1Contracts(l, seth, config.OCR, common.HexToAddress(linkContract.Address()), contracts.PluginK8sClientToPluginNodeWithKeysAndAddress(workerNodes))
 			require.NoError(t, err)
-
-			ocrInstances, err := actions.DeployOCRContracts(1, lt, cd, workerNodes, chainClient)
-			require.NoError(t, err)
-			err = chainClient.WaitForEvents()
-			require.NoError(t, err)
-			err = actions.CreateOCRJobs(ocrInstances, bootstrapNode, workerNodes, 5, ms, chainClient.GetChainID().String())
+			err = actions.CreateOCRJobs(ocrInstances, bootstrapNode, workerNodes, 5, ms, fmt.Sprint(seth.ChainID))
 			require.NoError(t, err)
 
 			chaosApplied := false

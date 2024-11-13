@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/goplugin/plugin-testing-framework/lib/logging"
+	"github.com/goplugin/pluginv3.0/integration-tests/actions"
 	"github.com/goplugin/pluginv3.0/integration-tests/docker/test_env"
 
 	tc "github.com/goplugin/pluginv3.0/integration-tests/testconfig"
@@ -13,17 +15,22 @@ import (
 func TestVersionUpgrade(t *testing.T) {
 	t.Parallel()
 
-	config, err := tc.GetConfig("Migration", tc.Node)
+	l := logging.GetTestLogger(t)
+
+	config, err := tc.GetConfig([]string{"Migration"}, tc.Node)
 	require.NoError(t, err, "Error getting config")
 
 	err = config.PluginUpgradeImage.Validate()
 	require.NoError(t, err, "Error validating upgrade image")
 
+	privateNetwork, err := actions.EthereumNetworkConfigFromConfig(l, &config)
+	require.NoError(t, err, "Error building ethereum network config")
+
 	env, err := test_env.NewCLTestEnvBuilder().
 		WithTestConfig(&config).
 		WithTestInstance(t).
 		WithStandardCleanup().
-		WithGeth().
+		WithPrivateEthereumNetwork(privateNetwork.EthereumNetworkConfig).
 		WithCLNodes(1).
 		WithStandardCleanup().
 		Build()
