@@ -73,20 +73,20 @@ require (
 	github.com/scylladb/go-reflectx v1.0.1
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/shopspring/decimal v1.4.0
-	github.com/goplugin/chain-selectors v1.0.27
-	github.com/goplugin/plugin-automation v0.8.0
-	github.com/goplugin/plugin-ccip v0.0.0-20241021132654-e5f3ecb77638
-	github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
-	github.com/goplugin/plugin-cosmos v0.5.2-0.20241017133723-5277829bd53f
-	github.com/goplugin/plugin-data-streams v0.1.1-0.20241018134907-a00ba3729b5e
+	github.com/goplugin/chain-selectors v0.1.1
+	github.com/goplugin/plugin-automation v0.1.1
+	github.com/goplugin/plugin-ccip v0.1.1
+	github.com/goplugin/plugin-common v0.1.1
+	github.com/goplugin/plugin-cosmos v0.1.1
+	github.com/goplugin/plugin-data-streams v0.1.1
 	github.com/goplugin/plugin-feeds v0.1.1
-	github.com/goplugin/plugin-protos/orchestrator v0.3.0
-	github.com/goplugin/plugin-solana v1.1.1-0.20241017193838-6c937ac2d042
-	github.com/goplugin/plugin-starknet/relayer v0.1.1-0.20241017135645-176a23722fd8
-	github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
-	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.0.0-20241009055228-33d0c0bf38de
-	github.com/goplugin/tdh2/go/tdh2 v0.0.0-20241009055228-33d0c0bf38de
-	github.com/goplugin/wsrpc v0.8.2
+	github.com/goplugin/plugin-protos/orchestrator v0.1.1
+	github.com/goplugin/plugin-solana v0.1.1
+	github.com/goplugin/plugin-starknet/relayer v0.1.1
+	github.com/goplugin/plugin-libocr v0.1.1
+	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.1.1
+	github.com/goplugin/tdh2/go/tdh2 v0.1.1
+	github.com/goplugin/wsrpc v0.1.1
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.9.0
 	github.com/test-go/testify v1.1.4
