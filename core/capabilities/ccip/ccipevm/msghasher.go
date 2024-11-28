@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -105,7 +105,7 @@ func (h *MessageHasherV1) Hash(_ context.Context, msg cciptypes.Message) (ccipty
 	// Need to decode the extra args to get the gas limit.
 	// TODO: we assume that extra args is always abi-encoded for now, but we need
 	// to decode according to source chain selector family. We should add a family
-	// lookup API to the plugin-selectors library.
+	// lookup API to the chain-selectors library.
 	gasLimit, err := decodeExtraArgsV1V2(msg.ExtraArgs)
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("decode extra args: %w", err)

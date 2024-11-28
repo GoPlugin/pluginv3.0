@@ -45,6 +45,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore"
+	"github.com/goplugin/pluginv3.0/v2/core/services/llo"
 	"github.com/goplugin/pluginv3.0/v2/core/services/periodicbackup"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/wsrpc"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/wsrpc/cache"
@@ -210,15 +211,18 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 
 	capabilitiesRegistry := capabilities.NewRegistry(appLggr)
 
+	retirementReportCache := llo.NewRetirementReportCache(appLggr, ds)
+
 	unrestrictedClient := clhttp.NewUnrestrictedHTTPClient()
 	// create the relayer-chain interoperators from application configuration
 	relayerFactory := plugin.RelayerFactory{
-		Logger:               appLggr,
-		LoopRegistry:         loopRegistry,
-		GRPCOpts:             grpcOpts,
-		MercuryPool:          mercuryPool,
-		CapabilitiesRegistry: capabilitiesRegistry,
-		HTTPClient:           unrestrictedClient,
+		Logger:                appLggr,
+		LoopRegistry:          loopRegistry,
+		GRPCOpts:              grpcOpts,
+		MercuryPool:           mercuryPool,
+		CapabilitiesRegistry:  capabilitiesRegistry,
+		HTTPClient:            unrestrictedClient,
+		RetirementReportCache: retirementReportCache,
 	}
 
 	evmFactoryCfg := plugin.EVMFactoryConfig{
@@ -289,6 +293,7 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 		LoopRegistry:               loopRegistry,
 		GRPCOpts:                   grpcOpts,
 		MercuryPool:                mercuryPool,
+		RetirementReportCache:      retirementReportCache,
 		CapabilitiesRegistry:       capabilitiesRegistry,
 	})
 }

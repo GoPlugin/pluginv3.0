@@ -33,7 +33,7 @@ gomodtidy: gomods ## Run go mod tidy on all modules.
 .PHONY: docs
 docs: ## Install and run pkgsite to view Go docs
 	go install golang.org/x/pkgsite/cmd/pkgsite@latest
-	# http://localhost:8080/pkg/github.com/goplugin/pluginv3.0/
+	# http://localhost:8080/pkg/github.com/goplugin/pluginv3.0/v2/
 	pkgsite
 
 .PHONY: install-plugin
@@ -112,6 +112,10 @@ testscripts: plugin-test ## Install and run testscript against testdata/scripts/
 .PHONY: testscripts-update
 testscripts-update: ## Update testdata/scripts/* files via testscript.
 	make testscripts TS_FLAGS="-u"
+
+.PHONY: start-testdb
+start-testdb:
+	docker run --name test-db-core -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
 
 .PHONY: setup-testdb
 setup-testdb: ## Setup the test database.

@@ -112,7 +112,7 @@ func TestValidatedKeeperSpec(t *testing.T) {
                                                                                               data="$(encode_check_upkeep_tx)"]
                                                                     decode_check_upkeep_tx   [type=ethabidecode
                                                                                               abi="bytes memory performData, uint256 maxLinkPayment,
-                                                                                              uint256 gasLimit, uint256 adjustedGasWei, uint256 linkEth"]
+                                                                                              uint256 gasLimit, uint256 adjustedGasWei, uint256 pliEth"]
                                                                     encode_perform_upkeep_tx [type=ethabiencode
                                                                                               abi="performUpkeep(uint256 id, bytes calldata performData)"
                                                                                               data="{\"id\": $(jobSpec.upkeepID),\"performData\":$(decode_check_upkeep_tx.performData)}"]
@@ -156,7 +156,7 @@ func TestValidatedKeeperSpec(t *testing.T) {
                                                                                               data="$(encode_check_upkeep_tx)"]
                                                                     decode_check_upkeep_tx   [type=ethabidecode
                                                                                               abi="bytes memory performData, uint256 maxLinkPayment,
-                                                                                              uint256 gasLimit, uint256 adjustedGasWei, uint256 linkEth"]
+                                                                                              uint256 gasLimit, uint256 adjustedGasWei, uint256 pliEth"]
                                                                     encode_perform_upkeep_tx [type=ethabiencode
                                                                                               abi="performUpkeep(uint256 id, bytes calldata performData)"
                                                                                               data="{\"id\": $(jobSpec.upkeepID),\"performData\":$(decode_check_upkeep_tx.performData)}"]

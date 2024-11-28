@@ -22,7 +22,7 @@ We do everything we can to ensure that [the test suite](https://circleci.com/gh/
 is stable and maintains a high level of coverage
 (even if that is difficult with Go).
 Please write tests for your code and make sure that the existing suite continues to pass.
-If you run into trouble with this, you can always ask for tips in [our Gitter](https://gitter.im/goplugin-plugin/Lobby).
+If you run into trouble with this, you can always ask for tips in [our Gitter](https://gitter.im/goplugin-pluginv3.0/Lobby).
 
 ## Code Style
 

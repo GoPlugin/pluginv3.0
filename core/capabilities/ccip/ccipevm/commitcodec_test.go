@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
+
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 )

@@ -9,9 +9,9 @@ import (
 	"github.com/test-go/testify/require"
 	"google.golang.org/grpc"
 
+	nodev1 "github.com/goplugin/plugin-protos/job-distributor/v1/node"
 	"github.com/goplugin/pluginv3.0/integration-tests/deployment/clo"
 	"github.com/goplugin/pluginv3.0/integration-tests/deployment/clo/models"
-	nodev1 "github.com/goplugin/pluginv3.0/integration-tests/deployment/jd/node/v1"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 

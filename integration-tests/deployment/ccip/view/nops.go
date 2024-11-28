@@ -6,8 +6,8 @@ import (
 
 	chainsel "github.com/goplugin/chain-selectors"
 
+	nodev1 "github.com/goplugin/plugin-protos/job-distributor/v1/node"
 	"github.com/goplugin/pluginv3.0/integration-tests/deployment"
-	nodev1 "github.com/goplugin/pluginv3.0/integration-tests/deployment/jd/node/v1"
 )
 
 type NopsView struct {

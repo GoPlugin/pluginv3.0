@@ -13,9 +13,11 @@ import (
 	"github.com/sethvargo/go-retry"
 	chainsel "github.com/goplugin/chain-selectors"
 
+	nodev1 "github.com/goplugin/plugin-protos/job-distributor/v1/node"
 	clclient "github.com/goplugin/pluginv3.0/integration-tests/client"
-	nodev1 "github.com/goplugin/pluginv3.0/integration-tests/deployment/jd/node/v1"
-	"github.com/goplugin/pluginv3.0/integration-tests/deployment/jd/shared/ptypes"
+
+	"github.com/goplugin/plugin-protos/job-distributor/v1/shared/ptypes"
+
 	"github.com/goplugin/pluginv3.0/integration-tests/web/sdk/client"
 )
 

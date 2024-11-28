@@ -36,23 +36,24 @@ require (
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/shopspring/decimal v1.4.0
 	github.com/slack-go/slack v0.12.2
+	github.com/goplugin/chain-selectors v0.1.1
+	github.com/goplugin/plugin-automation v0.0.2
+	github.com/goplugin/plugin-ccip v0.0.2
+	github.com/goplugin/plugin-common v0.3.1
+	github.com/goplugin/plugin-protos/job-distributor v0.0.2
+	github.com/goplugin/plugin-testing-framework/havoc v0.0.1
+	github.com/goplugin/plugin-testing-framework/lib v0.4.1
+	github.com/goplugin/plugin-testing-framework/lib/grafana v0.0.1
+	github.com/goplugin/plugin-testing-framework/seth v0.1.1
+	github.com/goplugin/plugin-testing-framework/wasp v0.0.1
+	github.com/goplugin/pluginv3.0/v2 v2.4.0
+	github.com/goplugin/plugin-libocr v0.1.1
 	github.com/smartcontractkit/ccip-owner-contracts v0.0.0-20240926212305-a6deabdfce86
-	github.com/goplugin/chain-selectors v0.1.1 //plugin update changes
-	github.com/goplugin/plugin-automation v0.0.2 //plugin update changes
-	github.com/goplugin/plugin-ccip v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-common v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-testing-framework/havoc v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-testing-framework/lib v0.4.1 //plugin update changes
-	github.com/goplugin/plugin-testing-framework/lib/grafana v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-testing-framework/seth v0.1.1 //plugin update changes
-	github.com/goplugin/plugin-testing-framework/wasp v0.0.1 //plugin update changes
-	github.com/goplugin/pluginv3.0/v2 v2.4.0 //plugin update changes
-	github.com/goplugin/plugin-libocr v0.1.1 //plugin update changes
-	//github.com/smartcontractkit/ccip-owner-contracts v0.0.0-20240926212305-a6deabdfce86
-	//github.com/goplugin/chain-selectors v1.0.23
+	//github.com/goplugin/chain-selectors v1.0.27
 	//github.com/goplugin/plugin-automation v0.8.0
-	//github.com/goplugin/plugin-ccip v0.0.0-20241010120731-ae3e8f4935a0
-	//github.com/goplugin/plugin-common v0.3.0
+	//github.com/goplugin/plugin-ccip v0.0.0-20241021132654-e5f3ecb77638
+	//github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
+	//github.com/goplugin/plugin-protos/job-distributor v0.4.0
 	//github.com/goplugin/plugin-testing-framework/havoc v1.50.0
 	//github.com/goplugin/plugin-testing-framework/lib v1.50.11-0.20241011153842-b2804aed25b4
 	//github.com/goplugin/plugin-testing-framework/lib/grafana v1.50.0
@@ -73,8 +74,8 @@ require (
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 	golang.org/x/sync v0.8.0
 	golang.org/x/text v0.18.0
-	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/grpc v1.66.2
+	google.golang.org/protobuf v1.35.1
 	gopkg.in/guregu/null.v4 v4.0.0
 	gotest.tools/v3 v3.5.1
 	k8s.io/apimachinery v0.31.0
@@ -419,20 +420,22 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.3 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/goplugin/plugin-cosmos v0.0.2 //plugin update changes
-	github.com/goplugin/plugin-data-streams v0.1.1 //plugin update changes
+	github.com/goplugin/plugin-cosmos v0.0.3
+	github.com/goplugin/plugin-data-streams v0.1.1
 	github.com/goplugin/plugin-feeds v0.1.1 // indirect
-	github.com/goplugin/plugin-solana v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-starknet/relayer v0.3.3 //plugin update changes
-	github.com/goplugin/grpc-proxy v0.1.1 //plugin update changes
-	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1 //plugin update changes
-	github.com/goplugin/tdh2/go/tdh2 v0.3.1 //plugin update changes
-	github.com/goplugin/wsrpc v0.1.1 //plugin update changes
-	//github.com/goplugin/plugin-cosmos v0.5.1 // indirect
-	//github.com/goplugin/plugin-data-streams v0.1.0 // indirect
+	github.com/goplugin/plugin-protos/orchestrator v0.0.1
+	github.com/goplugin/plugin-solana v0.0.2
+	github.com/goplugin/plugin-starknet/relayer v0.4.4
+	github.com/goplugin/grpc-proxy v0.1.1
+	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1
+	github.com/goplugin/tdh2/go/tdh2 v0.3.1
+	github.com/goplugin/wsrpc v0.1.1
+	//github.com/goplugin/plugin-cosmos v0.5.2-0.20241017133723-5277829bd53f // indirect
+	//github.com/goplugin/plugin-data-streams v0.1.1-0.20241018134907-a00ba3729b5e // indirect
 	//github.com/goplugin/plugin-feeds v0.1.1 // indirect
-	//github.com/goplugin/plugin-solana v1.1.1-0.20241010140936-4e1d0ae8315a // indirect
-	//github.com/goplugin/plugin-starknet/relayer v0.1.0 // indirect
+	//github.com/goplugin/plugin-protos/orchestrator v0.3.0 // indirect
+	//github.com/goplugin/plugin-solana v1.1.1-0.20241017193838-6c937ac2d042 // indirect
+	//github.com/goplugin/plugin-starknet/relayer v0.1.1-0.20241017135645-176a23722fd8 // indirect
 	//github.com/goplugin/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	//github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.0.0-20241009055228-33d0c0bf38de // indirect
 	//github.com/goplugin/tdh2/go/tdh2 v0.0.0-20241009055228-33d0c0bf38de // indirect

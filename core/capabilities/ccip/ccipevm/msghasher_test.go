@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/stretchr/testify/require"
 
-	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccipocr3"
+	cciptypes "github.com/goplugin/plugin-ccip/pkg/types/ccipocr3"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/ccip/generated/message_hasher"

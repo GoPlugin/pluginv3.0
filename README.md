@@ -255,9 +255,9 @@ This repository contains three Go modules:
 
 ```mermaid
 flowchart RL
-    github.com/goplugin/pluginv3.0
-    github.com/goplugin/pluginv3.0/integration-tests --> github.com/goplugin/pluginv3.0
-    github.com/goplugin/pluginv3.0/core/scripts --> github.com/goplugin/pluginv3.0
+    github.com/goplugin/pluginv3.0/v2
+    github.com/goplugin/pluginv3.0/integration-tests --> github.com/goplugin/pluginv3.0/v2
+    github.com/goplugin/pluginv3.0/core/scripts --> github.com/goplugin/pluginv3.0/v2
 
 ```
 The `integration-tests` and `core/scripts` modules import the root module using a relative replace in their `go.mod` files,

@@ -1,5 +1,5 @@
 ---
-"plugin": patch
+'@plugin/contracts': patch
 ---
 
 #added Add ZKSync L2EP SequencerUptimeFeed contract

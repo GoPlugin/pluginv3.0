@@ -10,6 +10,7 @@ import (
 	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccip"
 
 	"github.com/goplugin/plugin-common/pkg/logger"
+
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	mocks2 "github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
@@ -21,7 +22,7 @@ import (
 func TestPriceRegistry(t *testing.T) {
 	ctx := testutils.Context(t)
 
-	for _, versionStr := range []string{ccipdata.V1_0_0, ccipdata.V1_2_0} {
+	for _, versionStr := range []string{ccipdata.V1_2_0} {
 		lggr := logger.Test(t)
 		addr := cciptypes.Address(utils.RandomAddress().String())
 		lp := mocks2.NewLogPoller(t)

@@ -674,7 +674,7 @@ func main() {
 		helpers.ParseArgs(consumerRequestCmd, os.Args[2:], "address")
 		consumer, err := vrf_single_consumer_example.NewVRFSingleConsumerExample(common.HexToAddress(*consumerRequestAddress), e.Ec)
 		helpers.PanicErr(err)
-		// Fund and request 3 link
+		// Fund and request 3 pli
 		tx, err := consumer.FundAndRequestRandomWords(e.Owner, big.NewInt(3000000000000000000))
 		helpers.PanicErr(err)
 		helpers.ConfirmTXMined(context.Background(), e.Ec, tx, e.ChainID)

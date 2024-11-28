@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	pb "github.com/goplugin/pluginv3.0/v2/core/services/feeds/proto"
+	pb "github.com/goplugin/plugin-protos/orchestrator/feedsmanager"
 )
 
 // RPCHandlers define handlers for RPC method calls from the Feeds Manager

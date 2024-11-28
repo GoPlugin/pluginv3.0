@@ -25,8 +25,8 @@ flowchart LR
   classDef outline stroke-dasharray:6,fill:none;
   class chains,products,tdh2 outline
 
-  plugin/v2 --> plugin-selectors
-  click plugin-selectors href "https://github.com/goplugin/chain-selectors"
+  plugin/v2 --> chain-selectors
+  click chain-selectors href "https://github.com/goplugin/chain-selectors"
   plugin/v2 --> plugin-automation
   click plugin-automation href "https://github.com/goplugin/plugin-automation"
   plugin/v2 --> plugin-ccip
@@ -39,6 +39,8 @@ flowchart LR
   click plugin-data-streams href "https://github.com/goplugin/plugin-data-streams"
   plugin/v2 --> plugin-feeds
   click plugin-feeds href "https://github.com/goplugin/plugin-feeds"
+  plugin/v2 --> plugin-protos/orchestrator
+  click plugin-protos/orchestrator href "https://github.com/goplugin/plugin-protos"
   plugin/v2 --> plugin-solana
   click plugin-solana href "https://github.com/goplugin/plugin-solana"
   plugin/v2 --> plugin-starknet/relayer
@@ -55,7 +57,7 @@ flowchart LR
   click wsrpc href "https://github.com/goplugin/wsrpc"
   plugin-automation --> plugin-common
   plugin-automation --> libocr
-  plugin-ccip --> plugin-selectors
+  plugin-ccip --> chain-selectors
   plugin-ccip --> plugin-common
   plugin-ccip --> libocr
   plugin-common --> grpc-proxy
@@ -69,6 +71,7 @@ flowchart LR
   plugin-feeds --> plugin-common
   plugin-feeds --> libocr
   plugin-feeds --> grpc-proxy
+  plugin-protos/orchestrator --> wsrpc
   plugin-solana --> plugin-common
   plugin-solana --> libocr
   plugin-solana --> grpc-proxy

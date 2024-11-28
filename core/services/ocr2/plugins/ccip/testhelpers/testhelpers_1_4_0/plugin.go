@@ -38,6 +38,7 @@ import (
 	cciptypes "github.com/goplugin/plugin-common/pkg/types/ccip"
 	coretypes "github.com/goplugin/plugin-common/pkg/types/core/mocks"
 
+	pb "github.com/goplugin/plugin-protos/orchestrator/feedsmanager"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/client"
 	v2 "github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
@@ -54,7 +55,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	feeds2 "github.com/goplugin/pluginv3.0/v2/core/services/feeds"
 	feedsMocks "github.com/goplugin/pluginv3.0/v2/core/services/feeds/mocks"
-	pb "github.com/goplugin/pluginv3.0/v2/core/services/feeds/proto"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/chaintype"
@@ -63,7 +63,6 @@ import (
 	ksMocks "github.com/goplugin/pluginv3.0/v2/core/services/keystore/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/abihelpers"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/internal/ccipdata"
-	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/internal/ccipdata/v1_0_0"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/internal/ccipdata/v1_2_0"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/testhelpers"
 	integrationtesthelpers "github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ccip/testhelpers/integration"
@@ -183,7 +182,7 @@ func (node *Node) EventuallyNodeUsesUpdatedPriceRegistry(t *testing.T, ccipContr
 		ccipContracts.Dest.Chain.Commit()
 		log, err := c.LogPoller().LatestLogByEventSigWithConfs(
 			testutils.Context(t),
-			v1_0_0.UsdPerUnitGasUpdated,
+			v1_2_0.UsdPerUnitGasUpdated,
 			ccipContracts.Dest.PriceRegistry.Address(),
 			0,
 		)
@@ -282,9 +281,9 @@ func (node *Node) EventuallyHasExecutedSeqNums(t *testing.T, ccipContracts *CCIP
 		ccipContracts.Dest.Chain.Commit()
 		lgs, err := c.LogPoller().IndexedLogsTopicRange(
 			testutils.Context(t),
-			v1_0_0.ExecutionStateChangedEvent,
+			v1_2_0.ExecutionStateChangedEvent,
 			offRamp,
-			v1_0_0.ExecutionStateChangedSeqNrIndex,
+			v1_2_0.ExecutionStateChangedSeqNrIndex,
 			abihelpers.EvmWord(uint64(minSeqNum)),
 			abihelpers.EvmWord(uint64(maxSeqNum)),
 			1,
@@ -310,9 +309,9 @@ func (node *Node) ConsistentlySeqNumHasNotBeenExecuted(t *testing.T, ccipContrac
 		ccipContracts.Dest.Chain.Commit()
 		lgs, err := c.LogPoller().IndexedLogsTopicRange(
 			testutils.Context(t),
-			v1_0_0.ExecutionStateChangedEvent,
+			v1_2_0.ExecutionStateChangedEvent,
 			offRamp,
-			v1_0_0.ExecutionStateChangedSeqNrIndex,
+			v1_2_0.ExecutionStateChangedSeqNrIndex,
 			abihelpers.EvmWord(uint64(seqNum)),
 			abihelpers.EvmWord(uint64(seqNum)),
 			1,

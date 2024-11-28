@@ -1,4 +1,4 @@
-module github.com/goplugin/pluginv3.0
+module github.com/goplugin/pluginv3.0/v2
 
 go 1.22.8
 
@@ -73,28 +73,30 @@ require (
 	github.com/scylladb/go-reflectx v1.0.1
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/shopspring/decimal v1.4.0
-	github.com/goplugin/chain-selectors v0.1.1 //plugin update changes
-	github.com/goplugin/plugin-automation v0.0.2 //plugin update changes
-	github.com/goplugin/plugin-ccip v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-common v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-cosmos v0.0.2 //plugin update changes
-	github.com/goplugin/plugin-data-streams v0.1.1 //plugin update changes
+	github.com/goplugin/chain-selectors v0.1.1
+	github.com/goplugin/plugin-automation v0.0.2
+	github.com/goplugin/plugin-ccip v0.0.2
+	github.com/goplugin/plugin-common v0.3.1
+	github.com/goplugin/plugin-cosmos v0.0.3
+	github.com/goplugin/plugin-data-streams v0.1.1
 	github.com/goplugin/plugin-feeds v0.1.1
-	github.com/goplugin/plugin-solana v0.0.1 //plugin update changes
-	github.com/goplugin/plugin-starknet/relayer v0.3.3 //plugin update changes
-	github.com/goplugin/plugin-libocr v0.1.1 //plugin update changes
-	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1 //plugin update changes
-	github.com/goplugin/tdh2/go/tdh2 v0.3.1 //plugin update changes
-	github.com/goplugin/wsrpc v0.1.1 //plugin update changes
-	//github.com/goplugin/chain-selectors v1.0.23
+	github.com/goplugin/plugin-protos/orchestrator v0.0.1
+	github.com/goplugin/plugin-solana v0.0.2
+	github.com/goplugin/plugin-starknet/relayer v0.4.4
+	github.com/goplugin/plugin-libocr v0.1.1
+	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1
+	github.com/goplugin/tdh2/go/tdh2 v0.3.1
+	github.com/goplugin/wsrpc v0.1.1
+	//github.com/goplugin/chain-selectors v1.0.27
 	//github.com/goplugin/plugin-automation v0.8.0
-	//github.com/goplugin/plugin-ccip v0.0.0-20241010120731-ae3e8f4935a0
-	//github.com/goplugin/plugin-common v0.3.0
-	//github.com/goplugin/plugin-cosmos v0.5.1
-	//github.com/goplugin/plugin-data-streams v0.1.0
+	//github.com/goplugin/plugin-ccip v0.0.0-20241021132654-e5f3ecb77638
+	//github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
+	//github.com/goplugin/plugin-cosmos v0.5.2-0.20241017133723-5277829bd53f
+	//github.com/goplugin/plugin-data-streams v0.1.1-0.20241018134907-a00ba3729b5e
 	//github.com/goplugin/plugin-feeds v0.1.1
-	//github.com/goplugin/plugin-solana v1.1.1-0.20241010140936-4e1d0ae8315a
-	//github.com/goplugin/plugin-starknet/relayer v0.1.0
+	//github.com/goplugin/plugin-protos/orchestrator v0.3.0
+	//github.com/goplugin/plugin-solana v1.1.1-0.20241017193838-6c937ac2d042
+	//github.com/goplugin/plugin-starknet/relayer v0.1.1-0.20241017135645-176a23722fd8
 	//github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
 	//github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.0.0-20241009055228-33d0c0bf38de
 	//github.com/goplugin/tdh2/go/tdh2 v0.0.0-20241009055228-33d0c0bf38de
@@ -114,6 +116,7 @@ require (
 	go.dedis.ch/kyber/v3 v3.1.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.49.0
 	go.opentelemetry.io/otel v1.28.0
+	go.opentelemetry.io/otel/metric v1.28.0
 	go.opentelemetry.io/otel/trace v1.28.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -128,7 +131,7 @@ require (
 	golang.org/x/tools v0.25.0
 	gonum.org/v1/gonum v0.15.0
 	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.35.1
 	gopkg.in/guregu/null.v4 v4.0.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
@@ -315,7 +318,7 @@ require (
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/sethvargo/go-retry v0.2.4 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
-	github.com/goplugin/grpc-proxy v0.1.1 //plugin update changes
+	github.com/goplugin/grpc-proxy v0.1.1
 	//github.com/goplugin/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
@@ -356,7 +359,6 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.28.0 // indirect
 	go.opentelemetry.io/otel/log v0.4.0 // indirect
-	go.opentelemetry.io/otel/metric v1.28.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.28.0 // indirect
 	go.opentelemetry.io/otel/sdk/log v0.4.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.28.0 // indirect
