@@ -28,7 +28,7 @@ jobs:
         run: echo "corpus_dir=$(go env GOCACHE)/fuzz" >> $GITHUB_OUTPUT
         shell: "bash"
       - name: "Restore corpus"
-        uses: "actions/cache/restore@13aacd865c20de90d75de3b17ebe84f7a17d57d2" # v4.0.0
+        uses: "actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a" # v4.1.2
         id: "restore-corpus"
         with:
           path: "${{ steps.get-corpus-dir.outputs.corpus_dir }}"
@@ -44,7 +44,7 @@ jobs:
         if: failure()
         run: find . -type f|fgrep '/testdata/fuzz/'|while read f; do echo $f; cat $f; done
       - name: "Save corpus"
-        uses: "actions/cache/save@13aacd865c20de90d75de3b17ebe84f7a17d57d2" # v4.0.0
+        uses: "actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a" # v4.1.2
         # We save also on failure, so that we can keep the valuable corpus generated that led to finding a crash.
         # If the corpus gets clobbered for any reason, we can remove the offending cache from the Github UI.
         if: always()
