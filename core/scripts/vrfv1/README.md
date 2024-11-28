@@ -93,7 +93,7 @@ the following steps:
    transferAndCall on the LinkToken contract.
 2. The LinkToken contract transfers funds to the ownerless consumer.
 3. The ownerless consumer requests randomness from the
-   [VRF Coordinator](https://github.com/goplugin/pluginv3.0-contracts-deprecated/blob/main/contracts/src/v0.6/VRFCoordinator.sol), using the
+   [VRF Coordinator](https://github.com/goplugin/plugin-contracts-deprecated/blob/main/contracts/src/v0.6/VRFCoordinator.sol), using the
    PLI from step 2 to pay for it.
 
 To request randomness for your chosen consumer, run:

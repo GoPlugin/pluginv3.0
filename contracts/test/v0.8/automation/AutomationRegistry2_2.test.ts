@@ -100,11 +100,11 @@ const gasCalculationMargin = BigNumber.from(5000)
 // overhead should be larger than actual gas overhead but should not increase beyond this margin
 const gasEstimationMargin = BigNumber.from(5000)
 
-const linkEth = BigNumber.from(5000000000000000) // 1 Link = 0.005 Eth
+const pliEth = BigNumber.from(5000000000000000) // 1 Link = 0.005 Eth
 const gasWei = BigNumber.from(1000000000) // 1 gwei
 // -----------------------------------------------------------------------------------------------
 // test-wide configs for upkeeps
-const linkDivisibility = BigNumber.from('1000000000000000000')
+const pliDivisibility = BigNumber.from('1000000000000000000')
 const performGas = BigNumber.from('1000000')
 const paymentPremiumBase = BigNumber.from('1000000000')
 const paymentPremiumPPB = BigNumber.from('250000000')
@@ -122,7 +122,7 @@ const stalenessSeconds = BigNumber.from(43820)
 const gasCeilingMultiplier = BigNumber.from(2)
 const checkGasLimit = BigNumber.from(10000000)
 const fallbackGasPrice = gasWei.mul(BigNumber.from('2'))
-const fallbackLinkPrice = linkEth.div(BigNumber.from('2'))
+const fallbackLinkPrice = pliEth.div(BigNumber.from('2'))
 const maxCheckDataSize = BigNumber.from(1000)
 const maxPerformDataSize = BigNumber.from(1000)
 const maxRevertDataSize = BigNumber.from(1000)
@@ -140,7 +140,7 @@ let logTriggerConfig: string
 // -----------------------------------------------------------------------------------------------
 
 // Smart contract factories
-let linkTokenFactory: ContractFactory
+let pliTokenFactory: ContractFactory
 let mockArbGasInfoFactory: MockArbGasInfoFactory
 let mockOVMGasPriceOracleFactory: MockOVMGasPriceOracleFactory
 let mockV3AggregatorFactory: MockV3AggregatorFactory
@@ -153,8 +153,8 @@ let streamsLookupUpkeepFactory: StreamsLookupUpkeepFactory
 let personas: Personas
 
 // contracts
-let linkToken: Contract
-let linkEthFeed: MockV3Aggregator
+let pliToken: Contract
+let pliEthFeed: MockV3Aggregator
 let gasPriceFeed: MockV3Aggregator
 let registry: IAutomationRegistry // default registry, used for most tests
 let arbRegistry: IAutomationRegistry // arbitrum registry
@@ -246,7 +246,7 @@ const makeReport = (upkeeps: UpkeepData[]) => {
   const performDatas = upkeeps.map((u) => u.performData)
   return encodeReport({
     fastGasWei: gasWei,
-    linkNative: linkEth,
+    pliNative: pliEth,
     upkeepIds,
     gasLimits: performGases,
     triggers,
@@ -414,7 +414,7 @@ describe('AutomationRegistry2_2', () => {
     )
     automationUtils = await convFactory.deploy()
 
-    linkTokenFactory = await ethers.getContractFactory(
+    pliTokenFactory = await ethers.getContractFactory(
       'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
     )
     // need full path because there are two contracts with name MockV3Aggregator
@@ -512,9 +512,9 @@ describe('AutomationRegistry2_2', () => {
   })
 
   // This function is similar to registry's _calculatePaymentAmount
-  // It uses global fastGasWei, linkEth, and assumes isExecution = false (gasFee = fastGasWei*multiplier)
+  // It uses global fastGasWei, pliEth, and assumes isExecution = false (gasFee = fastGasWei*multiplier)
   // rest of the parameters are the same
-  const linkForGas = (
+  const pliForGas = (
     upkeepGasSpent: BigNumber,
     gasOverhead: BigNumber,
     gasMultiplier: BigNumber,
@@ -652,7 +652,7 @@ describe('AutomationRegistry2_2', () => {
         test.gas,
       )
       expect(conditionalPrice).to.equal(
-        linkForGas(
+        pliForGas(
           BigNumber.from(test.gas),
           totalConditionalOverhead,
           BigNumber.from(test.multiplier),
@@ -664,7 +664,7 @@ describe('AutomationRegistry2_2', () => {
 
       const logPrice = await registry.getMaxPaymentForGas(Trigger.LOG, test.gas)
       expect(logPrice).to.equal(
-        linkForGas(
+        pliForGas(
           BigNumber.from(test.gas),
           totalLogOverhead,
           BigNumber.from(test.multiplier),
@@ -681,7 +681,7 @@ describe('AutomationRegistry2_2', () => {
   ) => {
     const expectedLinkBalance = (await registry.getState()).state
       .expectedLinkBalance
-    const linkTokenBalance = await linkToken.balanceOf(registry.address)
+    const pliTokenBalance = await pliToken.balanceOf(registry.address)
     const upkeepIdBalance = (await registry.getUpkeep(upkeepId)).balance
     let totalKeeperBalance = BigNumber.from(0)
     for (let i = 0; i < keeperAddresses.length; i++) {
@@ -828,13 +828,13 @@ describe('AutomationRegistry2_2', () => {
   }
 
   const setup = async () => {
-    linkToken = await linkTokenFactory.connect(owner).deploy()
+    pliToken = await pliTokenFactory.connect(owner).deploy()
     gasPriceFeed = await mockV3AggregatorFactory
       .connect(owner)
       .deploy(0, gasWei)
-    linkEthFeed = await mockV3AggregatorFactory
+    pliEthFeed = await mockV3AggregatorFactory
       .connect(owner)
-      .deploy(9, linkEth)
+      .deploy(9, pliEth)
     const upkeepTranscoderFactory = await ethers.getContractFactory(
       'UpkeepTranscoder4_0',
     )
@@ -933,40 +933,40 @@ describe('AutomationRegistry2_2', () => {
 
     registry = await deployRegistry22(
       owner,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
       zeroAddress,
     )
 
     arbRegistry = await deployRegistry22(
       owner,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
       zeroAddress,
     )
 
     opRegistry = await deployRegistry22(
       owner,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
       zeroAddress,
     )
 
     mgRegistry = await deployRegistry22(
       owner,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
       zeroAddress,
     )
 
     blankRegistry = await deployRegistry22(
       owner,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
       zeroAddress,
     )
@@ -988,12 +988,12 @@ describe('AutomationRegistry2_2', () => {
     await opRegistry.connect(owner).setConfigTypeSafe(...opConfigParams)
     for (const reg of [registry, arbRegistry, opRegistry, mgRegistry]) {
       await reg.connect(owner).setPayees(payees)
-      await linkToken.connect(admin).approve(reg.address, toWei('1000'))
-      await linkToken.connect(owner).approve(reg.address, toWei('1000'))
+      await pliToken.connect(admin).approve(reg.address, toWei('1000'))
+      await pliToken.connect(owner).approve(reg.address, toWei('1000'))
     }
 
     mock = await upkeepMockFactory.deploy()
-    await linkToken
+    await pliToken
       .connect(owner)
       .transfer(await admin.getAddress(), toWei('1000'))
     let tx = await registry
@@ -1023,7 +1023,7 @@ describe('AutomationRegistry2_2', () => {
 
     await autoFunderUpkeep.setUpkeepId(afUpkeepId)
     // Give enough funds for upkeep as well as to the upkeep contract
-    await linkToken
+    await pliToken
       .connect(owner)
       .transfer(autoFunderUpkeep.address, toWei('1000'))
 
@@ -1131,7 +1131,7 @@ describe('AutomationRegistry2_2', () => {
 
       const report = encodeReport({
         fastGasWei: 0,
-        linkNative: 0,
+        pliNative: 0,
         upkeepIds,
         gasLimits,
         triggers,
@@ -1615,7 +1615,7 @@ describe('AutomationRegistry2_2', () => {
         const totalPayment = upkeepPerformedLog.args.totalPayment
 
         assert.equal(
-          linkForGas(
+          pliForGas(
             gasUsed,
             gasOverhead,
             BigNumber.from('1'), // Not the config multiplier, but the actual gas used
@@ -1626,7 +1626,7 @@ describe('AutomationRegistry2_2', () => {
         )
 
         assert.equal(
-          linkForGas(
+          pliForGas(
             gasUsed,
             gasOverhead,
             BigNumber.from('1'), // Not the config multiplier, but the actual gas used
@@ -1656,7 +1656,7 @@ describe('AutomationRegistry2_2', () => {
         const totalPayment = upkeepPerformedLog.args.totalPayment
 
         assert.equal(
-          linkForGas(
+          pliForGas(
             gasUsed,
             gasOverhead,
             gasCeilingMultiplier, // Should be same with exisitng multiplier
@@ -1699,7 +1699,7 @@ describe('AutomationRegistry2_2', () => {
         const totalPayment = upkeepPerformedLog.args.totalPayment
 
         assert.equal(
-          linkForGas(
+          pliForGas(
             gasUsed,
             gasOverhead,
             gasCeilingMultiplier,
@@ -1911,10 +1911,10 @@ describe('AutomationRegistry2_2', () => {
             const registrationBefore = await registry.getUpkeep(upkeepId)
             const registryPremiumBefore = (await registry.getState()).state
               .totalPremium
-            const keeperLinkBefore = await linkToken.balanceOf(
+            const keeperLinkBefore = await pliToken.balanceOf(
               await keeper1.getAddress(),
             )
-            const registryLinkBefore = await linkToken.balanceOf(
+            const registryLinkBefore = await pliToken.balanceOf(
               registry.address,
             )
 
@@ -1955,10 +1955,10 @@ describe('AutomationRegistry2_2', () => {
               await keeper1.getAddress(),
             )
             const registrationAfter = await registry.getUpkeep(upkeepId)
-            const keeperLinkAfter = await linkToken.balanceOf(
+            const keeperLinkAfter = await pliToken.balanceOf(
               await keeper1.getAddress(),
             )
-            const registryLinkAfter = await linkToken.balanceOf(
+            const registryLinkAfter = await pliToken.balanceOf(
               registry.address,
             )
             const registryPremiumAfter = (await registry.getState()).state
@@ -2310,10 +2310,10 @@ describe('AutomationRegistry2_2', () => {
               const keeperBefore = await registry.getTransmitterInfo(
                 await keeper1.getAddress(),
               )
-              const keeperLinkBefore = await linkToken.balanceOf(
+              const keeperLinkBefore = await pliToken.balanceOf(
                 await keeper1.getAddress(),
               )
-              const registryLinkBefore = await linkToken.balanceOf(
+              const registryLinkBefore = await pliToken.balanceOf(
                 registry.address,
               )
               const registryPremiumBefore = (await registry.getState()).state
@@ -2371,10 +2371,10 @@ describe('AutomationRegistry2_2', () => {
               const keeperAfter = await registry.getTransmitterInfo(
                 await keeper1.getAddress(),
               )
-              const keeperLinkAfter = await linkToken.balanceOf(
+              const keeperLinkAfter = await pliToken.balanceOf(
                 await keeper1.getAddress(),
               )
-              const registryLinkAfter = await linkToken.balanceOf(
+              const registryLinkAfter = await pliToken.balanceOf(
                 registry.address,
               )
               const registrationConditionalPassingAfter = await Promise.all(
@@ -2750,7 +2750,7 @@ describe('AutomationRegistry2_2', () => {
         const totalPayment = upkeepPerformedLog.args.totalPayment
 
         assert.equal(
-          linkForGas(
+          pliForGas(
             gasUsed,
             gasOverhead,
             gasCeilingMultiplier,
@@ -2768,8 +2768,8 @@ describe('AutomationRegistry2_2', () => {
     const sent = toWei('7')
 
     beforeEach(async () => {
-      await linkToken.connect(admin).approve(registry.address, toWei('100'))
-      await linkToken
+      await pliToken.connect(admin).approve(registry.address, toWei('100'))
+      await pliToken
         .connect(owner)
         .transfer(await keeper1.getAddress(), toWei('1000'))
 
@@ -2795,7 +2795,7 @@ describe('AutomationRegistry2_2', () => {
         )
 
       // transfer funds directly to the registry
-      await linkToken.connect(keeper1).transfer(registry.address, sent)
+      await pliToken.connect(keeper1).transfer(registry.address, sent)
 
       // add funds to upkeep 2 and perform and withdraw some payment
       const tx2 = await registry
@@ -2819,7 +2819,7 @@ describe('AutomationRegistry2_2', () => {
 
       // transfer funds using onTokenTransfer
       const data = ethers.utils.defaultAbiCoder.encode(['uint256'], [id2])
-      await linkToken
+      await pliToken
         .connect(owner)
         .transferAndCall(registry.address, toWei('1'), data)
 
@@ -2838,13 +2838,13 @@ describe('AutomationRegistry2_2', () => {
     })
 
     it('allows any funds that have been accidentally transfered to be moved', async () => {
-      const balanceBefore = await linkToken.balanceOf(registry.address)
-      const ownerBefore = await linkToken.balanceOf(await owner.getAddress())
+      const balanceBefore = await pliToken.balanceOf(registry.address)
+      const ownerBefore = await pliToken.balanceOf(await owner.getAddress())
 
       await registry.connect(owner).recoverFunds()
 
-      const balanceAfter = await linkToken.balanceOf(registry.address)
-      const ownerAfter = await linkToken.balanceOf(await owner.getAddress())
+      const balanceAfter = await pliToken.balanceOf(registry.address)
+      const ownerAfter = await pliToken.balanceOf(await owner.getAddress())
 
       assert.isTrue(balanceBefore.eq(balanceAfter.add(sent)))
       assert.isTrue(ownerAfter.eq(ownerBefore.add(sent)))
@@ -3005,10 +3005,10 @@ describe('AutomationRegistry2_2', () => {
       })
 
       it('moves the funds out and updates the balance and emits an event', async () => {
-        const payee1Before = await linkToken.balanceOf(
+        const payee1Before = await pliToken.balanceOf(
           await payee1.getAddress(),
         )
-        const registryBefore = await linkToken.balanceOf(registry.address)
+        const registryBefore = await pliToken.balanceOf(registry.address)
 
         let registration = await registry.getUpkeep(upkeepId)
         const previousBalance = registration.balance
@@ -3020,8 +3020,8 @@ describe('AutomationRegistry2_2', () => {
           .to.emit(registry, 'FundsWithdrawn')
           .withArgs(upkeepId, previousBalance, await payee1.getAddress())
 
-        const payee1After = await linkToken.balanceOf(await payee1.getAddress())
-        const registryAfter = await linkToken.balanceOf(registry.address)
+        const payee1After = await pliToken.balanceOf(await payee1.getAddress())
+        const registryAfter = await pliToken.balanceOf(registry.address)
 
         assert.isTrue(payee1Before.add(previousBalance).eq(payee1After))
         assert.isTrue(registryBefore.sub(previousBalance).eq(registryAfter))
@@ -3190,7 +3190,7 @@ describe('AutomationRegistry2_2', () => {
 
     context('when the registration is funded', () => {
       beforeEach(async () => {
-        await linkToken.connect(admin).approve(registry.address, toWei('200'))
+        await pliToken.connect(admin).approve(registry.address, toWei('200'))
         await registry.connect(admin).addFunds(upkeepId, toWei('100'))
         await registry.connect(admin).addFunds(logUpkeepId, toWei('100'))
       })
@@ -3364,8 +3364,8 @@ describe('AutomationRegistry2_2', () => {
     })
 
     it('lets anyone add funds to an upkeep not just admin', async () => {
-      await linkToken.connect(owner).transfer(await payee1.getAddress(), amount)
-      await linkToken.connect(payee1).approve(registry.address, amount)
+      await pliToken.connect(owner).transfer(await payee1.getAddress(), amount)
+      await pliToken.connect(payee1).approve(registry.address, amount)
 
       await registry.connect(payee1).addFunds(upkeepId, amount)
       const registration = await registry.getUpkeep(upkeepId)
@@ -3469,7 +3469,7 @@ describe('AutomationRegistry2_2', () => {
 
     it('uses the fallback gas price if the feed has issues', async () => {
       const chainModuleOverheads = await chainModuleBase.getGasOverhead()
-      const expectedFallbackMaxPayment = linkForGas(
+      const expectedFallbackMaxPayment = pliForGas(
         performGas,
         registryConditionalOverhead
           .add(registryPerSignerGasOverhead.mul(f + 1))
@@ -3540,9 +3540,9 @@ describe('AutomationRegistry2_2', () => {
       )
     })
 
-    it('uses the fallback link price if the feed has issues', async () => {
+    it('uses the fallback pli price if the feed has issues', async () => {
       const chainModuleOverheads = await chainModuleBase.getGasOverhead()
-      const expectedFallbackMaxPayment = linkForGas(
+      const expectedFallbackMaxPayment = pliForGas(
         performGas,
         registryConditionalOverhead
           .add(registryPerSignerGasOverhead.mul(f + 1))
@@ -3561,7 +3561,7 @@ describe('AutomationRegistry2_2', () => {
               ),
           )
           .add(chainModuleOverheads.chainModuleFixedOverhead),
-        gasCeilingMultiplier.mul('2'), // fallbackLinkPrice is 1/2 link price, so multiply by 2
+        gasCeilingMultiplier.mul('2'), // fallbackLinkPrice is 1/2 pli price, so multiply by 2
         paymentPremiumPPB,
         flatFeeMicroLink,
       ).total
@@ -3571,7 +3571,7 @@ describe('AutomationRegistry2_2', () => {
       const answer = 100
       let updatedAt = 946684800 // New Years 2000 🥳
       let startedAt = 946684799
-      await linkEthFeed
+      await pliEthFeed
         .connect(owner)
         .updateRoundData(roundId, answer, updatedAt, startedAt)
 
@@ -3586,7 +3586,7 @@ describe('AutomationRegistry2_2', () => {
       roundId = 100
       updatedAt = now()
       startedAt = 946684799
-      await linkEthFeed
+      await pliEthFeed
         .connect(owner)
         .updateRoundData(roundId, -100, updatedAt, startedAt)
 
@@ -3601,7 +3601,7 @@ describe('AutomationRegistry2_2', () => {
       roundId = 101
       updatedAt = now()
       startedAt = 946684799
-      await linkEthFeed
+      await pliEthFeed
         .connect(owner)
         .updateRoundData(roundId, 0, updatedAt, startedAt)
 
@@ -3644,12 +3644,12 @@ describe('AutomationRegistry2_2', () => {
       const shortData = '0x12345678'
 
       await evmRevert(
-        linkToken
+        pliToken
           .connect(owner)
           .transferAndCall(registry.address, amount, longData),
       )
       await evmRevert(
-        linkToken
+        pliToken
           .connect(owner)
           .transferAndCall(registry.address, amount, shortData),
       )
@@ -3668,7 +3668,7 @@ describe('AutomationRegistry2_2', () => {
       const data = ethers.utils.defaultAbiCoder.encode(['uint256'], [upkeepId])
 
       const before = (await registry.getUpkeep(upkeepId)).balance
-      await linkToken
+      await pliToken
         .connect(owner)
         .transferAndCall(registry.address, amount, data)
       const after = (await registry.getUpkeep(upkeepId)).balance
@@ -4752,7 +4752,7 @@ describe('AutomationRegistry2_2', () => {
         offchainBytes,
       )
       const upkeepBalance = (await registry.getUpkeep(upkeepId)).balance
-      const ownerBefore = await linkToken.balanceOf(await owner.getAddress())
+      const ownerBefore = await pliToken.balanceOf(await owner.getAddress())
 
       await registry.connect(owner).cancelUpkeep(upkeepId)
 
@@ -4765,7 +4765,7 @@ describe('AutomationRegistry2_2', () => {
       await registry.connect(owner).withdrawOwnerFunds()
 
       ownerRegistryBalance = (await registry.getState()).state.ownerLinkBalance
-      const ownerAfter = await linkToken.balanceOf(await owner.getAddress())
+      const ownerAfter = await pliToken.balanceOf(await owner.getAddress())
 
       // Owner registry balance should be changed to 0
       assert.isTrue(ownerRegistryBalance.eq(BigNumber.from('0')))
@@ -4953,7 +4953,7 @@ describe('AutomationRegistry2_2', () => {
   describe('#migrateUpkeeps() / #receiveUpkeeps()', async () => {
     context('when permissions are set', () => {
       beforeEach(async () => {
-        await linkToken.connect(owner).approve(registry.address, toWei('100'))
+        await pliToken.connect(owner).approve(registry.address, toWei('100'))
         await registry.connect(owner).addFunds(upkeepId, toWei('100'))
         await registry.setPeerRegistryMigrationPermission(mgRegistry.address, 1)
         await mgRegistry.setPeerRegistryMigrationPermission(registry.address, 2)
@@ -5355,7 +5355,7 @@ describe('AutomationRegistry2_2', () => {
       })
 
       it('immediately prevents upkeep', async () => {
-        await linkToken.connect(owner).approve(registry.address, toWei('100'))
+        await pliToken.connect(owner).approve(registry.address, toWei('100'))
         await registry.connect(owner).addFunds(upkeepId, toWei('100'))
         await registry.connect(admin).cancelUpkeep(upkeepId)
 
@@ -5376,7 +5376,7 @@ describe('AutomationRegistry2_2', () => {
 
       describeMaybe('when an upkeep has been performed', async () => {
         beforeEach(async () => {
-          await linkToken.connect(owner).approve(registry.address, toWei('100'))
+          await pliToken.connect(owner).approve(registry.address, toWei('100'))
           await registry.connect(owner).addFunds(upkeepId, toWei('100'))
           await getTransmitTx(registry, keeper1, [upkeepId])
         })
@@ -5411,7 +5411,7 @@ describe('AutomationRegistry2_2', () => {
             offchainBytes,
           )
 
-          const payee1Before = await linkToken.balanceOf(
+          const payee1Before = await pliToken.balanceOf(
             await payee1.getAddress(),
           )
           const upkeepBefore = (await registry.getUpkeep(upkeepId)).balance
@@ -5422,7 +5422,7 @@ describe('AutomationRegistry2_2', () => {
 
           await registry.connect(admin).cancelUpkeep(upkeepId)
 
-          const payee1After = await linkToken.balanceOf(
+          const payee1After = await pliToken.balanceOf(
             await payee1.getAddress(),
           )
           const upkeepAfter = (await registry.getUpkeep(upkeepId)).balance
@@ -5465,14 +5465,14 @@ describe('AutomationRegistry2_2', () => {
             offchainVersion,
             offchainBytes,
           )
-          const payee1Before = await linkToken.balanceOf(
+          const payee1Before = await pliToken.balanceOf(
             await payee1.getAddress(),
           )
           const upkeepBefore = (await registry.getUpkeep(upkeepId)).balance
           const ownerBefore = (await registry.getState()).state.ownerLinkBalance
 
           await registry.connect(admin).cancelUpkeep(upkeepId)
-          const payee1After = await linkToken.balanceOf(
+          const payee1After = await pliToken.balanceOf(
             await payee1.getAddress(),
           )
           const ownerAfter = (await registry.getState()).state.ownerLinkBalance
@@ -5515,14 +5515,14 @@ describe('AutomationRegistry2_2', () => {
             offchainVersion,
             offchainBytes,
           )
-          const payee1Before = await linkToken.balanceOf(
+          const payee1Before = await pliToken.balanceOf(
             await payee1.getAddress(),
           )
           const upkeepBefore = (await registry.getUpkeep(upkeepId)).balance
           const ownerBefore = (await registry.getState()).state.ownerLinkBalance
 
           await registry.connect(admin).cancelUpkeep(upkeepId)
-          const payee1After = await linkToken.balanceOf(
+          const payee1After = await pliToken.balanceOf(
             await payee1.getAddress(),
           )
           const ownerAfter = (await registry.getState()).state.ownerLinkBalance
@@ -5541,7 +5541,7 @@ describe('AutomationRegistry2_2', () => {
 
   describe('#withdrawPayment', () => {
     beforeEach(async () => {
-      await linkToken.connect(owner).approve(registry.address, toWei('100'))
+      await pliToken.connect(owner).approve(registry.address, toWei('100'))
       await registry.connect(owner).addFunds(upkeepId, toWei('100'))
       await getTransmitTx(registry, keeper1, [upkeepId])
     })
@@ -5575,8 +5575,8 @@ describe('AutomationRegistry2_2', () => {
         await keeper1.getAddress(),
       )
       const registrationBefore = (await registry.getUpkeep(upkeepId)).balance
-      const toLinkBefore = await linkToken.balanceOf(to)
-      const registryLinkBefore = await linkToken.balanceOf(registry.address)
+      const toLinkBefore = await pliToken.balanceOf(to)
+      const registryLinkBefore = await pliToken.balanceOf(registry.address)
       const registryPremiumBefore = (await registry.getState()).state
         .totalPremium
       const ownerBefore = (await registry.getState()).state.ownerLinkBalance
@@ -5593,8 +5593,8 @@ describe('AutomationRegistry2_2', () => {
         await keeper1.getAddress(),
       )
       const registrationAfter = (await registry.getUpkeep(upkeepId)).balance
-      const toLinkAfter = await linkToken.balanceOf(to)
-      const registryLinkAfter = await linkToken.balanceOf(registry.address)
+      const toLinkAfter = await pliToken.balanceOf(to)
+      const registryLinkAfter = await pliToken.balanceOf(registry.address)
       const registryPremiumAfter = (await registry.getState()).state
         .totalPremium
       const ownerAfter = (await registry.getState()).state.ownerLinkBalance
@@ -5772,7 +5772,7 @@ describe('AutomationRegistry2_2', () => {
 
   describe('transmitterPremiumSplit [ @skip-coverage ]', () => {
     beforeEach(async () => {
-      await linkToken.connect(owner).approve(registry.address, toWei('100'))
+      await pliToken.connect(owner).approve(registry.address, toWei('100'))
       await registry.connect(owner).addFunds(upkeepId, toWei('100'))
     })
 

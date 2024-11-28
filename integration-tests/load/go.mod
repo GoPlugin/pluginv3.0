@@ -15,20 +15,20 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.33.0
 	github.com/slack-go/slack v0.12.2
-	github.com/goplugin/plugin-common v0.3.1
+	github.com/goplugin/plugin-common v0.1.1
 	github.com/goplugin/plugin-testing-framework/lib v0.4.1
 	github.com/goplugin/plugin-testing-framework/seth v0.1.1
 	github.com/goplugin/plugin-testing-framework/wasp v0.0.1
-	github.com/goplugin/pluginv3.0/integration-tests v2.1.0
-	github.com/goplugin/pluginv3.0/v2 v2.1.0
-	github.com/goplugin/tdh2/go/tdh2 v0.3.1
-	//github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
+	github.com/goplugin/pluginv3.0/integration-tests v2.4.0
+	//github.com/goplugin/plugin-common v0.1.1
 	//github.com/goplugin/plugin-testing-framework/lib v1.50.11-0.20241011153842-b2804aed25b4
 	//github.com/goplugin/plugin-testing-framework/seth v1.50.1
 	//github.com/goplugin/plugin-testing-framework/wasp v1.50.0
 	//github.com/goplugin/pluginv3.0/integration-tests v0.0.0-20240214231432-4ad5eb95178c
+	github.com/goplugin/pluginv3.0/v2 v2.1.0
 	//github.com/goplugin/pluginv3.0/v2 v2.9.0-beta0.0.20240216210048-da02459ddad8
-	//github.com/goplugin/tdh2/go/tdh2 v0.0.0-20241009055228-33d0c0bf38de
+	github.com/goplugin/tdh2/go/tdh2 v0.1.1
+	//github.com/goplugin/tdh2/go/tdh2 v0.3.1
 	github.com/stretchr/testify v1.9.0
 	github.com/wiremock/go-wiremock v1.9.0
 	go.uber.org/ratelimit v0.3.0
@@ -414,18 +414,18 @@ require (
 	github.com/shoenig/test v0.6.6 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/goplugin/chain-selectors v0.1.1
-	github.com/goplugin/plugin-automation v0.0.2
-	github.com/goplugin/plugin-ccip v0.0.2
-	github.com/goplugin/plugin-data-streams v0.1.1
-	github.com/goplugin/plugin-feeds v0.1.1 // indirect
-	github.com/goplugin/plugin-protos/orchestrator v0.0.1
-	github.com/goplugin/plugin-solana v0.0.2
-	github.com/goplugin/plugin-starknet/relayer v0.4.4
-	github.com/goplugin/plugin-testing-framework/lib/grafana v0.0.1
-	github.com/goplugin/plugin-libocr v0.1.1
-	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1
-	github.com/goplugin/wsrpc v0.1.1
+	github.com/goplugin/chain-selectors v0.1.1 //plugin update changes
+	github.com/goplugin/plugin-automation v0.0.2 //plugin update changes
+	github.com/goplugin/plugin-ccip v0.0.2 //plugin update changes
+	github.com/goplugin/plugin-data-streams v0.1.1 //plugin update changes
+	github.com/goplugin/plugin-feeds v0.1.1 //plugin update changes
+	github.com/goplugin/plugin-protos/orchestrator v0.0.1 //plugin update changes
+	github.com/goplugin/plugin-solana v0.0.2 //plugin update changes
+	github.com/goplugin/plugin-starknet/relayer v0.4.4 //plugin update changes
+	github.com/goplugin/plugin-testing-framework/lib/grafana v0.0.1 // indirect
+	github.com/goplugin/plugin-libocr v0.1.1 //plugin update changes
+	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1 //plugin update changes
+	github.com/goplugin/wsrpc v0.1.1 //plugin update changes
 	//github.com/goplugin/chain-selectors v1.0.27 // indirect
 	//github.com/goplugin/plugin-automation v0.8.0 // indirect
 	//github.com/goplugin/plugin-ccip v0.0.0-20241021132654-e5f3ecb77638 // indirect

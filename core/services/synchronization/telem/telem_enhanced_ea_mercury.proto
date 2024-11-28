@@ -31,7 +31,7 @@ message EnhancedEAMercury {
   int64 max_finalized_timestamp=26;
   uint32 observation_timestamp=27;
   bool is_link_feed=28;
-  int64 pli_price=29;
+  int64 link_price=29;
   bool is_native_feed=30;
   int64 native_price=31;
 

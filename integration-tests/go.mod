@@ -41,13 +41,11 @@ require (
 	github.com/goplugin/plugin-ccip v0.0.2
 	github.com/goplugin/plugin-common v0.3.1
 	github.com/goplugin/plugin-protos/job-distributor v0.0.2
-	github.com/goplugin/plugin-testing-framework/havoc v0.0.1
+	github.com/goplugin/plugin-testing-framework/havoc v.0.0.1
 	github.com/goplugin/plugin-testing-framework/lib v0.4.1
-	github.com/goplugin/plugin-testing-framework/lib/grafana v0.0.1
+	github.com/goplugin/plugin-testing-framework/lib/grafana v0.1.1
 	github.com/goplugin/plugin-testing-framework/seth v0.1.1
-	github.com/goplugin/plugin-testing-framework/wasp v0.0.1
-	github.com/goplugin/pluginv3.0/v2 v2.4.0
-	github.com/goplugin/plugin-libocr v0.1.1
+	github.com/goplugin/plugin-testing-framework/wasp v0.1.1
 	github.com/smartcontractkit/ccip-owner-contracts v0.0.0-20240926212305-a6deabdfce86
 	//github.com/goplugin/chain-selectors v1.0.27
 	//github.com/goplugin/plugin-automation v0.8.0
@@ -59,8 +57,10 @@ require (
 	//github.com/goplugin/plugin-testing-framework/lib/grafana v1.50.0
 	//github.com/goplugin/plugin-testing-framework/seth v1.50.1
 	//github.com/goplugin/plugin-testing-framework/wasp v1.50.0
+	github.com/goplugin/pluginv3.0/v2 v2.4.0
 	//github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
-	//github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
+	github.com/goplugin/plugin-libocr v0.1.1
+	//github.com/goplugin/plugin-libocr v0.1.1
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/subosito/gotenv v1.6.0
@@ -423,7 +423,7 @@ require (
 	github.com/goplugin/plugin-cosmos v0.0.3
 	github.com/goplugin/plugin-data-streams v0.1.1
 	github.com/goplugin/plugin-feeds v0.1.1 // indirect
-	github.com/goplugin/plugin-protos/orchestrator v0.0.1
+	github.com/goplugin/plugin-protos/orchestrator v0.0.1 // indirect
 	github.com/goplugin/plugin-solana v0.0.2
 	github.com/goplugin/plugin-starknet/relayer v0.4.4
 	github.com/goplugin/grpc-proxy v0.1.1

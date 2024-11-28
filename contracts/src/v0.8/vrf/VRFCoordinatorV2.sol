@@ -38,7 +38,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   // at fulfillment time.
   struct Subscription {
     // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
-    uint96 balance; // Common link balance used for all consumer requests.
+    uint96 balance; // Common pli balance used for all consumer requests.
     uint64 reqCount; // For fee tiers
   }
   // We use the config for the mgmt APIs
@@ -60,9 +60,9 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   // We make the sub count public so that its possible to
   // get all the current subscriptions via getSubscription.
   uint64 private s_currentSubId;
-  // s_totalBalance tracks the total link sent to/from
+  // s_totalBalance tracks the total pli sent to/from
   // this contract through onTokenTransfer, cancelSubscription and oracleWithdraw.
-  // A discrepancy with this contract's link balance indicates someone
+  // A discrepancy with this contract's pli balance indicates someone
   // sent tokens using transfer and so we may need to use recoverFunds.
   uint96 private s_totalBalance;
   event SubscriptionCreated(uint64 indexed subId, address owner);
@@ -85,7 +85,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   error NumWordsTooBig(uint32 have, uint32 want);
   error ProvingKeyAlreadyRegistered(bytes32 keyHash);
   error NoSuchProvingKey(bytes32 keyHash);
-  error InvalidLinkWeiPrice(int256 linkWei);
+  error InvalidLinkWeiPrice(int256 pliWei);
   error InsufficientGasForConsumer(uint256 have, uint256 want);
   error NoCorrespondingRequest();
   error IncorrectCommitment();
@@ -133,7 +133,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   Config private s_config;
   FeeConfig private s_feeConfig;
   struct FeeConfig {
-    // Flat fee charged per fulfillment in millionths of link
+    // Flat fee charged per fulfillment in millionths of pli
     // So fee range is [0, 2^32/10^6].
     uint32 fulfillmentFlatFeeLinkPPMTier1;
     uint32 fulfillmentFlatFeeLinkPPMTier2;
@@ -154,7 +154,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     FeeConfig feeConfig
   );
 
-  constructor(address link, address blockhashStore, address linkEthFeed) ConfirmedOwner(msg.sender) {
+  constructor(address pli, address blockhashStore, address pliEthFeed) ConfirmedOwner(msg.sender) {
     PLI = LinkTokenInterface(link);
     PLI_ETH_FEED = AggregatorV3Interface(linkEthFeed);
     BLOCKHASH_STORE = BlockhashStoreInterface(blockhashStore);
@@ -306,7 +306,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   }
 
   /**
-   * @notice Owner cancel subscription, sends remaining link directly to the subscription owner.
+   * @notice Owner cancel subscription, sends remaining pli directly to the subscription owner.
    * @param subId subscription id
    * @dev notably can be called even if there are pending requests, outstanding ones may fail onchain
    */
@@ -318,8 +318,8 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   }
 
   /**
-   * @notice Recover link sent with transfer instead of transferAndCall.
-   * @param to address to send link to
+   * @notice Recover pli sent with transfer instead of transferAndCall.
+   * @param to address to send pli to
    */
   function recoverFunds(address to) external onlyOwner {
     uint256 externalBalance = PLI.balanceOf(address(this));
@@ -554,9 +554,9 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     // We want to charge users exactly for how much gas they use in their callback.
     // The gasAfterPaymentCalculation is meant to cover these additional operations where we
     // decrement the subscription balance and increment the oracles withdrawable balance.
-    // We also add the flat link fee to the payment amount.
-    // Its specified in millionths of link, if s_config.fulfillmentFlatFeeLinkPPM = 1
-    // 1 link / 1e6 = 1e18 juels / 1e6 = 1e12 juels.
+    // We also add the flat pli fee to the payment amount.
+    // Its specified in millionths of pli, if s_config.fulfillmentFlatFeeLinkPPM = 1
+    // 1 pli / 1e6 = 1e18 juels / 1e6 = 1e12 juels.
     uint96 payment = _calculatePaymentAmount(
       startGas,
       s_config.gasAfterPaymentCalculation,
@@ -592,7 +592,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
       uint256(weiPerUnitLink);
     uint256 fee = 1e12 * uint256(fulfillmentFlatFeeLinkPPM);
     if (paymentNoFee > (1e27 - fee)) {
-      revert PaymentTooLarge(); // Payment + fee cannot be more than all of the link in existence.
+      revert PaymentTooLarge(); // Payment + fee cannot be more than all of the pli in existence.
     }
     return uint96(paymentNoFee + fee);
   }

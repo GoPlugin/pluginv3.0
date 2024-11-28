@@ -25,13 +25,13 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/goplugin/plugin-automation v0.0.2
 	github.com/goplugin/plugin-common v0.3.1
+	//github.com/goplugin/plugin-automation v0.1.1
+	//github.com/goplugin/plugin-common v0.1.1
 	github.com/goplugin/pluginv3.0/integration-tests v2.4.0
-	github.com/goplugin/pluginv3.0/v2 v2.4.0
-	github.com/goplugin/plugin-libocr v0.1.1
-	//github.com/goplugin/plugin-automation v0.8.0
-	//github.com/goplugin/plugin-common v0.3.1-0.20241021103500-39a6e78c0286
 	//github.com/goplugin/pluginv3.0/integration-tests v0.0.0-00010101000000-000000000000
+	github.com/goplugin/pluginv3.0/v2 v2.4.0
 	//github.com/goplugin/pluginv3.0/v2 v2.0.0-00010101000000-000000000000
+	github.com/goplugin/plugin-libocr v0.1.1
 	//github.com/goplugin/plugin-libocr v0.0.0-20241007185508-adbe57025f12
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
@@ -290,18 +290,18 @@ require (
 	github.com/sethvargo/go-retry v0.2.4 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/shirou/gopsutil/v3 v3.24.3 // indirect
-	github.com/goplugin/chain-selectors v0.1.1
-	github.com/goplugin/plugin-ccip v0.0.2
-	github.com/goplugin/plugin-cosmos v0.2.1
-	github.com/goplugin/plugin-data-streams v0.1.1
+	github.com/goplugin/chain-selectors v0.1.1 //plugin update changes
+	github.com/goplugin/plugin-ccip v0.0.2 //plugin update changes
+	github.com/goplugin/plugin-cosmos v0.0.3 //plugin update changes
+	github.com/goplugin/plugin-data-streams v0.1.1 //plugin update changes
 	github.com/goplugin/plugin-feeds v0.1.1 // indirect
-	github.com/goplugin/plugin-protos/job-distributor v0.0.2
-	github.com/goplugin/plugin-protos/orchestrator v0.0.1
-	github.com/goplugin/plugin-solana v0.0.2
-	github.com/goplugin/plugin-starknet/relayer v0.4.4
-	github.com/goplugin/grpc-proxy v0.1.1
-	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1
-	github.com/goplugin/tdh2/go/tdh2 v0.3.1
+	github.com/goplugin/plugin-protos/job-distributor v0.0.2 //plugin update changes
+	github.com/goplugin/plugin-protos/orchestrator v0.0.1 //plugin update changes
+	github.com/goplugin/plugin-solana v0.0.2 //plugin update changes
+	github.com/goplugin/plugin-starknet/relayer v0.4.4 //plugin update changes
+	github.com/goplugin/grpc-proxy v0.1.1 //plugin update changes
+	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1 //plugin update changes
+	github.com/goplugin/tdh2/go/tdh2 v0.3.1 //plugin update changes
 	github.com/goplugin/wsrpc v0.1.1
 	github.com/smartcontractkit/ccip-owner-contracts v0.0.0-20240926212305-a6deabdfce86 // indirect
 	//github.com/goplugin/chain-selectors v1.0.27 // indirect
