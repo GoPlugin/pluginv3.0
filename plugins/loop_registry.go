@@ -27,15 +27,17 @@ type LoopRegistry struct {
 	mu       sync.Mutex
 	registry map[string]*RegisteredLoop
 
-	lggr       logger.Logger
-	cfgTracing config.Tracing
+	lggr         logger.Logger
+	cfgTracing   config.Tracing
+	cfgTelemetry config.Telemetry
 }
 
-func NewLoopRegistry(lggr logger.Logger, tracingConfig config.Tracing) *LoopRegistry {
+func NewLoopRegistry(lggr logger.Logger, tracing config.Tracing, telemetry config.Telemetry) *LoopRegistry {
 	return &LoopRegistry{
-		registry:   map[string]*RegisteredLoop{},
-		lggr:       logger.Named(lggr, "LoopRegistry"),
-		cfgTracing: tracingConfig,
+		registry:     map[string]*RegisteredLoop{},
+		lggr:         logger.Named(lggr, "LoopRegistry"),
+		cfgTracing:   tracing,
+		cfgTelemetry: telemetry,
 	}
 }
 
@@ -65,9 +67,35 @@ func (m *LoopRegistry) Register(id string) (*RegisteredLoop, error) {
 		envCfg.TracingAttributes = m.cfgTracing.Attributes()
 	}
 
+	if m.cfgTelemetry != nil {
+		envCfg.TelemetryEnabled = m.cfgTelemetry.Enabled()
+		envCfg.TelemetryEndpoint = m.cfgTelemetry.OtelExporterGRPCEndpoint()
+		envCfg.TelemetryInsecureConnection = m.cfgTelemetry.InsecureConnection()
+		envCfg.TelemetryCACertFile = m.cfgTelemetry.CACertFile()
+		envCfg.TelemetryAttributes = m.cfgTelemetry.ResourceAttributes()
+		envCfg.TelemetryTraceSampleRatio = m.cfgTelemetry.TraceSampleRatio()
+	}
+
 	m.registry[id] = &RegisteredLoop{Name: id, EnvCfg: envCfg}
 	m.lggr.Debugf("Registered loopp %q with config %v, port %d", id, envCfg, envCfg.PrometheusPort)
 	return m.registry[id], nil
+}
+
+// Unregister remove a loop from the registry
+// Safe for concurrent use.
+func (m *LoopRegistry) Unregister(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	loop, exists := m.registry[id]
+	if !exists {
+		m.lggr.Debugf("Trying to unregistered a loop that is not registered %q", id)
+		return
+	}
+
+	freeport.Return([]int{loop.EnvCfg.PrometheusPort})
+	delete(m.registry, id)
+	m.lggr.Debugf("Unregistered loopp %q", id)
 }
 
 // Return slice sorted by plugin name. Safe for concurrent use.

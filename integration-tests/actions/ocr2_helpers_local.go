@@ -19,7 +19,7 @@ import (
 	"gopkg.in/guregu/null.v4"
 
 	"github.com/goplugin/plugin-common/pkg/codec"
-	"github.com/goplugin/plugin-testing-framework/docker/test_env"
+	"github.com/goplugin/plugin-testing-framework/lib/docker/test_env"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/types"
 
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
@@ -132,6 +132,9 @@ func CreateOCRv2JobsLocal(
 				ocrSpec.OCR2OracleSpec.RelayConfig["chainReader"] = evmtypes.ChainReaderConfig{
 					Contracts: map[string]evmtypes.ChainContractReader{
 						"median": {
+							ContractPollingFilter: evmtypes.ContractPollingFilter{
+								GenericEventNames: []string{"LatestRoundRequested"},
+							},
 							ContractABI: `[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"bytes32","name":"configDigest","type":"bytes32"},{"indexed":false,"internalType":"uint32","name":"epoch","type":"uint32"},{"indexed":false,"internalType":"uint8","name":"round","type":"uint8"}],"name":"RoundRequested","type":"event"},{"inputs":[],"name":"latestTransmissionDetails","outputs":[{"internalType":"bytes32","name":"configDigest","type":"bytes32"},{"internalType":"uint32","name":"epoch","type":"uint32"},{"internalType":"uint8","name":"round","type":"uint8"},{"internalType":"int192","name":"latestAnswer_","type":"int192"},{"internalType":"uint64","name":"latestTimestamp_","type":"uint64"}],"stateMutability":"view","type":"function"}]`,
 							Configs: map[string]*evmtypes.ChainReaderDefinition{
 								"LatestTransmissionDetails": {
@@ -195,6 +198,7 @@ func BuildMedianOCR2ConfigLocal(workerNodes []*client.PluginClient, ocrOffchainO
 			AlphaAcceptPPB:      1,
 			DeltaC:              time.Minute * 30,
 		}.Encode(), // reportingPluginConfig []byte,
+		nil,
 		5*time.Second, // maxDurationQuery time.Duration,
 		5*time.Second, // maxDurationObservation time.Duration,
 		5*time.Second, // maxDurationReport time.Duration,

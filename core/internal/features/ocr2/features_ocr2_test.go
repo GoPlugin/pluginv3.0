@@ -43,7 +43,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/authorized_forwarder"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/link_token_interface"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest/heavyweight"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
@@ -54,6 +53,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocrbootstrap"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm"
 	"github.com/goplugin/pluginv3.0/v2/core/store/models"
+	"github.com/goplugin/pluginv3.0/v2/core/utils/testutils/heavyweight"
 )
 
 type ocr2Node struct {
@@ -111,6 +111,7 @@ func setupNodeOCR2(
 	b *backends.SimulatedBackend,
 	p2pV2Bootstrappers []commontypes.BootstrapperLocator,
 ) *ocr2Node {
+	ctx := testutils.Context(t)
 	p2pKey := keystest.NewP2PKeyV2(t)
 	config, _ := heavyweight.FullTestDBV2(t, func(c *plugin.Config, s *plugin.Secrets) {
 		c.Insecure.OCRDevelopmentMode = ptr(true) // Disables ocr spec validation so we can have fast polling for the test.
@@ -135,7 +136,7 @@ func setupNodeOCR2(
 
 	app := cltest.NewApplicationWithConfigV2AndKeyOnSimulatedBlockchain(t, config, b, p2pKey)
 
-	sendingKeys, err := app.KeyStore.Eth().EnabledKeysForChain(testutils.SimulatedChainID)
+	sendingKeys, err := app.KeyStore.Eth().EnabledKeysForChain(testutils.Context(t), testutils.SimulatedChainID)
 	require.NoError(t, err)
 	require.Len(t, sendingKeys, 1)
 	transmitter := sendingKeys[0].Address
@@ -157,7 +158,7 @@ func setupNodeOCR2(
 	require.NoError(t, err)
 	b.Commit()
 
-	kb, err := app.GetKeyStore().OCR2().Create("evm")
+	kb, err := app.GetKeyStore().OCR2().Create(ctx, "evm")
 	require.NoError(t, err)
 
 	if useForwarder {
@@ -171,9 +172,9 @@ func setupNodeOCR2(
 		b.Commit()
 
 		// add forwarder address to be tracked in db
-		forwarderORM := forwarders.NewORM(app.GetSqlxDB(), logger.TestLogger(t), config.Database())
+		forwarderORM := forwarders.NewORM(app.GetDB())
 		chainID := ubig.Big(*b.Blockchain().Config().ChainID)
-		_, err2 = forwarderORM.CreateForwarder(faddr, chainID)
+		_, err2 = forwarderORM.CreateForwarder(testutils.Context(t), faddr, chainID)
 		require.NoError(t, err2)
 
 		effectiveTransmitter = faddr
@@ -308,8 +309,9 @@ fromBlock = %d
 				}))
 				t.Cleanup(servers[s].Close)
 				u, _ := url.Parse(servers[i].URL)
-				require.NoError(t, apps[i].BridgeORM().CreateBridgeType(&bridges.BridgeType{
-					Name: bridges.BridgeName(fmt.Sprintf("bridge%d", i)),
+				bridgeName := fmt.Sprintf("bridge%d", i)
+				require.NoError(t, apps[i].BridgeORM().CreateBridgeType(testutils.Context(t), &bridges.BridgeType{
+					Name: bridges.BridgeName(bridgeName),
 					URL:  models.WebURL(*u),
 				}))
 
@@ -317,6 +319,8 @@ fromBlock = %d
 				if test.chainReaderAndCodec {
 					chainReaderSpec = `
 [relayConfig.chainReader.contracts.median]
+contractPollingFilter.genericEventNames = ["LatestRoundRequested"]
+
 contractABI = '''
 [
   {
@@ -437,7 +441,7 @@ typeABI = '''
 '''
 `
 				}
-				ocrJob, err := validate.ValidatedOracleSpecToml(apps[i].Config.OCR2(), apps[i].Config.Insecure(), fmt.Sprintf(`
+				ocrJob, err := validate.ValidatedOracleSpecToml(testutils.Context(t), apps[i].Config.OCR2(), apps[i].Config.Insecure(), fmt.Sprintf(`
 type               = "offchainreporting2"
 relay              = "evm"
 schemaVersion      = 1
@@ -487,7 +491,15 @@ juelsPerFeeCoinSource = """
 
 	answer1 [type=median index=0];
 """
-`, ocrContractAddress, kbs[i].ID(), transmitters[i], fmt.Sprintf("bridge%d", i), i, slowServers[i].URL, i, blockBeforeConfig.Number().Int64(), chainReaderSpec, fmt.Sprintf("bridge%d", i), i, slowServers[i].URL, i))
+gasPriceSubunitsSource = """
+		// data source
+		dsp          [type=bridge name="%s"];
+		dsp_parse    [type=jsonparse path="data"];
+		dsp -> dsp_parse;
+"""
+[pluginConfig.juelsPerFeeCoinCache]
+updateInterval = "1m"
+`, ocrContractAddress, kbs[i].ID(), transmitters[i], bridgeName, i, slowServers[i].URL, i, blockBeforeConfig.Number().Int64(), chainReaderSpec, bridgeName, i, slowServers[i].URL, i, bridgeName), nil)
 				require.NoError(t, err)
 				err = apps[i].AddJobV2(testutils.Context(t), &ocrJob)
 				require.NoError(t, err)
@@ -516,6 +528,7 @@ juelsPerFeeCoinSource = """
 				}
 			}()
 
+			ctx := testutils.Context(t)
 			for trial := 0; trial < 2; trial++ {
 				var retVal int
 
@@ -534,7 +547,7 @@ juelsPerFeeCoinSource = """
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						completedRuns, err2 := apps[ic].JobORM().FindPipelineRunIDsByJobID(jids[ic], 0, 1000)
+						completedRuns, err2 := apps[ic].JobORM().FindPipelineRunIDsByJobID(ctx, jids[ic], 0, 1000)
 						require.NoError(t, err2)
 						// Want at least 2 runs so we see all the metadata.
 						pr := cltest.WaitForPipelineComplete(t, ic, jids[ic], len(completedRuns)+2, 7, apps[ic].JobORM(), 2*time.Minute, 5*time.Second)
@@ -555,7 +568,7 @@ juelsPerFeeCoinSource = """
 				}, 1*time.Minute, 200*time.Millisecond).Should(gomega.Equal(fmt.Sprintf("%d", 2*retVal)))
 
 				for _, app := range apps {
-					jobs, _, err2 := app.JobORM().FindJobs(0, 1000)
+					jobs, _, err2 := app.JobORM().FindJobs(ctx, 0, 1000)
 					require.NoError(t, err2)
 					// No spec errors
 					for _, j := range jobs {
@@ -590,7 +603,7 @@ juelsPerFeeCoinSource = """
 				contractABI, err2 := abi.JSON(strings.NewReader(ocr2aggregator.OCR2AggregatorABI))
 				require.NoError(t, err2)
 				apps[0].GetRelayers().LegacyEVMChains().Slice()
-				ct, err2 := evm.NewOCRContractTransmitter(ocrContractAddress, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].Client(), contractABI, nil, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].LogPoller(), lggr, nil)
+				ct, err2 := evm.NewOCRContractTransmitter(testutils.Context(t), ocrContractAddress, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].Client(), contractABI, nil, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].LogPoller(), lggr)
 				require.NoError(t, err2)
 				configDigest, epoch, err2 := ct.LatestConfigDigestAndEpoch(testutils.Context(t))
 				require.NoError(t, err2)
@@ -755,6 +768,7 @@ chainID 			= 1337
 	expectedMeta := map[string]struct{}{
 		"0": {}, "10": {}, "20": {}, "30": {},
 	}
+	ctx := testutils.Context(t)
 	for i := 0; i < 4; i++ {
 		s := i
 		require.NoError(t, apps[i].Start(testutils.Context(t)))
@@ -787,12 +801,12 @@ chainID 			= 1337
 			servers[s].Close()
 		})
 		u, _ := url.Parse(servers[i].URL)
-		require.NoError(t, apps[i].BridgeORM().CreateBridgeType(&bridges.BridgeType{
+		require.NoError(t, apps[i].BridgeORM().CreateBridgeType(ctx, &bridges.BridgeType{
 			Name: bridges.BridgeName(fmt.Sprintf("bridge%d", i)),
 			URL:  models.WebURL(*u),
 		}))
 
-		ocrJob, err := validate.ValidatedOracleSpecToml(apps[i].Config.OCR2(), apps[i].Config.Insecure(), fmt.Sprintf(`
+		ocrJob, err := validate.ValidatedOracleSpecToml(testutils.Context(t), apps[i].Config.OCR2(), apps[i].Config.Insecure(), fmt.Sprintf(`
 type               = "offchainreporting2"
 relay              = "evm"
 schemaVersion      = 1
@@ -839,7 +853,9 @@ juelsPerFeeCoinSource = """
 
 	answer1 [type=median index=0];
 """
-`, ocrContractAddress, kbs[i].ID(), transmitters[i], fmt.Sprintf("bridge%d", i), i, slowServers[i].URL, i, fmt.Sprintf("bridge%d", i), i, slowServers[i].URL, i))
+[pluginConfig.juelsPerFeeCoinCache]
+updateInterval = "1m"
+`, ocrContractAddress, kbs[i].ID(), transmitters[i], fmt.Sprintf("bridge%d", i), i, slowServers[i].URL, i, fmt.Sprintf("bridge%d", i), i, slowServers[i].URL, i), nil)
 		require.NoError(t, err)
 		err = apps[i].AddJobV2(testutils.Context(t), &ocrJob)
 		require.NoError(t, err)
@@ -877,7 +893,7 @@ juelsPerFeeCoinSource = """
 	}, 1*time.Minute, 200*time.Millisecond).Should(gomega.Equal("20"))
 
 	for _, app := range apps {
-		jobs, _, err := app.JobORM().FindJobs(0, 1000)
+		jobs, _, err := app.JobORM().FindJobs(ctx, 0, 1000)
 		require.NoError(t, err)
 		// No spec errors
 		for _, j := range jobs {
@@ -900,7 +916,7 @@ juelsPerFeeCoinSource = """
 	// Assert we can read the latest config digest and epoch after a report has been submitted.
 	contractABI, err := abi.JSON(strings.NewReader(ocr2aggregator.OCR2AggregatorABI))
 	require.NoError(t, err)
-	ct, err := evm.NewOCRContractTransmitter(ocrContractAddress, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].Client(), contractABI, nil, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].LogPoller(), lggr, nil)
+	ct, err := evm.NewOCRContractTransmitter(testutils.Context(t), ocrContractAddress, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].Client(), contractABI, nil, apps[0].GetRelayers().LegacyEVMChains().Slice()[0].LogPoller(), lggr)
 	require.NoError(t, err)
 	configDigest, epoch, err := ct.LatestConfigDigestAndEpoch(testutils.Context(t))
 	require.NoError(t, err)

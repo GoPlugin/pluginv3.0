@@ -12,11 +12,11 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest/heavyweight"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
+	"github.com/goplugin/pluginv3.0/v2/core/utils/testutils/heavyweight"
 )
 
 func newLeaseLock(t *testing.T, db *sqlx.DB, cfg pg.LeaseLockConfig) pg.LeaseLock {

@@ -2,28 +2,30 @@ package types
 
 import (
 	"bytes"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/ugorji/go/codec"
 
 	"github.com/goplugin/plugin-common/pkg/utils/hex"
+
 	htrktypes "github.com/goplugin/pluginv3.0/v2/common/headtracker/types"
 	commontypes "github.com/goplugin/pluginv3.0/v2/common/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/types/internal/blocks"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
 	ubig "github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils/big"
-	"github.com/goplugin/pluginv3.0/v2/core/null"
 )
 
 // Head represents a BlockNumber, BlockHash.
@@ -31,9 +33,9 @@ type Head struct {
 	ID               uint64
 	Hash             common.Hash
 	Number           int64
-	L1BlockNumber    null.Int64
+	L1BlockNumber    sql.NullInt64
 	ParentHash       common.Hash
-	Parent           *Head
+	Parent           atomic.Pointer[Head]
 	EVMChainID       *ubig.Big
 	Timestamp        time.Time
 	CreatedAt        time.Time
@@ -43,6 +45,7 @@ type Head struct {
 	StateRoot        common.Hash
 	Difficulty       *big.Int
 	TotalDifficulty  *big.Int
+	IsFinalized      atomic.Bool
 }
 
 var _ commontypes.Head[common.Hash] = &Head{}
@@ -72,10 +75,11 @@ func (h *Head) GetParentHash() common.Hash {
 }
 
 func (h *Head) GetParent() commontypes.Head[common.Hash] {
-	if h.Parent == nil {
-		return nil
+	if parent := h.Parent.Load(); parent != nil {
+		return parent
 	}
-	return h.Parent
+	// explicitly return nil to avoid *Head(nil)
+	return nil
 }
 
 func (h *Head) GetTimestamp() time.Time {
@@ -88,10 +92,11 @@ func (h *Head) BlockDifficulty() *big.Int {
 
 // EarliestInChain recurses through parents until it finds the earliest one
 func (h *Head) EarliestInChain() *Head {
-	for h.Parent != nil {
-		h = h.Parent
+	var earliestInChain *Head
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		earliestInChain = cur
 	}
-	return h
+	return earliestInChain
 }
 
 // EarliestHeadInChain recurses through parents until it finds the earliest one
@@ -101,14 +106,10 @@ func (h *Head) EarliestHeadInChain() commontypes.Head[common.Hash] {
 
 // IsInChain returns true if the given hash matches the hash of a head in the chain
 func (h *Head) IsInChain(blockHash common.Hash) bool {
-	for {
-		if h.Hash == blockHash {
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		if cur.Hash == blockHash {
 			return true
 		}
-		if h.Parent == nil {
-			break
-		}
-		h = h.Parent
 	}
 	return false
 }
@@ -116,34 +117,28 @@ func (h *Head) IsInChain(blockHash common.Hash) bool {
 // HashAtHeight returns the hash of the block at the given height, if it is in the chain.
 // If not in chain, returns the zero hash
 func (h *Head) HashAtHeight(blockNum int64) common.Hash {
-	for {
-		if h.Number == blockNum {
-			return h.Hash
-		}
-		if h.Parent == nil {
-			break
-		}
-		h = h.Parent
+	headAtHeight, err := h.HeadAtHeight(blockNum)
+	if err != nil {
+		return common.Hash{}
 	}
-	return common.Hash{}
+
+	return headAtHeight.BlockHash()
+}
+
+func (h *Head) HeadAtHeight(blockNum int64) (commontypes.Head[common.Hash], error) {
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		if cur.Number == blockNum {
+			return cur, nil
+		}
+	}
+	return nil, fmt.Errorf("failed to find head at height %d", blockNum)
 }
 
 // ChainLength returns the length of the chain followed by recursively looking up parents
 func (h *Head) ChainLength() uint32 {
-	if h == nil {
-		return 0
-	}
-	l := uint32(1)
-
-	for {
-		if h.Parent == nil {
-			break
-		}
+	l := uint32(0)
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
 		l++
-		if h == h.Parent {
-			panic("circular reference detected")
-		}
-		h = h.Parent
 	}
 	return l
 }
@@ -151,18 +146,20 @@ func (h *Head) ChainLength() uint32 {
 // ChainHashes returns an array of block hashes by recursively looking up parents
 func (h *Head) ChainHashes() []common.Hash {
 	var hashes []common.Hash
-
-	for {
-		hashes = append(hashes, h.Hash)
-		if h.Parent == nil {
-			break
-		}
-		if h == h.Parent {
-			panic("circular reference detected")
-		}
-		h = h.Parent
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		hashes = append(hashes, cur.Hash)
 	}
+
 	return hashes
+}
+
+func (h *Head) LatestFinalizedHead() commontypes.Head[common.Hash] {
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		if cur.IsFinalized.Load() {
+			return cur
+		}
+	}
+	return nil
 }
 
 func (h *Head) ChainID() *big.Int {
@@ -179,18 +176,13 @@ func (h *Head) IsValid() bool {
 
 func (h *Head) ChainString() string {
 	var sb strings.Builder
-
-	for {
-		sb.WriteString(h.String())
-		if h.Parent == nil {
-			break
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		if sb.Len() > 0 {
+			sb.WriteString("->")
 		}
-		if h == h.Parent {
-			panic("circular reference detected")
-		}
-		sb.WriteString("->")
-		h = h.Parent
+		sb.WriteString(cur.String())
 	}
+
 	sb.WriteString("->nil")
 	return sb.String()
 }
@@ -234,11 +226,11 @@ func (h *Head) AsSlice(k int) (heads []*Head) {
 	if k < 1 || h == nil {
 		return
 	}
-	heads = make([]*Head, 1)
-	heads[0] = h
-	for len(heads) < k && h.Parent != nil {
-		h = h.Parent
-		heads = append(heads, h)
+	heads = make([]*Head, 0, k)
+	for cur := h; cur != nil; cur = cur.Parent.Load() {
+		if len(heads) < k {
+			heads = append(heads, cur)
+		}
 	}
 	return
 }
@@ -275,7 +267,7 @@ func (h *Head) UnmarshalJSON(bs []byte) error {
 	h.Timestamp = time.Unix(int64(jsonHead.Timestamp), 0).UTC()
 	h.BaseFeePerGas = assets.NewWei((*big.Int)(jsonHead.BaseFeePerGas))
 	if jsonHead.L1BlockNumber != nil {
-		h.L1BlockNumber = null.Int64From((*big.Int)(jsonHead.L1BlockNumber).Int64())
+		h.L1BlockNumber = sql.NullInt64{Int64: (*big.Int)(jsonHead.L1BlockNumber).Int64(), Valid: true}
 	}
 	h.ReceiptsRoot = jsonHead.ReceiptsRoot
 	h.TransactionsRoot = jsonHead.TransactionsRoot
@@ -355,11 +347,10 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-var ErrMissingBlock = errors.New("missing block")
+var ErrMissingBlock = pkgerrors.New("missing block")
 
 // UnmarshalJSON unmarshals to a Block
 func (b *Block) UnmarshalJSON(data []byte) error {
-
 	var h codec.Handle = new(codec.JsonHandle)
 	bi := blocks.BlockInternal{}
 
@@ -370,12 +361,12 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if bi.Empty() {
-		return errors.WithStack(ErrMissingBlock)
+		return pkgerrors.WithStack(ErrMissingBlock)
 	}
 
 	n, err := hexutil.DecodeBig(bi.Number)
 	if err != nil {
-		return errors.Wrapf(err, "failed to decode block number while unmarshalling block, got:  '%s' in '%s'", bi.Number, data)
+		return pkgerrors.Wrapf(err, "failed to decode block number while unmarshalling block, got:  '%s' in '%s'", bi.Number, data)
 	}
 	*b = Block{
 		Number:        n.Int64(),
@@ -409,7 +400,6 @@ const LegacyTxType = blocks.TxType(0x0)
 
 // UnmarshalJSON unmarshals a Transaction
 func (t *Transaction) UnmarshalJSON(data []byte) error {
-
 	var h codec.Handle = new(codec.JsonHandle)
 	ti := blocks.TransactionInternal{}
 
@@ -421,7 +411,7 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	}
 
 	if ti.Gas == nil {
-		return errors.Errorf("expected 'gas' to not be null, got: '%s'", data)
+		return pkgerrors.Errorf("expected 'gas' to not be null, got: '%s'", data)
 	}
 	if ti.Type == nil {
 		tpe := LegacyTxType
@@ -433,7 +423,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 }
 
 func (t *Transaction) MarshalJSON() ([]byte, error) {
-
 	ti := toInternalTxn(*t)
 
 	buf := bytes.NewBuffer(make([]byte, 0, 256))
@@ -451,7 +440,7 @@ var WeiPerEth = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 
 // PluginFulfilledTopic is the signature for the event emitted after calling
 // PluginClient.validatePluginCallback(requestId). See
-// ../../contracts/src/v0.6/PluginClient.sol
+// ../../contracts/src/v0.8/PluginClient.sol
 var PluginFulfilledTopic = utils.MustHash("PluginFulfilled(bytes32)")
 
 // ReceiptIndicatesRunLogFulfillment returns true if this tx receipt is the result of a
@@ -502,7 +491,7 @@ func unmarshalFromString(s string, f *FunctionSelector) error {
 		}
 		bytes := common.FromHex(s)
 		if len(bytes) != FunctionSelectorLength {
-			return errors.New("function ID must be 4 bytes in length")
+			return pkgerrors.New("function ID must be 4 bytes in length")
 		}
 		f.SetBytes(bytes)
 	} else {
@@ -559,7 +548,7 @@ type UntrustedBytes []byte
 func (ary UntrustedBytes) SafeByteSlice(start int, end int) ([]byte, error) {
 	if end > len(ary) || start > end || start < 0 || end < 0 {
 		var empty []byte
-		return empty, errors.New("out of bounds slice access")
+		return empty, pkgerrors.New("out of bounds slice access")
 	}
 	return ary[start:end], nil
 }

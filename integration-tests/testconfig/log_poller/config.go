@@ -5,12 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-)
-
-const (
-	ErrReadPerfConfig      = "failed to read TOML config for performance tests"
-	ErrUnmarshalPerfConfig = "failed to unmarshal TOML config for performance tests"
+	"github.com/goplugin/plugin-testing-framework/lib/blockchain"
 )
 
 type GeneratorType = string

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	ccip "github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip/validate"
 	"github.com/goplugin/pluginv3.0/v2/core/logger/audit"
 	"github.com/goplugin/pluginv3.0/v2/core/services/blockhashstore"
 	"github.com/goplugin/pluginv3.0/v2/core/services/blockheaderfeeder"
@@ -26,10 +27,11 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/validate"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocrbootstrap"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
+	"github.com/goplugin/pluginv3.0/v2/core/services/standardcapabilities"
 	"github.com/goplugin/pluginv3.0/v2/core/services/streams"
 	"github.com/goplugin/pluginv3.0/v2/core/services/vrf/vrfcommon"
 	"github.com/goplugin/pluginv3.0/v2/core/services/webhook"
+	"github.com/goplugin/pluginv3.0/v2/core/services/workflows"
 	"github.com/goplugin/pluginv3.0/v2/core/web/presenters"
 )
 
@@ -47,7 +49,7 @@ func (jc *JobsController) Index(c *gin.Context, size, page, offset int) {
 		size = 1000
 	}
 
-	jobs, count, err := jc.App.JobORM().FindJobs(offset, size)
+	jobs, count, err := jc.App.JobORM().FindJobs(c.Request.Context(), offset, size)
 	if err != nil {
 		jsonAPIError(c, http.StatusInternalServerError, err)
 		return
@@ -65,14 +67,15 @@ func (jc *JobsController) Index(c *gin.Context, size, page, offset int) {
 // Example:
 // "GET <application>/jobs/:ID"
 func (jc *JobsController) Show(c *gin.Context) {
+	ctx := c.Request.Context()
 	var err error
 	jobSpec := job.Job{}
 	if externalJobID, pErr := uuid.Parse(c.Param("ID")); pErr == nil {
 		// Find a job by external job ID
-		jobSpec, err = jc.App.JobORM().FindJobByExternalJobID(externalJobID, pg.WithParentCtx(c.Request.Context()))
+		jobSpec, err = jc.App.JobORM().FindJobByExternalJobID(ctx, externalJobID)
 	} else if pErr = jobSpec.SetID(c.Param("ID")); pErr == nil {
 		// Find a job by job ID
-		jobSpec, err = jc.App.JobORM().FindJobTx(c, jobSpec.ID)
+		jobSpec, err = jc.App.JobORM().FindJob(ctx, jobSpec.ID)
 	} else {
 		jsonAPIError(c, http.StatusUnprocessableEntity, pErr)
 		return
@@ -104,7 +107,7 @@ func (jc *JobsController) Create(c *gin.Context) {
 		return
 	}
 
-	jb, status, err := jc.validateJobSpec(request.TOML)
+	jb, status, err := jc.validateJobSpec(c.Request.Context(), request.TOML)
 	if err != nil {
 		jsonAPIError(c, status, err)
 		return
@@ -126,7 +129,7 @@ func (jc *JobsController) Create(c *gin.Context) {
 	if err == nil {
 		jc.App.GetAuditLogger().Audit(audit.JobCreated, map[string]interface{}{"job": string(jbj)})
 	} else {
-		jc.App.GetLogger().Errorf("Could not send audit log for JobCreation", "err", err)
+		jc.App.GetLogger().Errorw("Could not send audit log for JobCreation", "err", err)
 	}
 
 	jsonAPIResponse(c, presenters.NewJobResource(jb), jb.Type.String())
@@ -173,7 +176,7 @@ func (jc *JobsController) Update(c *gin.Context) {
 		return
 	}
 
-	jb, status, err := jc.validateJobSpec(request.TOML)
+	jb, status, err := jc.validateJobSpec(c.Request.Context(), request.TOML)
 	if err != nil {
 		jsonAPIError(c, status, err)
 		return
@@ -213,21 +216,20 @@ func (jc *JobsController) Update(c *gin.Context) {
 	jsonAPIResponse(c, presenters.NewJobResource(jb), jb.Type.String())
 }
 
-func (jc *JobsController) validateJobSpec(tomlString string) (jb job.Job, statusCode int, err error) {
+func (jc *JobsController) validateJobSpec(ctx context.Context, tomlString string) (jb job.Job, statusCode int, err error) {
 	jobType, err := job.ValidateSpec(tomlString)
 	if err != nil {
 		return jb, http.StatusUnprocessableEntity, errors.Wrap(err, "failed to parse TOML")
 	}
-
 	config := jc.App.GetConfig()
 	switch jobType {
 	case job.OffchainReporting:
-		jb, err = ocr.ValidatedOracleSpecToml(jc.App.GetRelayers().LegacyEVMChains(), tomlString)
+		jb, err = ocr.ValidatedOracleSpecToml(config, jc.App.GetRelayers().LegacyEVMChains(), tomlString)
 		if !config.OCR().Enabled() {
 			return jb, http.StatusNotImplemented, errors.New("The Offchain Reporting feature is disabled by configuration")
 		}
 	case job.OffchainReporting2:
-		jb, err = validate.ValidatedOracleSpecToml(config.OCR2(), config.Insecure(), tomlString)
+		jb, err = validate.ValidatedOracleSpecToml(ctx, config.OCR2(), config.Insecure(), tomlString, jc.App.GetLoopRegistrarConfig())
 		if !config.OCR2().Enabled() {
 			return jb, http.StatusNotImplemented, errors.New("The Offchain Reporting 2 feature is disabled by configuration")
 		}
@@ -242,7 +244,7 @@ func (jc *JobsController) validateJobSpec(tomlString string) (jb job.Job, status
 	case job.VRF:
 		jb, err = vrfcommon.ValidatedVRFSpec(tomlString)
 	case job.Webhook:
-		jb, err = webhook.ValidatedWebhookSpec(tomlString, jc.App.GetExternalInitiatorManager())
+		jb, err = webhook.ValidatedWebhookSpec(ctx, tomlString, jc.App.GetExternalInitiatorManager())
 	case job.BlockhashStore:
 		jb, err = blockhashstore.ValidatedSpec(tomlString)
 	case job.BlockHeaderFeeder:
@@ -253,6 +255,12 @@ func (jc *JobsController) validateJobSpec(tomlString string) (jb job.Job, status
 		jb, err = gateway.ValidatedGatewaySpec(tomlString)
 	case job.Stream:
 		jb, err = streams.ValidatedStreamSpec(tomlString)
+	case job.Workflow:
+		jb, err = workflows.ValidatedWorkflowJobSpec(ctx, tomlString)
+	case job.StandardCapabilities:
+		jb, err = standardcapabilities.ValidatedStandardCapabilitiesSpec(tomlString)
+	case job.CCIP:
+		jb, err = ccip.ValidatedCCIPSpec(tomlString)
 	default:
 		return jb, http.StatusUnprocessableEntity, errors.Errorf("unknown job type: %s", jobType)
 	}

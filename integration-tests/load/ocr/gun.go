@@ -7,10 +7,11 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
+	"github.com/goplugin/plugin-testing-framework/wasp"
 
-	"github.com/goplugin/wasp"
+	"github.com/goplugin/plugin-testing-framework/seth"
+
+	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
 )
 
 // Gun is a gun for the OCR load test
@@ -18,14 +19,14 @@ import (
 type Gun struct {
 	roundNum     atomic.Int64
 	ocrInstances []contracts.OffchainAggregator
-	cc           blockchain.EVMClient
+	seth         *seth.Client
 	l            zerolog.Logger
 }
 
-func NewGun(l zerolog.Logger, cc blockchain.EVMClient, ocrInstances []contracts.OffchainAggregator) *Gun {
+func NewGun(l zerolog.Logger, seth *seth.Client, ocrInstances []contracts.OffchainAggregator) *Gun {
 	return &Gun{
 		l:            l,
-		cc:           cc,
+		seth:         seth,
 		ocrInstances: ocrInstances,
 	}
 }

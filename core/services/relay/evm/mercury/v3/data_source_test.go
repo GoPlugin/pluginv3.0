@@ -5,17 +5,18 @@ import (
 	"math/big"
 	"testing"
 
+	relaymercuryv3 "github.com/goplugin/plugin-data-streams/mercury/v3"
+	"github.com/goplugin/pluginv3.0/v2/core/services/ocrcommon"
+	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline/eautils"
+
 	"github.com/pkg/errors"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"github.com/stretchr/testify/assert"
 
 	mercurytypes "github.com/goplugin/plugin-common/pkg/types/mercury"
-	relaymercuryv3 "github.com/goplugin/plugin-data-streams/mercury/v3"
-
-	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
-
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
+	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"
 	mercurymocks "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/utils"
@@ -59,7 +60,7 @@ type mockORM struct {
 	err    error
 }
 
-func (m *mockORM) LatestReport(ctx context.Context, feedID [32]byte, qopts ...pg.QOpt) (report []byte, err error) {
+func (m *mockORM) LatestReport(ctx context.Context, feedID [32]byte) (report []byte, err error) {
 	return m.report, m.err
 }
 
@@ -73,7 +74,16 @@ func (ms *mockSaver) Save(r *pipeline.Run) {
 
 func Test_Datasource(t *testing.T) {
 	orm := &mockORM{}
-	ds := &datasource{orm: orm, lggr: logger.TestLogger(t)}
+	jb := job.Job{
+		Type: job.Type(pipeline.OffchainReporting2JobType),
+		OCR2OracleSpec: &job.OCR2OracleSpec{
+			CaptureEATelemetry: true,
+			PluginConfig: map[string]interface{}{
+				"serverURL": "a",
+			},
+		},
+	}
+	ds := &datasource{orm: orm, lggr: logger.TestLogger(t), jb: jb}
 	ctx := testutils.Context(t)
 	repts := ocrtypes.ReportTimestamp{}
 
@@ -255,8 +265,59 @@ func Test_Datasource(t *testing.T) {
 				Err:  nil,
 			}
 
+			chEnhancedTelem := make(chan ocrcommon.EnhancedTelemetryMercuryData, 1)
+			ds.chEnhancedTelem = chEnhancedTelem
+
 			_, err := ds.Observe(ctx, repts, false)
 			assert.EqualError(t, err, "Observe failed while parsing run results: some error with ask")
+
+			select {
+			case <-chEnhancedTelem:
+				assert.Fail(t, "did not expect to receive telemetry")
+			default:
+			}
+		})
+
+		t.Run("when run results fails with a bid ask violation", func(t *testing.T) {
+			t.Cleanup(func() {
+				runner := &mercurymocks.MockRunner{
+					Trrs: goodTrrs,
+					Err:  nil,
+				}
+				ds.pipelineRunner = runner
+			})
+
+			badTrrs := []pipeline.TaskRunResult{
+				{
+					// benchmark price
+					Result: pipeline.Result{Value: "122.345"},
+					Task:   &mercurymocks.MockTask{},
+				},
+				{
+					// bid
+					Result: pipeline.Result{Value: "121.993"},
+					Task:   &mercurymocks.MockTask{},
+				},
+				{
+					// ask
+					Result: pipeline.Result{Error: &eautils.AdapterError{Name: adapterLWBAErrorName, Message: "bid ask violation"}},
+					Task:   &mercurymocks.MockTask{},
+				},
+			}
+
+			ds.pipelineRunner = &mercurymocks.MockRunner{
+				Trrs: badTrrs,
+				Err:  nil,
+			}
+
+			chEnhancedTelem := make(chan ocrcommon.EnhancedTelemetryMercuryData, 1)
+			ds.chEnhancedTelem = chEnhancedTelem
+
+			_, err := ds.Observe(ctx, repts, false)
+			assert.EqualError(t, err, "Observe failed while parsing run results: AdapterLWBAError: bid ask violation")
+
+			telem := <-chEnhancedTelem
+			assert.True(t, telem.DpInvariantViolationDetected)
 		})
 
 		t.Run("when run execution succeeded", func(t *testing.T) {
@@ -301,6 +362,25 @@ func Test_Datasource(t *testing.T) {
 				assert.EqualError(t, obs.LinkPrice.Err, "some error fetching link price")
 				assert.Nil(t, obs.NativePrice.Val)
 				assert.EqualError(t, obs.NativePrice.Err, "some error fetching native price")
+			})
+
+			t.Run("when PluginConfig is empty", func(t *testing.T) {
+				t.Cleanup(func() {
+					ds.jb = jb
+				})
+
+				fetcher.linkPriceErr = errors.New("some error fetching link price")
+				fetcher.nativePriceErr = errors.New("some error fetching native price")
+
+				ds.jb.OCR2OracleSpec.PluginConfig = job.JSONConfig{}
+
+				obs, err := ds.Observe(ctx, repts, false)
+				assert.NoError(t, err)
+				assert.Nil(t, obs.LinkPrice.Err)
+				assert.Equal(t, obs.LinkPrice.Val, relaymercuryv3.MissingPrice)
+				assert.Nil(t, obs.NativePrice.Err)
+				assert.Equal(t, obs.NativePrice.Val, relaymercuryv3.MissingPrice)
+				assert.Equal(t, big.NewInt(122), obs.BenchmarkPrice.Val)
 			})
 
 			t.Run("when succeeds to fetch linkPrice or nativePrice but got nil (new feed)", func(t *testing.T) {

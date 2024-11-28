@@ -12,16 +12,15 @@ import (
 	"github.com/goplugin/plugin-common/pkg/config"
 	solcfg "github.com/goplugin/plugin-solana/pkg/solana/config"
 
-	"github.com/goplugin/plugin-solana/pkg/solana"
 	"github.com/goplugin/pluginv3.0/v2/core/cmd"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/solanatest"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 )
 
-func solanaStartNewApplication(t *testing.T, cfgs ...*solana.TOMLConfig) *cltest.TestApplication {
+func solanaStartNewApplication(t *testing.T, cfgs ...*solcfg.TOMLConfig) *cltest.TestApplication {
 	for i := range cfgs {
-		cfgs[i].SetDefaults()
+		cfgs[i].Chain.SetDefaults()
 	}
 	return startNewApplicationV2(t, func(c *plugin.Config, s *plugin.Secrets) {
 		c.Solana = cfgs
@@ -41,9 +40,9 @@ func TestShell_IndexSolanaNodes(t *testing.T) {
 		Name: ptr("second"),
 		URL:  config.MustParseURL("https://solana2.example"),
 	}
-	chain := solana.TOMLConfig{
+	chain := solcfg.TOMLConfig{
 		ChainID: &id,
-		Nodes:   solana.SolanaNodes{&node1, &node2},
+		Nodes:   solcfg.Nodes{&node1, &node2},
 	}
 	app := solanaStartNewApplication(t, &chain)
 	client, r := app.NewShellAndRenderer()
@@ -73,17 +72,17 @@ func TestShell_IndexSolanaNodes(t *testing.T) {
 	rt := cmd.RendererTable{b}
 	require.NoError(t, nodes.RenderTable(rt))
 	renderLines := strings.Split(b.String(), "\n")
-	assert.Equal(t, 17, len(renderLines))
+	assert.Equal(t, 19, len(renderLines))
 	assert.Contains(t, renderLines[2], "Name")
 	assert.Contains(t, renderLines[2], n1.Name)
 	assert.Contains(t, renderLines[3], "Chain ID")
 	assert.Contains(t, renderLines[3], n1.ChainID)
 	assert.Contains(t, renderLines[4], "State")
 	assert.Contains(t, renderLines[4], n1.State)
-	assert.Contains(t, renderLines[9], "Name")
-	assert.Contains(t, renderLines[9], n2.Name)
-	assert.Contains(t, renderLines[10], "Chain ID")
-	assert.Contains(t, renderLines[10], n2.ChainID)
-	assert.Contains(t, renderLines[11], "State")
-	assert.Contains(t, renderLines[11], n2.State)
+	assert.Contains(t, renderLines[10], "Name")
+	assert.Contains(t, renderLines[10], n2.Name)
+	assert.Contains(t, renderLines[11], "Chain ID")
+	assert.Contains(t, renderLines[11], n2.ChainID)
+	assert.Contains(t, renderLines[12], "State")
+	assert.Contains(t, renderLines[12], n2.State)
 }

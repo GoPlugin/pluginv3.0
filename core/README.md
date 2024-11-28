@@ -6,8 +6,8 @@
 </p>
 <br/>
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/goplugin/pluginv3.0)](https://goreportcard.com/report/github.com/goplugin/pluginv3.0)
-[![GoDoc](https://godoc.org/github.com/goplugin/pluginv3.0?status.svg)](https://godoc.org/github.com/goplugin/pluginv3.0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/goplugin/pluginv3.0/v2)](https://goreportcard.com/report/github.com/goplugin/pluginv3.0/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/goplugin/pluginv3.0/v2.svg)](https://pkg.go.dev/github.com/goplugin/pluginv3.0/v2)
 
 Plugin Core is the API backend that Plugin client contracts on Ethereum
 make requests to. The backend utilizes Solidity contract ABIs to generate types

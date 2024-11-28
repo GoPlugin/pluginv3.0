@@ -1,10 +1,13 @@
 package config
 
 import (
+	"time"
+
 	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 )
 
 type gasEstimatorConfig struct {
@@ -36,6 +39,14 @@ func (g *gasEstimatorConfig) BlockHistory() BlockHistory {
 	return &blockHistoryConfig{c: g.c.BlockHistory, blockDelay: g.blockDelay, bumpThreshold: g.c.BumpThreshold}
 }
 
+func (g *gasEstimatorConfig) FeeHistory() FeeHistory {
+	return &feeHistoryConfig{c: g.c.FeeHistory}
+}
+
+func (g *gasEstimatorConfig) DAOracle() DAOracle {
+	return &daOracleConfig{c: g.c.DAOracle}
+}
+
 func (g *gasEstimatorConfig) EIP1559DynamicFees() bool {
 	return *g.c.EIP1559DynamicFees
 }
@@ -63,11 +74,11 @@ func (g *gasEstimatorConfig) FeeCapDefault() *assets.Wei {
 	return g.c.FeeCapDefault
 }
 
-func (g *gasEstimatorConfig) LimitDefault() uint32 {
+func (g *gasEstimatorConfig) LimitDefault() uint64 {
 	return *g.c.LimitDefault
 }
 
-func (g *gasEstimatorConfig) LimitMax() uint32 {
+func (g *gasEstimatorConfig) LimitMax() uint64 {
 	return *g.c.LimitMax
 }
 
@@ -76,7 +87,7 @@ func (g *gasEstimatorConfig) LimitMultiplier() float32 {
 	return f
 }
 
-func (g *gasEstimatorConfig) LimitTransfer() uint32 {
+func (g *gasEstimatorConfig) LimitTransfer() uint64 {
 	return *g.c.LimitTransfer
 }
 
@@ -106,6 +117,29 @@ func (g *gasEstimatorConfig) Mode() string {
 
 func (g *gasEstimatorConfig) LimitJobType() LimitJobType {
 	return &limitJobTypeConfig{c: g.c.LimitJobType}
+}
+
+func (g *gasEstimatorConfig) EstimateLimit() bool {
+	return *g.c.EstimateLimit
+}
+
+type daOracleConfig struct {
+	c toml.DAOracle
+}
+
+func (d *daOracleConfig) OracleType() toml.OracleType {
+	return d.c.OracleType
+}
+
+// OracleAddress returns the address of the oracle contract and is only supported on the OP stack for now.
+func (d *daOracleConfig) OracleAddress() *types.EIP55Address {
+	return d.c.OracleAddress
+}
+
+// CustomGasPriceCalldata returns the calldata for a custom gas price API.
+func (d *daOracleConfig) CustomGasPriceCalldata() string {
+	// TODO: CCIP-3710 update once custom calldata oracle is added
+	return ""
 }
 
 type limitJobTypeConfig struct {
@@ -171,4 +205,12 @@ func (b *blockHistoryConfig) TransactionPercentile() uint16 {
 
 func (b *blockHistoryConfig) BlockDelay() uint16 {
 	return *b.blockDelay
+}
+
+type feeHistoryConfig struct {
+	c toml.FeeHistoryEstimator
+}
+
+func (u *feeHistoryConfig) CacheTimeout() time.Duration {
+	return u.c.CacheTimeout.Duration()
 }

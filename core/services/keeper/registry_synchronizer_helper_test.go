@@ -23,7 +23,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keeper"
-	evmrelay "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm"
 )
 
 const syncInterval = 1000 * time.Hour // prevents sync timer from triggering during test
@@ -38,17 +37,14 @@ func setupRegistrySync(t *testing.T, version keeper.RegistryVersion) (
 ) {
 	db := pgtest.NewSqlxDB(t)
 	cfg := configtest.NewGeneralConfig(t, nil)
-	scopedConfig := evmtest.NewChainScopedConfig(t, cfg)
-	korm := keeper.NewORM(db, logger.TestLogger(t), scopedConfig.Database())
+	korm := keeper.NewORM(db, logger.TestLogger(t))
 	ethClient := evmtest.NewEthClientMockWithDefaultChain(t)
-	keyStore := cltest.NewKeyStore(t, db, cfg.Database())
+	keyStore := cltest.NewKeyStore(t, db)
 	lbMock := logmocks.NewBroadcaster(t)
 	lbMock.On("AddDependents", 1).Maybe()
 	j := cltest.MustInsertKeeperJob(t, db, korm, cltest.NewEIP55Address(), cltest.NewEIP55Address())
-	relayExtenders := evmtest.NewChainRelayExtenders(t, evmtest.TestChainOpts{DB: db, Client: ethClient, LogBroadcaster: lbMock, GeneralConfig: cfg, KeyStore: keyStore.Eth()})
-	legacyChains := evmrelay.NewLegacyChainsFromRelayerExtenders(relayExtenders)
-	ch := evmtest.MustGetDefaultChain(t, legacyChains)
-	jpv2 := cltest.NewJobPipelineV2(t, cfg.WebServer(), cfg.JobPipeline(), cfg.Database(), legacyChains, db, keyStore, nil, nil)
+	legacyChains := evmtest.NewLegacyChains(t, evmtest.TestChainOpts{DB: db, Client: ethClient, LogBroadcaster: lbMock, GeneralConfig: cfg, KeyStore: keyStore.Eth()})
+	jpv2 := cltest.NewJobPipelineV2(t, cfg.WebServer(), cfg.JobPipeline(), legacyChains, db, keyStore, nil, nil)
 	contractAddress := j.KeeperSpec.ContractAddress.Address()
 
 	switch version {
@@ -75,7 +71,7 @@ func setupRegistrySync(t *testing.T, version keeper.RegistryVersion) (
 
 	mailMon := servicetest.Run(t, mailboxtest.NewMonitor(t))
 
-	orm := keeper.NewORM(db, logger.TestLogger(t), ch.Config().Database())
+	orm := keeper.NewORM(db, logger.TestLogger(t))
 	synchronizer := keeper.NewRegistrySynchronizer(keeper.RegistrySynchronizerOptions{
 		Job:                      j,
 		RegistryWrapper:          *registryWrapper,

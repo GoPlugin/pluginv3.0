@@ -3,9 +3,7 @@ package ocr
 import (
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-
-	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/pgtest"
+	"github.com/goplugin/plugin-common/pkg/sqlutil"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
@@ -13,6 +11,6 @@ func (c *ConfigOverriderImpl) ExportedUpdateFlagsStatus() error {
 	return c.updateFlagsStatus()
 }
 
-func NewTestDB(t *testing.T, sqldb *sqlx.DB, oracleSpecID int32) *db {
-	return NewDB(sqldb, oracleSpecID, logger.TestLogger(t), pgtest.NewQConfig(true))
+func NewTestDB(t *testing.T, ds sqlutil.DataSource, oracleSpecID int32) *db {
+	return NewDB(ds, oracleSpecID, logger.TestLogger(t))
 }

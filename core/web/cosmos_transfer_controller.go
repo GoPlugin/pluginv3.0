@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/goplugin/plugin-common/pkg/types"
 	coscfg "github.com/goplugin/plugin-cosmos/pkg/cosmos/config"
 	"github.com/goplugin/plugin-cosmos/pkg/cosmos/db"
 	"github.com/goplugin/plugin-cosmos/pkg/cosmos/denom"
@@ -28,7 +29,7 @@ type CosmosTransfersController struct {
 
 // Create sends native coins from the Plugin's account to a specified address.
 func (tc *CosmosTransfersController) Create(c *gin.Context) {
-	relayers := tc.App.GetRelayers().List(plugin.FilterRelayersByType(relay.Cosmos))
+	relayers := tc.App.GetRelayers().List(plugin.FilterRelayersByType(relay.NetworkCosmos))
 	if relayers == nil {
 		jsonAPIError(c, http.StatusBadRequest, ErrSolanaNotEnabled)
 		return
@@ -48,7 +49,7 @@ func (tc *CosmosTransfersController) Create(c *gin.Context) {
 		return
 	}
 
-	relayerID := relay.ID{Network: relay.Cosmos, ChainID: tr.CosmosChainID}
+	relayerID := types.RelayID{Network: relay.NetworkCosmos, ChainID: tr.CosmosChainID}
 	relayer, err := relayers.Get(relayerID)
 	if err != nil {
 		if errors.Is(err, plugin.ErrNoSuchRelayer) {

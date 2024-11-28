@@ -1,92 +1,220 @@
 package targets_test
 
 import (
+	"context"
+	"encoding/hex"
+	"errors"
 	"math/big"
 	"testing"
 
-	"github.com/goplugin/plugin-common/pkg/capabilities"
-	"github.com/goplugin/plugin-common/pkg/values"
-	"github.com/goplugin/pluginv3.0/v2/core/capabilities/targets"
-	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/txmgr"
-	txmmocks "github.com/goplugin/pluginv3.0/v2/core/chains/evm/txmgr/mocks"
-	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
-	evmmocks "github.com/goplugin/pluginv3.0/v2/core/chains/legacyevm/mocks"
-	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/keystone/generated/forwarder"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/configtest"
-	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/evmtest"
-	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
-	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ethkey"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/goplugin/plugin-common/pkg/capabilities"
+	"github.com/goplugin/plugin-common/pkg/types"
+	"github.com/goplugin/plugin-common/pkg/types/query/primitives"
+	"github.com/goplugin/plugin-common/pkg/values"
+
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities/targets"
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities/targets/mocks"
+	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
+	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
-var forwardABI = evmtypes.MustGetABI(forwarder.KeystoneForwarderMetaData.ABI)
+func TestWriteTarget(t *testing.T) {
+	lggr := logger.TestLogger(t)
+	ctx := context.Background()
 
-func TestEvmWrite(t *testing.T) {
-	chain := evmmocks.NewChain(t)
+	cw := mocks.NewChainWriter(t)
+	cr := mocks.NewContractValueGetter(t)
 
-	txManager := txmmocks.NewMockEvmTxManager(t)
-	chain.On("ID").Return(big.NewInt(11155111))
-	chain.On("TxManager").Return(txManager)
+	forwarderA := testutils.NewAddress()
+	forwarderAddr := forwarderA.Hex()
 
-	cfg := configtest.NewGeneralConfig(t, func(c *plugin.Config, s *plugin.Secrets) {
-		a := testutils.NewAddress()
-		addr, err := ethkey.NewEIP55Address(a.Hex())
-		require.NoError(t, err)
-		c.EVM[0].ChainWriter.FromAddress = &addr
-
-		forwarderA := testutils.NewAddress()
-		forwarderAddr, err := ethkey.NewEIP55Address(forwarderA.Hex())
-		require.NoError(t, err)
-		c.EVM[0].ChainWriter.ForwarderAddress = &forwarderAddr
-	})
-	evmcfg := evmtest.NewChainScopedConfig(t, cfg)
-	chain.On("Config").Return(evmcfg)
-
-	capability := targets.NewEvmWrite(chain)
-	ctx := testutils.Context(t)
+	writeTarget := targets.NewWriteTarget(lggr, "test-write-target@1.0.0", cr, cw, forwarderAddr, 400_000)
+	require.NotNil(t, writeTarget)
 
 	config, err := values.NewMap(map[string]any{
-		"abi":    "receive(report bytes)",
-		"params": []any{"$(report)"},
+		"Address": forwarderAddr,
 	})
 	require.NoError(t, err)
 
-	inputs, err := values.NewMap(map[string]any{
-		"report": []byte{1, 2, 3},
-	})
-	require.NoError(t, err)
-
-	req := capabilities.CapabilityRequest{
-		Metadata: capabilities.RequestMetadata{
-			WorkflowID: "hello",
-		},
-		Config: config,
-		Inputs: inputs,
+	reportID := [2]byte{0x00, 0x01}
+	reportMetadata := targets.ReportV1Metadata{
+		Version:             1,
+		WorkflowExecutionID: [32]byte{},
+		Timestamp:           0,
+		DonID:               0,
+		DonConfigVersion:    0,
+		WorkflowCID:         [32]byte{},
+		WorkflowName:        [10]byte{},
+		WorkflowOwner:       [20]byte{},
+		ReportID:            reportID,
 	}
 
-	txManager.On("CreateTransaction", mock.Anything, mock.Anything).Return(txmgr.Tx{}, nil).Run(func(args mock.Arguments) {
-		req := args.Get(1).(txmgr.TxRequest)
-		payload := make(map[string]any)
-		method := forwardABI.Methods["report"]
-		err = method.Inputs.UnpackIntoMap(payload, req.EncodedPayload[4:])
-		require.NoError(t, err)
-		require.Equal(t, []byte{
-			0xa6, 0x9b, 0x6e, 0xd0, // selector = keccak(signature)[:4]
-			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x20, // type = bytes
-			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3, // len = 3
-			0x1, 0x2, 0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // elements [1, 2, 3] zero padded
-		}, payload["data"])
-
-	})
-
-	ch := make(chan capabilities.CapabilityResponse)
-
-	err = capability.Execute(ctx, ch, req)
+	reportMetadataBytes, err := reportMetadata.Encode()
 	require.NoError(t, err)
 
-	response := <-ch
-	require.Nil(t, response.Err)
+	validInputs, err := values.NewMap(map[string]any{
+		"signed_report": map[string]any{
+			"report":     reportMetadataBytes,
+			"signatures": [][]byte{},
+			"context":    []byte{4, 5},
+			"id":         reportID[:],
+		},
+	})
+	require.NoError(t, err)
+
+	validMetadata := capabilities.RequestMetadata{
+		WorkflowID:          hex.EncodeToString(reportMetadata.WorkflowCID[:]),
+		WorkflowOwner:       hex.EncodeToString(reportMetadata.WorkflowOwner[:]),
+		WorkflowName:        hex.EncodeToString(reportMetadata.WorkflowName[:]),
+		WorkflowExecutionID: hex.EncodeToString(reportMetadata.WorkflowExecutionID[:]),
+	}
+
+	binding := types.BoundContract{
+		Address: forwarderAddr,
+		Name:    "forwarder",
+	}
+
+	cr.On("Bind", mock.Anything, []types.BoundContract{binding}).Return(nil)
+
+	cr.EXPECT().GetLatestValue(mock.Anything, binding.ReadIdentifier("getTransmissionInfo"), mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ string, _ primitives.ConfidenceLevel, _, retVal any) {
+		transmissionInfo := retVal.(*targets.TransmissionInfo)
+		*transmissionInfo = targets.TransmissionInfo{
+			GasLimit:        big.NewInt(0),
+			InvalidReceiver: false,
+			State:           0,
+			Success:         false,
+			TransmissionId:  [32]byte{},
+			Transmitter:     common.HexToAddress("0x0"),
+		}
+	})
+
+	cw.On("SubmitTransaction", mock.Anything, "forwarder", "report", mock.Anything, mock.Anything, forwarderAddr, mock.Anything, mock.Anything).Return(nil).Once()
+
+	t.Run("succeeds with valid report", func(t *testing.T) {
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   config,
+			Inputs:   validInputs,
+		}
+
+		response, err2 := writeTarget.Execute(ctx, req)
+		require.NoError(t, err2)
+		require.NotNil(t, response)
+	})
+
+	t.Run("fails when ChainWriter's SubmitTransaction returns error", func(t *testing.T) {
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   config,
+			Inputs:   validInputs,
+		}
+		cw.On("SubmitTransaction", mock.Anything, "forwarder", "report", mock.Anything, mock.Anything, forwarderAddr, mock.Anything, mock.Anything).Return(errors.New("writer error"))
+
+		_, err = writeTarget.Execute(ctx, req)
+		require.Error(t, err)
+	})
+
+	t.Run("passes gas limit set on config to the chain writer", func(t *testing.T) {
+		configGasLimit, err2 := values.NewMap(map[string]any{
+			"Address":  forwarderAddr,
+			"GasLimit": 500000,
+		})
+		require.NoError(t, err2)
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   configGasLimit,
+			Inputs:   validInputs,
+		}
+
+		meta := types.TxMeta{WorkflowExecutionID: &req.Metadata.WorkflowExecutionID, GasLimit: big.NewInt(500000)}
+		cw.On("SubmitTransaction", mock.Anything, "forwarder", "report", mock.Anything, mock.Anything, forwarderAddr, &meta, mock.Anything).Return(types.ErrSettingTransactionGasLimitNotSupported)
+
+		_, err2 = writeTarget.Execute(ctx, req)
+		require.Error(t, err2)
+	})
+
+	t.Run("retries without gas limit when ChainWriter's SubmitTransaction returns error due to gas limit not supported", func(t *testing.T) {
+		configGasLimit, err2 := values.NewMap(map[string]any{
+			"Address":  forwarderAddr,
+			"GasLimit": 500000,
+		})
+		require.NoError(t, err2)
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   configGasLimit,
+			Inputs:   validInputs,
+		}
+
+		meta := types.TxMeta{WorkflowExecutionID: &req.Metadata.WorkflowExecutionID, GasLimit: big.NewInt(500000)}
+		cw.On("SubmitTransaction", mock.Anything, "forwarder", "report", mock.Anything, mock.Anything, forwarderAddr, &meta, mock.Anything).Return(types.ErrSettingTransactionGasLimitNotSupported)
+		meta = types.TxMeta{WorkflowExecutionID: &req.Metadata.WorkflowExecutionID}
+		cw.On("SubmitTransaction", mock.Anything, "forwarder", "report", mock.Anything, mock.Anything, forwarderAddr, &meta, mock.Anything).Return(nil)
+
+		configGasLimit, err = values.NewMap(map[string]any{
+			"Address": forwarderAddr,
+		})
+		require.NoError(t, err)
+		req = capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   configGasLimit,
+			Inputs:   validInputs,
+		}
+
+		_, err2 = writeTarget.Execute(ctx, req)
+		require.Error(t, err2)
+	})
+
+	t.Run("fails when ChainReader's GetLatestValue returns error", func(t *testing.T) {
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   config,
+			Inputs:   validInputs,
+		}
+		cr.EXPECT().GetLatestValue(mock.Anything, binding.ReadIdentifier("getTransmissionInfo"), mock.Anything, mock.Anything, mock.Anything).Return(errors.New("reader error"))
+
+		_, err = writeTarget.Execute(ctx, req)
+		require.Error(t, err)
+	})
+
+	t.Run("fails with invalid config", func(t *testing.T) {
+		invalidConfig, err2 := values.NewMap(map[string]any{
+			"Address": "invalid-address",
+		})
+		require.NoError(t, err2)
+
+		req := capabilities.CapabilityRequest{
+			Metadata: capabilities.RequestMetadata{
+				WorkflowID: "test-id",
+			},
+			Config: invalidConfig,
+			Inputs: validInputs,
+		}
+		_, err2 = writeTarget.Execute(ctx, req)
+		require.Error(t, err2)
+	})
+
+	t.Run("fails with nil config", func(t *testing.T) {
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   nil,
+			Inputs:   validInputs,
+		}
+		_, err2 := writeTarget.Execute(ctx, req)
+		require.Error(t, err2)
+	})
+
+	t.Run("fails with nil inputs", func(t *testing.T) {
+		req := capabilities.CapabilityRequest{
+			Metadata: validMetadata,
+			Config:   config,
+			Inputs:   nil,
+		}
+		_, err2 := writeTarget.Execute(ctx, req)
+		require.Error(t, err2)
+	})
 }

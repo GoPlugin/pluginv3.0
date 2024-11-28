@@ -33,6 +33,7 @@ import (
 	"github.com/ulule/limiter/v3/drivers/store/memory"
 	"github.com/unrolled/secure"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
 
 	"github.com/goplugin/pluginv3.0/v2/core/build"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
@@ -61,7 +62,8 @@ func NewRouter(app plugin.Application, prometheus *ginprom.Prometheus) (*gin.Eng
 
 	tls := config.WebServer().TLS()
 	engine.Use(
-		otelgin.Middleware("plugin-web-routes"),
+		otelgin.Middleware("plugin-web-routes",
+			otelgin.WithTracerProvider(otel.GetTracerProvider())),
 		limits.RequestSizeLimiter(config.WebServer().HTTPMaxSize()),
 		loggerFunc(app.GetLogger()),
 		gin.Recovery(),
@@ -226,7 +228,6 @@ func loopRoutes(app plugin.Application, r *gin.RouterGroup) {
 	loopRegistry := NewLoopRegistryServer(app)
 	r.GET("/discovery", ginHandlerFromHTTP(loopRegistry.discoveryHandler))
 	r.GET("/plugins/:name/metrics", loopRegistry.pluginMetricHandler)
-
 }
 
 func v2Routes(app plugin.Application, r *gin.RouterGroup) {
@@ -290,6 +291,8 @@ func v2Routes(app plugin.Application, r *gin.RouterGroup) {
 
 		rc := ReplayController{app}
 		authv2.POST("/replay_from_block/:number", auth.RequiresRunRole(rc.ReplayFromBlock))
+		lcaC := LCAController{app}
+		authv2.GET("/find_lca", auth.RequiresRunRole(lcaC.FindLCA))
 
 		csakc := CSAKeysController{app}
 		authv2.GET("/keys/csa", csakc.Index)
@@ -347,8 +350,7 @@ func v2Routes(app plugin.Application, r *gin.RouterGroup) {
 			{"solana", NewSolanaKeysController(app)},
 			{"cosmos", NewCosmosKeysController(app)},
 			{"starknet", NewStarkNetKeysController(app)},
-			{"dkgsign", NewDKGSignKeysController(app)},
-			{"dkgencrypt", NewDKGEncryptKeysController(app)},
+			{"aptos", NewAptosKeysController(app)},
 		} {
 			authv2.GET("/keys/"+keys.path, keys.kc.Index)
 			authv2.POST("/keys/"+keys.path, auth.RequiresEditRole(keys.kc.Create))
@@ -412,7 +414,7 @@ func v2Routes(app plugin.Application, r *gin.RouterGroup) {
 			{"cosmos", NewCosmosNodesController(app)},
 		} {
 			if chain.path == "evm" {
-				// TODO still EVM only https://app.shortcut.com/pluginlabs/story/26276/multi-chain-type-ui-node-chain-configuration
+				// TODO still EVM only . Archive ticket: story/26276/multi-chain-type-ui-node-chain-configuration
 				nodes.GET("", paginatedRequest(chain.nc.Index))
 			}
 			nodes.GET(chain.path, paginatedRequest(chain.nc.Index))

@@ -14,7 +14,7 @@ import {ENSResolver as ENSResolver_Plugin} from "./vendor/ENSResolver.sol";
  * @notice Contract writers can inherit this contract in order to create requests for the
  * Plugin network
  */
-// solhint-disable custom-errors
+// solhint-disable gas-custom-errors
 abstract contract PluginClient {
   using Plugin for Plugin.Request;
 

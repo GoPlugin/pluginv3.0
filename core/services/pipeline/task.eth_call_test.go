@@ -25,7 +25,6 @@ import (
 	keystoremocks "github.com/goplugin/pluginv3.0/v2/core/services/keystore/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"
 	pipelinemocks "github.com/goplugin/pluginv3.0/v2/core/services/pipeline/mocks"
-	evmrelay "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm"
 )
 
 func TestETHCallTask(t *testing.T) {
@@ -33,7 +32,7 @@ func TestETHCallTask(t *testing.T) {
 	testutils.SkipShortDB(t)
 
 	var specGasLimit uint32 = 123
-	const gasLimit uint32 = 500_000
+	const gasLimit uint64 = 500_000
 	const drJobTypeGasLimit uint32 = 789
 
 	tests := []struct {
@@ -313,8 +312,7 @@ func TestETHCallTask(t *testing.T) {
 
 			var legacyChains legacyevm.LegacyChainContainer
 			if test.expectedErrorCause != nil || test.expectedErrorContains != "" {
-				exts := evmtest.NewChainRelayExtenders(t, evmtest.TestChainOpts{DB: db, GeneralConfig: cfg, TxManager: txManager, KeyStore: keyStore})
-				legacyChains = evmrelay.NewLegacyChainsFromRelayerExtenders(exts)
+				legacyChains = evmtest.NewLegacyChains(t, evmtest.TestChainOpts{DB: db, GeneralConfig: cfg, TxManager: txManager, KeyStore: keyStore})
 			} else {
 				legacyChains = cltest.NewLegacyChainsWithMockChain(t, ethClient, cfg)
 			}

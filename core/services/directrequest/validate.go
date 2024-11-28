@@ -5,15 +5,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/goplugin/plugin-common/pkg/assets"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils/big"
 	"github.com/goplugin/pluginv3.0/v2/core/null"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
-	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ethkey"
 	"github.com/goplugin/pluginv3.0/v2/core/store/models"
 )
 
 type DirectRequestToml struct {
-	ContractAddress          ethkey.EIP55Address      `toml:"contractAddress"`
+	ContractAddress          types.EIP55Address       `toml:"contractAddress"`
 	Requesters               models.AddressCollection `toml:"requesters"`
 	MinContractPayment       *assets.Link             `toml:"minContractPaymentLinkJuels"`
 	EVMChainID               *big.Big                 `toml:"evmChainID"`

@@ -1,17 +1,71 @@
 # default config
+[NodeConfig]
+BaseConfigTOML = """
+[Feature]
+LogPoller = true
+
+[Database]
+MaxIdleConns = 20
+MaxOpenConns = 40
+MigrateOnStartup = true
+
+[Log]
+Level = 'debug'
+JSONConsole = true
+
+[Log.File]
+MaxSize = '0b'
+
+[WebServer]
+AllowOrigins = '*'
+HTTPPort = 6688
+HTTPWriteTimeout = '1m0s'
+SecureCookies = false
+
+[WebServer.RateLimit]
+Authenticated = 2000
+Unauthenticated = 100
+
+[WebServer.TLS]
+HTTPSPort = 0
+"""
+
+[NodeConfig.ChainConfigTOMLByChainID]
+# OPTIMISM SEPOLIA
+11155420 = """
+BlockBackfillDepth = 500
+LogBackfillBatchSize = 1000
+RPCDefaultBatchSize = 25
+
+[GasEstimator]
+LimitDefault = 3500000
+
+[GasEstimator.BlockHistory]
+BatchSize = 100
+"""
+
+
+
 [Common]
-plugin_node_funding = 0.1
+plugin_node_funding = 0.5
 
 [VRFv2]
 [VRFv2.General]
+cancel_subs_after_test_run = true
+use_existing_env = false
+subscription_funding_amount_link = 5.0
+subscription_refunding_amount_link = 5.0
+
 cl_node_max_gas_price_gwei = 10
 link_native_feed_response = 1000000000000000000
+#todo - need to have separate minimum_confirmations config for Coordinator, CL Node and Consumer request
 minimum_confirmations = 3
-subscription_funding_amount_link = 5.0
+generate_txs_on_chain = false
+
 number_of_words = 3
 callback_gas_limit = 1000000
 max_gas_limit_coordinator_config = 2500000
-fallback_wei_per_unit_link = 60000000000000000
+fallback_wei_per_unit_link = "60000000000000000"
 staleness_seconds = 86400
 gas_after_payment_calculation = 33825
 fulfilment_flat_fee_link_ppm_tier_1 = 500
@@ -24,9 +78,11 @@ reqs_for_tier_3 = 0
 reqs_for_tier_4 = 0
 reqs_for_tier_5 = 0
 number_of_sub_to_create = 1
+number_of_sending_keys_to_create = 0
 randomness_request_count_per_request = 1
 randomness_request_count_per_request_deviation = 0
 random_words_fulfilled_event_timeout = "2m"
+wait_for_256_blocks_timeout = "280s"
 wrapped_gas_overhead = 50000
 coordinator_gas_overhead = 52000
 wrapper_premium_percentage = 25
@@ -36,8 +92,8 @@ wrapper_consumer_funding_amount_link = 10
 
 # VRF Job config
 vrf_job_forwarding_allowed = false
-vrf_job_estimate_gas_multiplier = 1.0
-vrf_job_batch_fulfillment_enabled = false
+vrf_job_estimate_gas_multiplier = 1.1
+vrf_job_batch_fulfillment_enabled = true
 vrf_job_batch_fulfillment_gas_multiplier = 1.15
 vrf_job_poll_period = "1s"
 vrf_job_request_timeout = "24h"
@@ -48,110 +104,103 @@ bhs_job_lookback_blocks = 250
 bhs_job_poll_period = "1s"
 bhs_job_run_timeout = "24h"
 
-# load test specific config
-[Load.VRFv2]
-[Load.VRFv2.Common]
-cancel_subs_after_test_run = true
+# BHF Job config
+bhf_job_wait_blocks = 260
+bhf_job_lookback_blocks = 500
+bhf_job_poll_period = "30s"
+bhf_job_run_timeout = "1h"
 
-[Load.VRFv2.General]
-minimum_confirmations = 3
-randomness_request_count_per_request = 3 # amount of randomness requests to make per one TX request
-randomness_request_count_per_request_deviation = 2 #NOTE - deviation should be less than randomness_request_count_per_request setting
-number_of_sub_to_create = 1
+# PERFORMANCE test specific config
 
-[Load.VRFv2.Performance]
-# approx 60 RPM - 1 tx request with 3 rand requests in each tx every 3 seconds
+[VRFv2.ExistingEnv]
+coordinator_address = ""
+key_hash = ""
+
+use_existing_wrapper = false
+wrapper_address = ""
+create_fund_subs_and_add_consumers = true
+sub_id = 1
+consumer_address = ""
+
+create_fund_add_wrapper_consumers = true
+wrapper_consumer_address = ""
+
+node_sending_key_funding_min = 10
+node_sending_keys = [
+    "",
+    "",
+    ""
+]
+
+[VRFv2.Performance]
+test_duration = "10s"
 rate_limit_unit_duration = "3s"
 rps = 1
+bhs_test_duration = "10s"
+bhs_test_rate_limit_unit_duration = "3s"
+bhs_test_rps = 1
 
-[Load.VRFv2.NewEnv]
-sub_funds_link = 1000
-node_sending_key_funding = 1000
+[Smoke.VRFv2.Performance]
+test_duration = "10s"
+rate_limit_unit_duration = "3s"
+rps = 1
+bhs_test_duration = "10s"
+bhs_test_rate_limit_unit_duration = "3s"
+bhs_test_rps = 1
 
-[Load.VRFv2.ExistingEnv]
-sub_id = 1
-create_fund_subs_and_add_consumers = true
-sub_funds_link = 10
-node_sending_key_funding_min = 1
-node_sending_keys = []
-
-# soak test specific config
-[Soak.VRFv2]
-[VRFv2.Common]
-cancel_subs_after_test_run = true
+#SOAK TEST CONFIG
+[Soak.Common]
+plugin_node_funding = 0.1
 
 [Soak.VRFv2.General]
-minimum_confirmations = 3
 randomness_request_count_per_request = 1 # amount of randomness requests to make per one TX request
 randomness_request_count_per_request_deviation = 0 #NOTE - deviation should be less than randomness_request_count_per_request setting
 number_of_sub_to_create = 1
+number_of_sending_keys_to_create = 0
+subscription_funding_amount_link = 5.0
 
 [Soak.VRFv2.Performance]
-# 10 RPM - 1 tx request with 1 rand request in each tx every 6 seconds
-rate_limit_unit_duration = "6s"
+test_duration = "1m"
+rate_limit_unit_duration = "3s"
 rps = 1
+bhs_test_duration = "1m"
+bhs_test_rate_limit_unit_duration = "3s"
+bhs_test_rps = 1
 
-[Soak.VRFv2.NewEnv]
-sub_funds_link = 1000
-node_sending_key_funding = 1000
+# LOAD TEST CONFIG
+[Load.Common]
+plugin_node_funding = 0.1
 
-[Soak.VRFv2.ExistingEnv]
-sub_id = 1
-create_fund_subs_and_add_consumers = true
-sub_funds_link = 10
-node_sending_key_funding_min = 1
-node_sending_keys = []
-
-# spike test specific config
-[Spike.VRFv2]
-[Spike.VRFv2.Common]
-cancel_subs_after_test_run = true
-
-[Spike.VRFv2.General]
-minimum_confirmations = 3
-randomness_request_count_per_request = 150 # amount of randomness requests to make per one TX request
-randomness_request_count_per_request_deviation = 0 #NOTE - deviation should be less than randomness_request_count_per_request setting
+[Load.VRFv2.General]
+randomness_request_count_per_request = 3 # amount of randomness requests to make per one TX request
+randomness_request_count_per_request_deviation = 2 #NOTE - deviation should be less than randomness_request_count_per_request setting
 number_of_sub_to_create = 1
+number_of_sending_keys_to_create = 0
+subscription_funding_amount_link = 5.0
 
-[Spike.VRFv2.Performance]
-# approx 150 RPM - 1 tx request with 150 rand requests in each tx every 60 seconds
-rate_limit_unit_duration = "1m"
+[Load.VRFv2.Performance]
+test_duration = "2m"
+rate_limit_unit_duration = "3s"
 rps = 1
+bhs_test_duration = "1m"
+bhs_test_rate_limit_unit_duration = "3s"
+bhs_test_rps = 1
 
-[Spike.VRFv2.NewEnv]
-sub_funds_link = 1000
-node_sending_key_funding = 1000
-
-[Spike.VRFv2.ExistingEnv]
-sub_id = 1
-create_fund_subs_and_add_consumers = true
-sub_funds_link = 10
-node_sending_key_funding_min = 1
-node_sending_keys = []
-
-# stress test specific config
-[Stress.VRFv2]
-[Stress.VRFv2.Common]
-cancel_subs_after_test_run = true
+# STRESS TEST CONFIG
+[Stress.Common]
+plugin_node_funding = 0.1
 
 [Stress.VRFv2.General]
-minimum_confirmations = 3
-randomness_request_count_per_request = 4 # amount of randomness requests to make per one TX request
-randomness_request_count_per_request_deviation = 0 #NOTE - deviation should be less than randomness_request_count_per_request setting
+randomness_request_count_per_request = 3 # amount of randomness requests to make per one TX request
+randomness_request_count_per_request_deviation = 2 #NOTE - deviation should be less than randomness_request_count_per_request setting
 number_of_sub_to_create = 1
+number_of_sending_keys_to_create = 0
+subscription_funding_amount_link = 5.0
 
 [Stress.VRFv2.Performance]
-# approx 540 RPM - 3 tx requests per second with 4 rand requests in each tx
-rate_limit_unit_duration = "1s"
-rps = 3
-
-[Stress.VRFv2.NewEnv]
-sub_funds_link = 1000
-node_sending_key_funding = 1000
-
-[Stress.VRFv2.ExistingEnv]
-sub_id = 1
-create_fund_subs_and_add_consumers = true
-sub_funds_link = 10
-node_sending_key_funding_min = 1
-node_sending_keys = []
+test_duration = "2m"
+rate_limit_unit_duration = "3s"
+rps = 1
+bhs_test_duration = "1m"
+bhs_test_rate_limit_unit_duration = "3s"
+bhs_test_rps = 1

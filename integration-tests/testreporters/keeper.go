@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/slack-go/slack"
 
-	"github.com/goplugin/plugin-testing-framework/testreporters"
+	"github.com/goplugin/plugin-testing-framework/lib/testreporters"
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 )
 

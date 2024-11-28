@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/goplugin/wasp"
 
-	tc "github.com/goplugin/pluginv3.0/integration-tests/testconfig"
+	"github.com/goplugin/plugin-testing-framework/wasp"
+
+	ctf_config "github.com/goplugin/plugin-testing-framework/lib/config"
 )
 
 /* Monitors on-chain stats of LoadConsumer and pushes them to Loki every second */
@@ -25,7 +26,7 @@ type LoadStats struct {
 	Empty     uint32
 }
 
-func MonitorLoadStats(t *testing.T, ft *FunctionsTest, labels map[string]string, config tc.GlobalTestConfig) {
+func MonitorLoadStats(t *testing.T, ft *FunctionsTest, labels map[string]string, config ctf_config.GlobalTestConfig) {
 	go func() {
 		updatedLabels := make(map[string]string)
 		for k, v := range labels {

@@ -3,11 +3,11 @@ package evm
 import (
 	"context"
 
-	"github.com/goplugin/plugin-automation/pkg/v3/types"
-
+	"github.com/goplugin/plugin-common/pkg/logger"
 	ocr2keepers "github.com/goplugin/plugin-common/pkg/types/automation"
 
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
+	"github.com/goplugin/plugin-automation/pkg/v3/types"
+
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ocr2keeper/evmregistry/v21/core"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/ocr2keeper/evmregistry/v21/logprovider"
 )

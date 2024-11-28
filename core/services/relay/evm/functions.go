@@ -8,29 +8,43 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"go.uber.org/multierr"
-
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 
+	"github.com/goplugin/plugin-common/pkg/logger"
 	"github.com/goplugin/plugin-common/pkg/services"
 	commontypes "github.com/goplugin/plugin-common/pkg/types"
 
 	txmgrcommon "github.com/goplugin/pluginv3.0/v2/common/txmgr"
 	txm "github.com/goplugin/pluginv3.0/v2/core/chains/evm/txmgr"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/legacyevm"
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2/plugins/functions/config"
-	"github.com/goplugin/pluginv3.0/v2/core/services/ocrcommon"
 	functionsRelay "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/functions"
 	evmRelayTypes "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/types"
 )
 
 type functionsProvider struct {
-	services.StateMachine
+	services.Service
+	eng *services.Engine
+
 	configWatcher       *configWatcher
 	contractTransmitter ContractTransmitter
 	logPollerWrapper    evmRelayTypes.LogPollerWrapper
+}
+
+func newFunctionsProvider(lggr logger.Logger, cw *configWatcher, ct ContractTransmitter, lpw evmRelayTypes.LogPollerWrapper) *functionsProvider {
+	p := &functionsProvider{
+		configWatcher:       cw,
+		contractTransmitter: ct,
+		logPollerWrapper:    lpw,
+	}
+	p.Service, p.eng = services.Config{
+		Name: "FunctionsProvider",
+		NewSubServices: func(lggr logger.Logger) []services.Service {
+			return []services.Service{p.configWatcher, p.logPollerWrapper}
+		},
+	}.NewServiceEngine(lggr)
+	return p
 }
 
 var _ evmRelayTypes.FunctionsProvider = (*functionsProvider)(nil)
@@ -48,23 +62,6 @@ func (p *functionsProvider) FunctionsEvents() commontypes.FunctionsEvents {
 	return nil
 }
 
-func (p *functionsProvider) Start(ctx context.Context) error {
-	return p.StartOnce("FunctionsProvider", func() error {
-		if err := p.configWatcher.Start(ctx); err != nil {
-			return err
-		}
-		return p.logPollerWrapper.Start(ctx)
-	})
-}
-
-func (p *functionsProvider) Close() error {
-	return p.StopOnce("FunctionsProvider", func() (err error) {
-		err = multierr.Combine(err, p.logPollerWrapper.Close())
-		err = multierr.Combine(err, p.configWatcher.Close())
-		return
-	})
-}
-
 // Forward all calls to the underlying configWatcher
 func (p *functionsProvider) OffchainConfigDigester() ocrtypes.OffchainConfigDigester {
 	return p.configWatcher.OffchainConfigDigester()
@@ -74,15 +71,7 @@ func (p *functionsProvider) ContractConfigTracker() ocrtypes.ContractConfigTrack
 	return p.configWatcher.ContractConfigTracker()
 }
 
-func (p *functionsProvider) HealthReport() map[string]error {
-	return p.configWatcher.HealthReport()
-}
-
-func (p *functionsProvider) Name() string {
-	return p.configWatcher.Name()
-}
-
-func (p *functionsProvider) ChainReader() commontypes.ChainReader {
+func (p *functionsProvider) ContractReader() commontypes.ContractReader {
 	return nil
 }
 
@@ -90,7 +79,7 @@ func (p *functionsProvider) Codec() commontypes.Codec {
 	return nil
 }
 
-func NewFunctionsProvider(chain legacyevm.Chain, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs, lggr logger.Logger, ethKeystore keystore.Eth, pluginType functionsRelay.FunctionsPluginType) (evmRelayTypes.FunctionsProvider, error) {
+func NewFunctionsProvider(ctx context.Context, chain legacyevm.Chain, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs, lggr logger.Logger, ethKeystore keystore.Eth, pluginType functionsRelay.FunctionsPluginType) (evmRelayTypes.FunctionsProvider, error) {
 	relayOpts := evmRelayTypes.NewRelayOpts(rargs)
 	relayConfig, err := relayOpts.RelayConfig()
 	if err != nil {
@@ -115,27 +104,23 @@ func NewFunctionsProvider(chain legacyevm.Chain, rargs commontypes.RelayArgs, pa
 	if err != nil {
 		return nil, err
 	}
-	configWatcher, err := newFunctionsConfigProvider(pluginType, chain, rargs, relayConfig.FromBlock, logPollerWrapper, lggr)
+	configWatcher, err := newFunctionsConfigProvider(ctx, pluginType, chain, rargs, relayConfig.FromBlock, logPollerWrapper, lggr)
 	if err != nil {
 		return nil, err
 	}
 	var contractTransmitter ContractTransmitter
 	if relayConfig.SendingKeys != nil {
-		contractTransmitter, err = newFunctionsContractTransmitter(pluginConfig.ContractVersion, rargs, pargs.TransmitterID, configWatcher, ethKeystore, logPollerWrapper, lggr)
+		contractTransmitter, err = newFunctionsContractTransmitter(ctx, pluginConfig.ContractVersion, rargs, pargs.TransmitterID, configWatcher, ethKeystore, logPollerWrapper, lggr)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		lggr.Warn("no sending keys configured for functions plugin, not starting contract transmitter")
 	}
-	return &functionsProvider{
-		configWatcher:       configWatcher,
-		contractTransmitter: contractTransmitter,
-		logPollerWrapper:    logPollerWrapper,
-	}, nil
+	return newFunctionsProvider(lggr, configWatcher, contractTransmitter, logPollerWrapper), nil
 }
 
-func newFunctionsConfigProvider(pluginType functionsRelay.FunctionsPluginType, chain legacyevm.Chain, args commontypes.RelayArgs, fromBlock uint64, logPollerWrapper evmRelayTypes.LogPollerWrapper, lggr logger.Logger) (*configWatcher, error) {
+func newFunctionsConfigProvider(ctx context.Context, pluginType functionsRelay.FunctionsPluginType, chain legacyevm.Chain, args commontypes.RelayArgs, fromBlock uint64, logPollerWrapper evmRelayTypes.LogPollerWrapper, lggr logger.Logger) (*configWatcher, error) {
 	if !common.IsHexAddress(args.ContractID) {
 		return nil, errors.Errorf("invalid contractID, expected hex address")
 	}
@@ -146,15 +131,15 @@ func newFunctionsConfigProvider(pluginType functionsRelay.FunctionsPluginType, c
 	if err != nil {
 		return nil, err
 	}
-	logPollerWrapper.SubscribeToUpdates("FunctionsConfigPoller", cp)
+	logPollerWrapper.SubscribeToUpdates(ctx, "FunctionsConfigPoller", cp)
 
 	offchainConfigDigester := functionsRelay.NewFunctionsOffchainConfigDigester(pluginType, chain.ID().Uint64())
-	logPollerWrapper.SubscribeToUpdates("FunctionsOffchainConfigDigester", offchainConfigDigester)
+	logPollerWrapper.SubscribeToUpdates(ctx, "FunctionsOffchainConfigDigester", offchainConfigDigester)
 
 	return newConfigWatcher(lggr, routerContractAddress, offchainConfigDigester, cp, chain, fromBlock, args.New), nil
 }
 
-func newFunctionsContractTransmitter(contractVersion uint32, rargs commontypes.RelayArgs, transmitterID string, configWatcher *configWatcher, ethKeystore keystore.Eth, logPollerWrapper evmRelayTypes.LogPollerWrapper, lggr logger.Logger) (ContractTransmitter, error) {
+func newFunctionsContractTransmitter(ctx context.Context, contractVersion uint32, rargs commontypes.RelayArgs, transmitterID string, configWatcher *configWatcher, ethKeystore keystore.Eth, logPollerWrapper evmRelayTypes.LogPollerWrapper, lggr logger.Logger) (ContractTransmitter, error) {
 	var relayConfig evmRelayTypes.RelayConfig
 	if err := json.Unmarshal(rargs.RelayConfig, &relayConfig); err != nil {
 		return nil, err
@@ -177,27 +162,31 @@ func newFunctionsContractTransmitter(contractVersion uint32, rargs commontypes.R
 		if sendingKeysLength > 1 && s == effectiveTransmitterAddress.String() {
 			return nil, errors.New("the transmitter is a local sending key with transaction forwarding enabled")
 		}
-		if err := ethKeystore.CheckEnabled(common.HexToAddress(s), configWatcher.chain.Config().EVM().ChainID()); err != nil {
+		if err := ethKeystore.CheckEnabled(ctx, common.HexToAddress(s), configWatcher.chain.Config().EVM().ChainID()); err != nil {
 			return nil, errors.Wrap(err, "one of the sending keys given is not enabled")
 		}
 		fromAddresses = append(fromAddresses, common.HexToAddress(s))
 	}
 
-	scoped := configWatcher.chain.Config()
-	strategy := txmgrcommon.NewQueueingTxStrategy(rargs.ExternalJobID, scoped.OCR2().DefaultTransactionQueueDepth(), scoped.Database().DefaultQueryTimeout())
+	strategy := txmgrcommon.NewQueueingTxStrategy(rargs.ExternalJobID, relayConfig.DefaultTransactionQueueDepth)
 
 	var checker txm.TransmitCheckerSpec
-	if configWatcher.chain.Config().OCR2().SimulateTransactions() {
+	if relayConfig.SimulateTransactions {
 		checker.CheckerType = txm.TransmitCheckerTypeSimulate
 	}
 
 	gasLimit := configWatcher.chain.Config().EVM().GasEstimator().LimitDefault()
 	ocr2Limit := configWatcher.chain.Config().EVM().GasEstimator().LimitJobType().OCR2()
 	if ocr2Limit != nil {
-		gasLimit = *ocr2Limit
+		gasLimit = uint64(*ocr2Limit)
 	}
 
-	transmitter, err := ocrcommon.NewTransmitter(
+	functionsTransmitter, err := functionsRelay.NewFunctionsContractTransmitter(
+		configWatcher.chain.Client(),
+		OCR2AggregatorTransmissionContractABI,
+		configWatcher.chain.LogPoller(),
+		lggr,
+		contractVersion,
 		configWatcher.chain.TxManager(),
 		fromAddresses,
 		gasLimit,
@@ -207,23 +196,9 @@ func newFunctionsContractTransmitter(contractVersion uint32, rargs commontypes.R
 		configWatcher.chain.ID(),
 		ethKeystore,
 	)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create transmitter")
-	}
-
-	functionsTransmitter, err := functionsRelay.NewFunctionsContractTransmitter(
-		configWatcher.chain.Client(),
-		OCR2AggregatorTransmissionContractABI,
-		transmitter,
-		configWatcher.chain.LogPoller(),
-		lggr,
-		nil,
-		contractVersion,
-	)
 	if err != nil {
 		return nil, err
 	}
-	logPollerWrapper.SubscribeToUpdates("FunctionsConfigTransmitter", functionsTransmitter)
+	logPollerWrapper.SubscribeToUpdates(ctx, "FunctionsConfigTransmitter", functionsTransmitter)
 	return functionsTransmitter, err
 }

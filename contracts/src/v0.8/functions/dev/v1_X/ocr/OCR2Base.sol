@@ -22,12 +22,12 @@ abstract contract OCR2Base is ConfirmedOwner, OCR2Abstract {
   // to extract config from logs.
 
   // Storing these fields used on the hot path in a ConfigInfo variable reduces the
-  // retrieval of all of them to a single SLOAD. If any further fields are
-  // added, make sure that storage of the struct still takes at most 32 bytes.
+  // retrieval of all of them into two SLOADs. If any further fields are
+  // added, make sure that storage of the struct still takes at most 64 bytes.
   struct ConfigInfo {
     bytes32 latestConfigDigest;
-    uint8 f; // TODO: could be optimized by squeezing into one slot
-    uint8 n;
+    uint8 f; // ───╮
+    uint8 n; // ───╯
   }
   ConfigInfo internal s_configInfo;
 
@@ -72,11 +72,7 @@ abstract contract OCR2Base is ConfirmedOwner, OCR2Abstract {
    */
 
   // Reverts transaction if config args are invalid
-  modifier checkConfigValid(
-    uint256 numSigners,
-    uint256 numTransmitters,
-    uint256 f
-  ) {
+  modifier checkConfigValid(uint256 numSigners, uint256 numTransmitters, uint256 f) {
     if (numSigners > MAX_NUM_ORACLES) revert InvalidConfig("too many signers");
     if (f == 0) revert InvalidConfig("f must be positive");
     if (numSigners != numTransmitters) revert InvalidConfig("oracle addresses out of registration");
@@ -84,6 +80,7 @@ abstract contract OCR2Base is ConfirmedOwner, OCR2Abstract {
     _;
   }
 
+  // solhint-disable-next-line gas-struct-packing
   struct SetConfigArgs {
     address[] signers;
     address[] transmitters;
@@ -215,7 +212,7 @@ abstract contract OCR2Base is ConfirmedOwner, OCR2Abstract {
     );
     uint256 prefixMask = type(uint256).max << (256 - 16); // 0xFFFF00..00
     uint256 prefix = 0x0001 << (256 - 16); // 0x000100..00
-    return bytes32((prefix & prefixMask) | (h & ~prefixMask));
+    return bytes32(prefix | (h & ~prefixMask));
   }
 
   /**

@@ -26,7 +26,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/cosmoskey"
 )
 
-var nativeToken = "cosm"
+const nativeToken = "cosm"
 
 func TestMain(m *testing.M) {
 
@@ -40,6 +40,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestShell_SendCosmosCoins(t *testing.T) {
+	t.Parallel()
+	ctx := testutils.Context(t)
 	// TODO(BCI-978): cleanup once SetupLocalCosmosNode is updated
 	chainID := cosmostest.RandomChainID()
 	cosmosChain := coscfg.Chain{}
@@ -57,7 +59,7 @@ func TestShell_SendCosmosCoins(t *testing.T) {
 
 	from := accounts[0]
 	to := accounts[1]
-	require.NoError(t, app.GetKeyStore().Cosmos().Add(cosmoskey.Raw(from.PrivateKey.Bytes()).Key()))
+	require.NoError(t, app.GetKeyStore().Cosmos().Add(ctx, cosmoskey.Raw(from.PrivateKey.Bytes()).Key()))
 	chain, err := app.GetRelayers().LegacyCosmosChains().Get(chainID)
 	require.NoError(t, err)
 

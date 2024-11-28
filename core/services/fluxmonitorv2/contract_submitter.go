@@ -10,8 +10,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/flux_aggregator_wrapper"
 )
 
-//go:generate mockery --quiet --name ContractSubmitter --output ./mocks/ --case=underscore
-
 // FluxAggregatorABI initializes the Flux Aggregator ABI
 var FluxAggregatorABI = evmtypes.MustGetABI(flux_aggregator_wrapper.FluxAggregatorABI)
 
@@ -25,7 +23,7 @@ type FluxAggregatorContractSubmitter struct {
 	flux_aggregator_wrapper.FluxAggregatorInterface
 	orm               ORM
 	keyStore          KeyStoreInterface
-	gasLimit          uint32
+	gasLimit          uint64
 	forwardingAllowed bool
 	chainID           *big.Int
 }
@@ -35,7 +33,7 @@ func NewFluxAggregatorContractSubmitter(
 	contract flux_aggregator_wrapper.FluxAggregatorInterface,
 	orm ORM,
 	keyStore KeyStoreInterface,
-	gasLimit uint32,
+	gasLimit uint64,
 	forwardingAllowed bool,
 	chainID *big.Int,
 ) *FluxAggregatorContractSubmitter {
@@ -52,7 +50,7 @@ func NewFluxAggregatorContractSubmitter(
 // Submit submits the answer by writing a EthTx for the txmgr to
 // pick up
 func (c *FluxAggregatorContractSubmitter) Submit(ctx context.Context, roundID *big.Int, submission *big.Int, idempotencyKey *string) error {
-	fromAddress, err := c.keyStore.GetRoundRobinAddress(c.chainID)
+	fromAddress, err := c.keyStore.GetRoundRobinAddress(ctx, c.chainID)
 	if err != nil {
 		return err
 	}

@@ -57,12 +57,25 @@ func (entry *codecEntry) NativeType() reflect.Type {
 	return entry.nativeType
 }
 
-func (entry *codecEntry) ToNative(checked reflect.Value) (reflect.Value, error) {
-	if checked.Type() != reflect.PointerTo(entry.checkedType) {
-		return reflect.Value{}, fmt.Errorf("%w: checked type %v does not match expected type %v", commontypes.ErrInvalidType, reflect.TypeOf(checked), entry.checkedType)
+func (entry *codecEntry) ToNative(checked reflect.Value) (val reflect.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			val = reflect.Value{}
+			err = fmt.Errorf("invalid checked value: %v", r)
+		}
+	}()
+
+	// some checked types are expected to be pointers already for e.g. big numbers, so this is fine
+	checkedTypeIsPtr := entry.checkedType == checked.Type()
+	if checked.Type() != reflect.PointerTo(entry.checkedType) && !checkedTypeIsPtr {
+		return reflect.Value{}, fmt.Errorf("%w: checked type %v does not match expected type %v", commontypes.ErrInvalidType, checked.Type(), entry.checkedType)
 	}
 
-	return reflect.NewAt(entry.nativeType, checked.UnsafePointer()), nil
+	if checkedTypeIsPtr {
+		return reflect.NewAt(entry.nativeType.Elem(), checked.UnsafePointer()), nil
+	}
+
+	return reflect.Indirect(reflect.NewAt(entry.nativeType, checked.UnsafePointer())), nil
 }
 
 func (entry *codecEntry) IsNativePointer(item reflect.Type) bool {
@@ -85,7 +98,15 @@ func (entry *codecEntry) EncodingPrefix() []byte {
 	return tmp
 }
 
-func (entry *codecEntry) Init() error {
+func (entry *codecEntry) Init() (err error) {
+	// Since reflection panics if errors occur, best to recover in case of any unknown errors
+	defer func() {
+		if r := recover(); r != nil {
+			entry.checkedType = nil
+			entry.nativeType = nil
+			err = fmt.Errorf("%w: %v", commontypes.ErrInvalidConfig, r)
+		}
+	}()
 	if entry.checkedType != nil {
 		return nil
 	}
@@ -125,14 +146,26 @@ func (entry *codecEntry) Init() error {
 		if err != nil {
 			return err
 		}
+		allowRename := false
 		if len(arg.Name) == 0 {
-			return fmt.Errorf("%w: empty field names are not supported for multiple returns", commontypes.ErrInvalidType)
+			arg.Name = fmt.Sprintf("F%d", i)
+			allowRename = true
 		}
 
 		name := strings.ToUpper(arg.Name[:1]) + arg.Name[1:]
 		if seenNames[name] {
-			return fmt.Errorf("%w: duplicate field name %s, after ToCamelCase", commontypes.ErrInvalidConfig, name)
+			if !allowRename {
+				return fmt.Errorf("%w: duplicate field name %s, after ToCamelCase", commontypes.ErrInvalidConfig, name)
+			}
+			for {
+				name = name + "_X"
+				arg.Name = name
+				if !seenNames[name] {
+					break
+				}
+			}
 		}
+		args[i] = arg
 		seenNames[name] = true
 		native[i] = reflect.StructField{Name: name, Type: nativeArg}
 		checked[i] = reflect.StructField{Name: name, Type: checkedArg}
@@ -180,7 +213,7 @@ func getNativeAndCheckedTypesForArg(arg *abi.Argument) (reflect.Type, reflect.Ty
 				return reflect.TypeOf(common.Hash{}), reflect.TypeOf(common.Hash{}), nil
 			}
 			fallthrough
-		case abi.SliceTy, abi.TupleTy, abi.FixedBytesTy, abi.FixedPointTy, abi.FunctionTy:
+		case abi.SliceTy, abi.TupleTy, abi.FixedPointTy, abi.FunctionTy:
 			// https://github.com/ethereum/go-ethereum/blob/release/1.12/accounts/abi/topics.go#L78
 			return nil, nil, fmt.Errorf("%w: unsupported indexed type: %v", commontypes.ErrInvalidConfig, arg.Type)
 		default:
@@ -234,6 +267,7 @@ func createTupleType(curType *abi.Type, converter func(reflect.Type) reflect.Typ
 	checkedFields := make([]reflect.StructField, len(curType.TupleElems))
 	for i, elm := range curType.TupleElems {
 		name := curType.TupleRawNames[i]
+		name = strings.ToUpper(name[:1]) + name[1:]
 		nativeFields[i].Name = name
 		checkedFields[i].Name = name
 		nativeArgType, checkedArgType, err := getNativeAndCheckedTypes(elm)

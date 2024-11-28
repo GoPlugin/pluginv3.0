@@ -465,8 +465,8 @@ contract VRFCoordinatorTestV2 is
   }
 
   function getRandomnessFromProof(
-    Proof memory proof,
-    RequestCommitment memory rc
+    Proof calldata proof,
+    RequestCommitment calldata rc
   ) private view returns (bytes32 keyHash, uint256 requestId, uint256 randomness) {
     keyHash = hashOfKey(proof.pk);
     // Only registered proving keys are permitted.
@@ -527,7 +527,10 @@ contract VRFCoordinatorTestV2 is
    * @return payment amount billed to the subscription
    * @dev simulated offchain to determine if sufficient balance is present to fulfill the request
    */
-  function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external nonReentrant returns (uint96) {
+  function fulfillRandomWords(
+    Proof calldata proof,
+    RequestCommitment calldata rc
+  ) external nonReentrant returns (uint96) {
     uint256 startGas = gasleft();
     (bytes32 keyHash, uint256 requestId, uint256 randomness) = getRandomnessFromProof(proof, rc);
 
@@ -558,7 +561,7 @@ contract VRFCoordinatorTestV2 is
     // decrement the subscription balance and increment the oracles withdrawable balance.
     // We also add the flat link fee to the payment amount.
     // Its specified in millionths of link, if s_config.fulfillmentFlatFeeLinkPPM = 1
-    // 1 pli / 1e6 = 1e18 juels / 1e6 = 1e12 juels.
+    // 1 link / 1e6 = 1e18 juels / 1e6 = 1e12 juels.
     uint96 payment = calculatePaymentAmount(
       startGas,
       s_config.gasAfterPaymentCalculation,

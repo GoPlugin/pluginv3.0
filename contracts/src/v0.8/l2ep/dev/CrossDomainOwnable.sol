@@ -2,13 +2,13 @@
 pragma solidity ^0.8.0;
 
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
-import {CrossDomainOwnableInterface} from "./interfaces/CrossDomainOwnableInterface.sol";
+import {ICrossDomainOwnable} from "./interfaces/ICrossDomainOwnable.sol";
 
 /**
  * @title The CrossDomainOwnable contract
  * @notice A contract with helpers for cross-domain contract ownership.
  */
-contract CrossDomainOwnable is CrossDomainOwnableInterface, ConfirmedOwner {
+contract CrossDomainOwnable is ICrossDomainOwnable, ConfirmedOwner {
   address internal s_l1Owner;
   address internal s_l1PendingOwner;
 
@@ -42,7 +42,7 @@ contract CrossDomainOwnable is CrossDomainOwnableInterface, ConfirmedOwner {
    * @notice validate, transfer ownership, and emit relevant events
    */
   function _transferL1Ownership(address to) internal {
-    // solhint-disable-next-line custom-errors
+    // solhint-disable-next-line gas-custom-errors
     require(to != msg.sender, "Cannot transfer to self");
 
     s_l1PendingOwner = to;
@@ -65,7 +65,7 @@ contract CrossDomainOwnable is CrossDomainOwnableInterface, ConfirmedOwner {
    * @notice Reverts if called by anyone other than the L1 owner.
    */
   modifier onlyL1Owner() virtual {
-    // solhint-disable-next-line custom-errors
+    // solhint-disable-next-line gas-custom-errors
     require(msg.sender == s_l1Owner, "Only callable by L1 owner");
     _;
   }
@@ -74,7 +74,7 @@ contract CrossDomainOwnable is CrossDomainOwnableInterface, ConfirmedOwner {
    * @notice Reverts if called by anyone other than the L1 owner.
    */
   modifier onlyProposedL1Owner() virtual {
-    // solhint-disable-next-line custom-errors
+    // solhint-disable-next-line gas-custom-errors
     require(msg.sender == s_l1PendingOwner, "Only callable by proposed L1 owner");
     _;
   }

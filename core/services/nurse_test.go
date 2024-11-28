@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commonconfig "github.com/goplugin/plugin-common/pkg/config"
+	"github.com/goplugin/plugin-common/pkg/utils/tests"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/utils"
@@ -98,12 +99,11 @@ func (c mockConfig) GoroutineThreshold() int {
 }
 
 func TestNurse(t *testing.T) {
-
 	l := logger.TestLogger(t)
 	nrse := NewNurse(newMockConfig(t), l)
 	nrse.AddCheck("test", func() (bool, Meta) { return true, Meta{} })
 
-	require.NoError(t, nrse.Start())
+	require.NoError(t, nrse.Start(tests.Context(t)))
 	defer func() { require.NoError(t, nrse.Close()) }()
 
 	require.NoError(t, nrse.appendLog(time.Now(), "test", Meta{}))

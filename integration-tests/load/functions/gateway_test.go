@@ -3,22 +3,22 @@ package loadfunctions
 import (
 	"testing"
 
-	"github.com/goplugin/wasp"
 	"github.com/stretchr/testify/require"
+
+	"github.com/goplugin/plugin-testing-framework/wasp"
 
 	tc "github.com/goplugin/pluginv3.0/integration-tests/testconfig"
 	"github.com/goplugin/pluginv3.0/v2/core/services/gateway/handlers/functions"
 )
 
 func TestGatewayLoad(t *testing.T) {
-	listConfig, err := tc.GetConfig("GatewayList", tc.Functions)
+	listConfig, err := tc.GetConfig([]string{"GatewayList"}, tc.Functions)
 	require.NoError(t, err)
 	cfgl := listConfig.Logging.Loki
 
 	require.NoError(t, err)
 	ft, err := SetupLocalLoadTestEnv(&listConfig, &listConfig)
 	require.NoError(t, err)
-	ft.EVMClient.ParallelTransactions(false)
 
 	labels := map[string]string{
 		"branch": "gateway_healthcheck",
@@ -43,7 +43,7 @@ func TestGatewayLoad(t *testing.T) {
 		LokiConfig: wasp.NewLokiConfig(cfgl.Endpoint, cfgl.TenantId, cfgl.BasicAuth, cfgl.BearerToken),
 	}
 
-	setConfig, err := tc.GetConfig("GatewaySet", tc.Functions)
+	setConfig, err := tc.GetConfig([]string{"GatewaySet"}, tc.Functions)
 	require.NoError(t, err)
 
 	secretsSetCfg := &wasp.Config{

@@ -4,10 +4,11 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/goplugin/pluginv3.0/v2/common/config"
+	"github.com/goplugin/plugin-common/pkg/logger"
+
 	evmclient "github.com/goplugin/pluginv3.0/v2/core/chains/evm/client"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/chaintype"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
 // BlockTranslator converts emitted block numbers (from block.number) into a
@@ -19,9 +20,9 @@ type BlockTranslator interface {
 // NewBlockTranslator returns the block translator for the given chain
 func NewBlockTranslator(cfg Config, client evmclient.Client, lggr logger.Logger) BlockTranslator {
 	switch cfg.ChainType() {
-	case config.ChainArbitrum:
+	case chaintype.ChainArbitrum:
 		return NewArbitrumBlockTranslator(client, lggr)
-	case config.ChainXDai, config.ChainMetis, config.ChainOptimismBedrock:
+	case "", chaintype.ChainCelo, chaintype.ChainGnosis, chaintype.ChainKroma, chaintype.ChainMetis, chaintype.ChainOptimismBedrock, chaintype.ChainScroll, chaintype.ChainWeMix, chaintype.ChainXLayer, chaintype.ChainZkEvm, chaintype.ChainZkSync, chaintype.ChainZircuit:
 		fallthrough
 	default:
 		return &l1BlockTranslator{}

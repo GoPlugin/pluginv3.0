@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config"
 	mocks2 "github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
+	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils/big"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/legacyevm"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/configtest"
@@ -60,11 +62,11 @@ func TestResolver_ETHKeys(t *testing.T) {
 	keys := []ethkey.KeyV2{
 		{
 			Address:      address,
-			EIP55Address: ethkey.EIP55AddressFromAddress(address),
+			EIP55Address: evmtypes.EIP55AddressFromAddress(address),
 		},
 		{
 			Address:      secondAddress,
-			EIP55Address: ethkey.EIP55AddressFromAddress(secondAddress),
+			EIP55Address: evmtypes.EIP55AddressFromAddress(secondAddress),
 		},
 	}
 	gError := errors.New("error")
@@ -79,10 +81,10 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "success on prod",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				states := []ethkey.State{
 					{
-						Address:    ethkey.MustEIP55Address(address.Hex()),
+						Address:    evmtypes.MustEIP55Address(address.Hex()),
 						EVMChainID: *big.NewI(12),
 						Disabled:   false,
 						CreatedAt:  f.Timestamp(),
@@ -96,9 +98,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 				m := map[string]legacyevm.Chain{states[0].EVMChainID.String(): f.Mocks.chain}
 				legacyEVMChains := legacyevm.NewLegacyChains(m, cfg.EVMConfigs())
 
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(states, nil)
-				f.Mocks.ethKs.On("Get", keys[0].Address.Hex()).Return(keys[0], nil)
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
+				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.ethClient.On("PLIBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), nil)
 				f.Mocks.chain.On("Client").Return(f.Mocks.ethClient)
 				f.Mocks.balM.On("GetEthBalance", address).Return(assets.NewEth(1))
@@ -146,10 +148,10 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "success with no chains",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				states := []ethkey.State{
 					{
-						Address:    ethkey.MustEIP55Address(address.Hex()),
+						Address:    evmtypes.MustEIP55Address(address.Hex()),
 						EVMChainID: *big.NewI(12),
 						Disabled:   false,
 						CreatedAt:  f.Timestamp(),
@@ -158,9 +160,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 				}
 				chainID := *big.NewI(12)
 				f.Mocks.legacyEVMChains.On("Get", states[0].EVMChainID.String()).Return(nil, evmrelay.ErrNoChains)
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(states, nil)
-				f.Mocks.ethKs.On("Get", keys[0].Address.Hex()).Return(keys[0], nil)
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
+				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.relayerChainInterops.EVMChains = f.Mocks.legacyEVMChains
 				f.Mocks.evmORM.PutChains(toml.EVMConfig{ChainID: &chainID})
 				f.Mocks.relayerChainInterops.Relayers = []loop.Relayer{
@@ -201,8 +203,8 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "generic error on GetAll()",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
-				f.Mocks.ethKs.On("GetAll").Return(nil, gError)
+			before: func(ctx context.Context, f *gqlTestFramework) {
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(nil, gError)
 				f.Mocks.keystore.On("Eth").Return(f.Mocks.ethKs)
 				f.App.On("GetKeyStore").Return(f.Mocks.keystore)
 			},
@@ -220,9 +222,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "generic error on GetStatesForKeys()",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(nil, gError)
+			before: func(ctx context.Context, f *gqlTestFramework) {
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(nil, gError)
 				f.Mocks.keystore.On("Eth").Return(f.Mocks.ethKs)
 				f.App.On("GetKeyStore").Return(f.Mocks.keystore)
 			},
@@ -240,10 +242,10 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "generic error on Get()",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				states := []ethkey.State{
 					{
-						Address:    ethkey.MustEIP55Address(address.Hex()),
+						Address:    evmtypes.MustEIP55Address(address.Hex()),
 						EVMChainID: *big.NewI(12),
 						Disabled:   false,
 						CreatedAt:  f.Timestamp(),
@@ -251,9 +253,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 					},
 				}
 
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(states, nil)
-				f.Mocks.ethKs.On("Get", keys[0].Address.Hex()).Return(ethkey.KeyV2{}, gError)
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
+				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(ethkey.KeyV2{}, gError)
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.keystore.On("Eth").Return(f.Mocks.ethKs)
 				f.App.On("GetKeyStore").Return(f.Mocks.keystore)
 			},
@@ -272,10 +274,10 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "Empty set on legacy evm chains",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				states := []ethkey.State{
 					{
-						Address:    ethkey.MustEIP55Address(address.Hex()),
+						Address:    evmtypes.MustEIP55Address(address.Hex()),
 						EVMChainID: *big.NewI(12),
 						Disabled:   false,
 						CreatedAt:  f.Timestamp(),
@@ -283,9 +285,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 					},
 				}
 
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(states, nil)
-				f.Mocks.ethKs.On("Get", keys[0].Address.Hex()).Return(ethkey.KeyV2{}, nil)
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
+				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(ethkey.KeyV2{}, nil)
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.keystore.On("Eth").Return(f.Mocks.ethKs)
 				f.Mocks.legacyEVMChains.On("Get", states[0].EVMChainID.String()).Return(f.Mocks.chain, gError)
 				f.Mocks.relayerChainInterops.EVMChains = f.Mocks.legacyEVMChains
@@ -303,10 +305,10 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "generic error on GetPLIBalance()",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				states := []ethkey.State{
 					{
-						Address:    ethkey.MustEIP55Address(address.Hex()),
+						Address:    evmtypes.MustEIP55Address(address.Hex()),
 						EVMChainID: *big.NewI(12),
 						Disabled:   false,
 						CreatedAt:  f.Timestamp(),
@@ -316,9 +318,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 				chainID := *big.NewI(12)
 				linkAddr := common.HexToAddress("0x5431F5F973781809D18643b87B44921b11355d81")
 
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(states, nil)
-				f.Mocks.ethKs.On("Get", keys[0].Address.Hex()).Return(keys[0], nil)
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
+				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.keystore.On("Eth").Return(f.Mocks.ethKs)
 				f.Mocks.ethClient.On("PLIBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), gError)
 				f.Mocks.legacyEVMChains.On("Get", states[0].EVMChainID.String()).Return(f.Mocks.chain, nil)
@@ -365,10 +367,10 @@ func TestResolver_ETHKeys(t *testing.T) {
 		{
 			name:          "success with no eth balance",
 			authenticated: true,
-			before: func(f *gqlTestFramework) {
+			before: func(ctx context.Context, f *gqlTestFramework) {
 				states := []ethkey.State{
 					{
-						Address:    ethkey.EIP55AddressFromAddress(address),
+						Address:    evmtypes.EIP55AddressFromAddress(address),
 						EVMChainID: *big.NewI(12),
 						Disabled:   false,
 						CreatedAt:  f.Timestamp(),
@@ -378,9 +380,9 @@ func TestResolver_ETHKeys(t *testing.T) {
 				chainID := *big.NewI(12)
 				linkAddr := common.HexToAddress("0x5431F5F973781809D18643b87B44921b11355d81")
 
-				f.Mocks.ethKs.On("GetStatesForKeys", keys).Return(states, nil)
-				f.Mocks.ethKs.On("Get", keys[0].Address.Hex()).Return(keys[0], nil)
-				f.Mocks.ethKs.On("GetAll").Return(keys, nil)
+				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
+				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
+				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.ethClient.On("PLIBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), nil)
 				f.Mocks.chain.On("Client").Return(f.Mocks.ethClient)
 				f.Mocks.chain.On("BalanceMonitor").Return(nil)

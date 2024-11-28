@@ -23,6 +23,7 @@ import (
 	"github.com/goplugin/plugin-common/pkg/services/servicetest"
 
 	evmclient "github.com/goplugin/pluginv3.0/v2/core/chains/evm/client"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/headtracker"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	evmutils "github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/link_token_interface"
@@ -76,16 +77,24 @@ func runTest(t *testing.T, pluginType functions.FunctionsPluginType, expectedDig
 	b.Commit()
 	db := pgtest.NewSqlxDB(t)
 	defer db.Close()
-	cfg := pgtest.NewQConfig(false)
 	ethClient := evmclient.NewSimulatedBackendClient(t, b, big.NewInt(1337))
 	defer ethClient.Close()
 	lggr := logger.TestLogger(t)
-	lorm := logpoller.NewORM(big.NewInt(1337), db, lggr, cfg)
-	lp := logpoller.NewLogPoller(lorm, ethClient, lggr, 100*time.Millisecond, false, 1, 2, 2, 1000)
+
+	lorm := logpoller.NewORM(big.NewInt(1337), db, lggr)
+	lpOpts := logpoller.Opts{
+		PollPeriod:               100 * time.Millisecond,
+		FinalityDepth:            1,
+		BackfillBatchSize:        2,
+		RpcBatchSize:             2,
+		KeepFinalizedBlocksDepth: 1000,
+	}
+	ht := headtracker.NewSimulatedHeadTracker(ethClient, lpOpts.UseFinalityTag, lpOpts.FinalityDepth)
+	lp := logpoller.NewLogPoller(lorm, ethClient, lggr, ht, lpOpts)
 	servicetest.Run(t, lp)
 	configPoller, err := functions.NewFunctionsConfigPoller(pluginType, lp, lggr)
 	require.NoError(t, err)
-	require.NoError(t, configPoller.UpdateRoutes(ocrAddress, ocrAddress))
+	require.NoError(t, configPoller.UpdateRoutes(testutils.Context(t), ocrAddress, ocrAddress))
 	// Should have no config to begin with.
 	_, config, err := configPoller.LatestConfigDetails(testutils.Context(t))
 	require.NoError(t, err)
@@ -184,6 +193,7 @@ func setFunctionsConfig(t *testing.T, pluginConfig *functionsConfig.ReportingPlu
 		[]int{1, 1, 1, 1},
 		oracles,
 		pluginConfigBytes,
+		nil,
 		50*time.Millisecond,
 		50*time.Millisecond,
 		50*time.Millisecond,

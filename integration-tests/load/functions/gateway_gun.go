@@ -10,7 +10,8 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
 	"github.com/goplugin/tdh2/go/tdh2/tdh2easy"
-	"github.com/goplugin/wasp"
+
+	"github.com/goplugin/plugin-testing-framework/wasp"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/types"
 )

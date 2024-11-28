@@ -5,11 +5,11 @@ import (
 
 	"github.com/goplugin/plugin-libocr/commontypes"
 
-	"github.com/goplugin/pluginv3.0/v2/common/config"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/chaintype"
 )
 
 type Config interface {
-	ChainType() config.ChainType
+	ChainType() chaintype.ChainType
 }
 
 func ParseBootstrapPeers(peers []string) (bootstrapPeers []commontypes.BootstrapperLocator, err error) {

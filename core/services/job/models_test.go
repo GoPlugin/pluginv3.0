@@ -1,4 +1,4 @@
-package job
+package job_test
 
 import (
 	_ "embed"
@@ -7,56 +7,63 @@ import (
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v4"
 
 	"github.com/goplugin/plugin-common/pkg/codec"
 	"github.com/goplugin/plugin-common/pkg/types"
+	pkgworkflows "github.com/goplugin/plugin-common/pkg/workflows"
+
+	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
+	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v4"
+
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/types"
 	"github.com/goplugin/pluginv3.0/v2/core/store/models"
 )
 
 func TestOCR2OracleSpec_RelayIdentifier(t *testing.T) {
 	type fields struct {
-		Relay       relay.Network
+		Relay       string
 		ChainID     string
-		RelayConfig JSONConfig
+		RelayConfig job.JSONConfig
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		want    relay.ID
+		want    types.RelayID
 		wantErr bool
 	}{
 		{name: "err no chain id",
 			fields:  fields{},
-			want:    relay.ID{},
+			want:    types.RelayID{},
 			wantErr: true,
 		},
 		{
 			name: "evm explicitly configured",
 			fields: fields{
-				Relay:   relay.EVM,
+				Relay:   relay.NetworkEVM,
 				ChainID: "1",
 			},
-			want: relay.ID{Network: relay.EVM, ChainID: "1"},
+			want: types.RelayID{Network: relay.NetworkEVM, ChainID: "1"},
 		},
 		{
 			name: "evm implicitly configured",
 			fields: fields{
-				Relay:       relay.EVM,
+				Relay:       relay.NetworkEVM,
 				RelayConfig: map[string]any{"chainID": 1},
 			},
-			want: relay.ID{Network: relay.EVM, ChainID: "1"},
+			want: types.RelayID{Network: relay.NetworkEVM, ChainID: "1"},
 		},
 		{
 			name: "evm implicitly configured with bad value",
 			fields: fields{
-				Relay:       relay.EVM,
+				Relay:       relay.NetworkEVM,
 				RelayConfig: map[string]any{"chainID": float32(1)},
 			},
-			want:    relay.ID{},
+			want:    types.RelayID{},
 			wantErr: true,
 		},
 	}
@@ -65,7 +72,7 @@ func TestOCR2OracleSpec_RelayIdentifier(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := &OCR2OracleSpec{
+			s := &job.OCR2OracleSpec{
 				Relay:       tt.fields.Relay,
 				ChainID:     tt.fields.ChainID,
 				RelayConfig: tt.fields.RelayConfig,
@@ -90,8 +97,8 @@ var (
 )
 
 func TestOCR2OracleSpec(t *testing.T) {
-	val := OCR2OracleSpec{
-		Relay:                             relay.EVM,
+	val := job.OCR2OracleSpec{
+		Relay:                             relay.NetworkEVM,
 		PluginType:                        types.Median,
 		ContractID:                        "foo",
 		OCRKeyBundleID:                    null.StringFrom("bar"),
@@ -220,6 +227,13 @@ func TestOCR2OracleSpec(t *testing.T) {
 				},
 			},
 		},
+		OnchainSigningStrategy: map[string]interface{}{
+			"strategyName": "single-chain",
+			"config": map[string]interface{}{
+				"evm":       "",
+				"publicKey": "0xdeadbeef",
+			},
+		},
 		PluginConfig: map[string]interface{}{"juelsPerFeeCoinSource": `  // data source 1
   ds1          [type=bridge name="%s"];
   ds1_parse    [type=jsonparse path="data"];
@@ -246,18 +260,94 @@ func TestOCR2OracleSpec(t *testing.T) {
 	})
 
 	t.Run("round-trip", func(t *testing.T) {
-		var gotVal OCR2OracleSpec
+		var gotVal job.OCR2OracleSpec
 		require.NoError(t, toml.Unmarshal([]byte(compact), &gotVal))
 		gotB, err := toml.Marshal(gotVal)
 		require.NoError(t, err)
 		require.Equal(t, compact, string(gotB))
 		t.Run("pretty", func(t *testing.T) {
-			var gotVal OCR2OracleSpec
+			var gotVal job.OCR2OracleSpec
 			require.NoError(t, toml.Unmarshal([]byte(pretty), &gotVal))
 			gotB, err := toml.Marshal(gotVal)
 			require.NoError(t, err)
 			t.Log("marshaled compact:", string(gotB))
 			require.Equal(t, compact, string(gotB))
 		})
+	})
+}
+
+func TestWorkflowSpec_Validate(t *testing.T) {
+	type fields struct {
+		Workflow string
+	}
+	tests := []struct {
+		name              string
+		fields            fields
+		wantWorkflowOwner string
+		wantWorkflowName  string
+
+		wantError bool
+	}{
+		{
+			name: "valid",
+			fields: fields{
+				Workflow: pkgworkflows.WFYamlSpec(t, "workflow01", "0x0123456789012345678901234567890123456789"),
+			},
+			wantWorkflowOwner: "0123456789012345678901234567890123456789", // the workflow job spec strips the 0x prefix to limit to 40	characters
+			wantWorkflowName:  "workflow01",
+		},
+		{
+			name: "valid no name",
+			fields: fields{
+				Workflow: pkgworkflows.WFYamlSpec(t, "", "0x0123456789012345678901234567890123456789"),
+			},
+			wantWorkflowOwner: "0123456789012345678901234567890123456789", // the workflow job spec strips the 0x prefix to limit to 40	characters
+			wantWorkflowName:  "",
+		},
+		{
+			name: "valid no owner",
+			fields: fields{
+				Workflow: pkgworkflows.WFYamlSpec(t, "workflow01", ""),
+			},
+			wantWorkflowOwner: "",
+			wantWorkflowName:  "workflow01",
+		},
+		{
+			name: "invalid ",
+			fields: fields{
+				Workflow: "garbage",
+			},
+			wantError: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &job.WorkflowSpec{
+				Workflow: tt.fields.Workflow,
+			}
+			err := w.Validate(testutils.Context(t))
+			require.Equal(t, tt.wantError, err != nil)
+			if !tt.wantError {
+				assert.NotEmpty(t, w.WorkflowID)
+				assert.Equal(t, tt.wantWorkflowOwner, w.WorkflowOwner)
+				assert.Equal(t, tt.wantWorkflowName, w.WorkflowName)
+			}
+		})
+	}
+
+	t.Run("WASM can validate", func(t *testing.T) {
+		configLocation := "testdata/config.json"
+
+		w := &job.WorkflowSpec{
+			Workflow: createTestBinary(t),
+			SpecType: job.WASMFile,
+			Config:   configLocation,
+		}
+
+		err := w.Validate(testutils.Context(t))
+		require.NoError(t, err)
+		assert.Equal(t, "owner", w.WorkflowOwner)
+		assert.Equal(t, "name", w.WorkflowName)
+		require.NotEmpty(t, w.WorkflowID)
 	})
 }

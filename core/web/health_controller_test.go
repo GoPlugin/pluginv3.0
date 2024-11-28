@@ -6,16 +6,34 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/goplugin/plugin-common/pkg/config"
+	coscfg "github.com/goplugin/plugin-cosmos/pkg/cosmos/config"
+	"github.com/goplugin/plugin-cosmos/pkg/cosmos/params"
+	solcfg "github.com/goplugin/plugin-solana/pkg/solana/config"
+	stkcfg "github.com/goplugin/plugin-starknet/relayer/pkg/plugin/config"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/cltest"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
+	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils/configtest"
+	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	"github.com/goplugin/pluginv3.0/v2/core/services/mocks"
 )
+
+func TestMain(m *testing.M) {
+	params.InitCosmosSdk(
+		/* bech32Prefix= */ "wasm",
+		/* token= */ "cosm",
+	)
+
+	os.Exit(m.Run())
+}
 
 func TestHealthController_Readyz(t *testing.T) {
 	var tt = []struct {
@@ -96,6 +114,12 @@ var (
 	bodyHTML string
 	//go:embed testdata/body/health.txt
 	bodyTXT string
+	//go:embed testdata/body/health-failing.json
+	bodyJSONFailing string
+	//go:embed testdata/body/health-failing.html
+	bodyHTMLFailing string
+	//go:embed testdata/body/health-failing.txt
+	bodyTXTFailing string
 )
 
 func TestHealthController_Health_body(t *testing.T) {
@@ -110,9 +134,38 @@ func TestHealthController_Health_body(t *testing.T) {
 		{"html", "/health", map[string]string{"Accept": gin.MIMEHTML}, bodyHTML},
 		{"text", "/health", map[string]string{"Accept": gin.MIMEPlain}, bodyTXT},
 		{".txt", "/health.txt", nil, bodyTXT},
+
+		{"default-failing", "/health?failing", nil, bodyJSONFailing},
+		{"json-failing", "/health?failing", map[string]string{"Accept": gin.MIMEJSON}, bodyJSONFailing},
+		{"html-failing", "/health?failing", map[string]string{"Accept": gin.MIMEHTML}, bodyHTMLFailing},
+		{"text-failing", "/health?failing", map[string]string{"Accept": gin.MIMEPlain}, bodyTXTFailing},
+		{".txt-failing", "/health.txt?failing", nil, bodyTXTFailing},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			app := cltest.NewApplicationWithKey(t)
+			cfg := configtest.NewGeneralConfig(t, func(cfg *plugin.Config, secrets *plugin.Secrets) {
+				cfg.Cosmos = append(cfg.Cosmos, &coscfg.TOMLConfig{
+					ChainID: ptr("Foo"),
+					Nodes: coscfg.Nodes{
+						{Name: ptr("primary"), TendermintURL: config.MustParseURL("http://tender.mint")},
+					},
+				})
+				cfg.Cosmos[0].SetDefaults()
+				cfg.Solana = append(cfg.Solana, &solcfg.TOMLConfig{
+					ChainID: ptr("Bar"),
+					Nodes: solcfg.Nodes{
+						{Name: ptr("primary"), URL: config.MustParseURL("http://solana.web")},
+					},
+				})
+				cfg.Solana[0].SetDefaults()
+				cfg.Starknet = append(cfg.Starknet, &stkcfg.TOMLConfig{
+					ChainID: ptr("Baz"),
+					Nodes: stkcfg.Nodes{
+						{Name: ptr("primary"), URL: config.MustParseURL("http://stark.node")},
+					},
+				})
+				cfg.Starknet[0].SetDefaults()
+			})
+			app := cltest.NewApplicationWithConfigAndKey(t, cfg)
 			require.NoError(t, app.Start(testutils.Context(t)))
 
 			client := app.NewHTTPClient(nil)
@@ -127,7 +180,7 @@ func TestHealthController_Health_body(t *testing.T) {
 				require.NoError(t, json.Indent(&b, body, "", "  "))
 				body = b.Bytes()
 			}
-			assert.Equal(t, tc.expBody, string(body))
+			assert.Equal(t, strings.TrimSpace(tc.expBody), strings.TrimSpace(string(body)))
 		})
 	}
 }

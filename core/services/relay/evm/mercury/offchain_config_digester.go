@@ -1,6 +1,7 @@
 package mercury
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/hex"
 	"math/big"
@@ -18,17 +19,18 @@ import (
 
 var _ ocrtypes.OffchainConfigDigester = OffchainConfigDigester{}
 
-func NewOffchainConfigDigester(feedID [32]byte, chainID *big.Int, contractAddress common.Address) OffchainConfigDigester {
-	return OffchainConfigDigester{feedID, chainID, contractAddress}
+func NewOffchainConfigDigester(feedID [32]byte, chainID *big.Int, contractAddress common.Address, prefix ocrtypes.ConfigDigestPrefix) OffchainConfigDigester {
+	return OffchainConfigDigester{feedID, chainID, contractAddress, prefix}
 }
 
 type OffchainConfigDigester struct {
 	FeedID          utils.FeedID
 	ChainID         *big.Int
 	ContractAddress common.Address
+	Prefix          ocrtypes.ConfigDigestPrefix
 }
 
-func (d OffchainConfigDigester) ConfigDigest(cc ocrtypes.ContractConfig) (ocrtypes.ConfigDigest, error) {
+func (d OffchainConfigDigester) ConfigDigest(ctx context.Context, cc ocrtypes.ContractConfig) (ocrtypes.ConfigDigest, error) {
 	signers := []common.Address{}
 	for i, signer := range cc.Signers {
 		if len(signer) != 20 {
@@ -63,9 +65,10 @@ func (d OffchainConfigDigester) ConfigDigest(cc ocrtypes.ContractConfig) (ocrtyp
 		cc.OnchainConfig,
 		cc.OffchainConfigVersion,
 		cc.OffchainConfig,
+		d.Prefix,
 	), nil
 }
 
-func (d OffchainConfigDigester) ConfigDigestPrefix() (ocrtypes.ConfigDigestPrefix, error) {
-	return ocrtypes.ConfigDigestPrefixMercuryV02, nil
+func (d OffchainConfigDigester) ConfigDigestPrefix(ctx context.Context) (ocrtypes.ConfigDigestPrefix, error) {
+	return d.Prefix, nil
 }

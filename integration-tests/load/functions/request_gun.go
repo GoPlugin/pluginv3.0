@@ -1,7 +1,7 @@
 package loadfunctions
 
 import (
-	"github.com/goplugin/wasp"
+	"github.com/goplugin/plugin-testing-framework/wasp"
 )
 
 type TestMode int

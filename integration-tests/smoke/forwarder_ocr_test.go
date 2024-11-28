@@ -1,16 +1,21 @@
 package smoke
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
+	"time"
+
+	"github.com/goplugin/pluginv3.0/integration-tests/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/plugin-testing-framework/logging"
-	"github.com/goplugin/plugin-testing-framework/utils/testcontext"
+	"github.com/goplugin/plugin-testing-framework/lib/logging"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/testcontext"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/actions"
+	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
 	"github.com/goplugin/pluginv3.0/integration-tests/docker/test_env"
 	tc "github.com/goplugin/pluginv3.0/integration-tests/testconfig"
 )
@@ -19,24 +24,21 @@ func TestForwarderOCRBasic(t *testing.T) {
 	t.Parallel()
 	l := logging.GetTestLogger(t)
 
-	config, err := tc.GetConfig("Smoke", tc.ForwarderOcr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	config, err := tc.GetConfig([]string{"Smoke"}, tc.ForwarderOcr)
+	require.NoError(t, err, "Error getting config")
+
+	privateNetwork, err := actions.EthereumNetworkConfigFromConfig(l, &config)
+	require.NoError(t, err, "Error building ethereum network config")
 
 	env, err := test_env.NewCLTestEnvBuilder().
 		WithTestInstance(t).
 		WithTestConfig(&config).
-		WithGeth().
+		WithPrivateEthereumNetwork(privateNetwork.EthereumNetworkConfig).
 		WithMockAdapter().
-		WithForwarders().
 		WithCLNodes(6).
-		WithFunding(big.NewFloat(.1)).
 		WithStandardCleanup().
 		Build()
 	require.NoError(t, err)
-
-	env.ParallelTransactions(true)
 
 	nodeClients := env.ClCluster.NodeAPIs()
 	bootstrapNode, workerNodes := nodeClients[0], nodeClients[1:]
@@ -44,40 +46,56 @@ func TestForwarderOCRBasic(t *testing.T) {
 	workerNodeAddresses, err := actions.PluginNodeAddressesLocal(workerNodes)
 	require.NoError(t, err, "Retreiving on-chain wallet addresses for plugin nodes shouldn't fail")
 
-	linkTokenContract, err := env.ContractDeployer.DeployLinkTokenContract()
-	require.NoError(t, err, "Deploying Link Token Contract shouldn't fail")
+	evmNetwork, err := env.GetFirstEvmNetwork()
+	require.NoError(t, err, "Error getting first evm network")
 
-	err = actions.FundPluginNodesLocal(workerNodes, env.EVMClient, big.NewFloat(.05))
+	sethClient, err := utils.TestAwareSethClient(t, config, evmNetwork)
+	require.NoError(t, err, "Error getting seth client")
+
+	err = actions.FundPluginNodesFromRootAddress(l, sethClient, contracts.PluginClientToPluginNodeWithKeysAndAddress(env.ClCluster.NodeAPIs()), big.NewFloat(*config.Common.PluginNodeFunding))
+	require.NoError(t, err, "Failed to fund the nodes")
+
+	t.Cleanup(func() {
+		// ignore error, we will see failures in the logs anyway
+		_ = actions.ReturnFundsFromNodes(l, sethClient, contracts.PluginClientToPluginNodeWithKeysAndAddress(env.ClCluster.NodeAPIs()))
+	})
+
+	linkContract, err := actions.LinkTokenContract(l, sethClient, config.OCR)
+	require.NoError(t, err, "Error loading/deploying link token contract")
+
+	fundingAmount := big.NewFloat(.05)
+	l.Info().Str("ETH amount per node", fundingAmount.String()).Msg("Funding Plugin nodes")
+	err = actions.FundPluginNodesFromRootAddress(l, sethClient, contracts.PluginClientToPluginNodeWithKeysAndAddress(workerNodes), fundingAmount)
 	require.NoError(t, err, "Error funding Plugin nodes")
 
 	operators, authorizedForwarders, _ := actions.DeployForwarderContracts(
-		t, env.ContractDeployer, linkTokenContract, env.EVMClient, len(workerNodes),
+		t, sethClient, common.HexToAddress(linkContract.Address()), len(workerNodes),
 	)
+
+	require.Equal(t, len(workerNodes), len(operators), "Number of operators should match number of worker nodes")
+
 	for i := range workerNodes {
 		actions.AcceptAuthorizedReceiversOperator(
-			t, operators[i], authorizedForwarders[i], []common.Address{workerNodeAddresses[i]}, env.EVMClient, env.ContractLoader,
+			t, l, sethClient, operators[i], authorizedForwarders[i], []common.Address{workerNodeAddresses[i]},
 		)
 		require.NoError(t, err, "Accepting Authorize Receivers on Operator shouldn't fail")
-		err = actions.TrackForwarderLocal(env.EVMClient, authorizedForwarders[i], workerNodes[i], l)
-		require.NoError(t, err)
-		err = env.EVMClient.WaitForEvents()
+		actions.TrackForwarder(t, sethClient, authorizedForwarders[i], workerNodes[i])
 	}
-	ocrInstances, err := actions.DeployOCRContractsForwarderFlowLocal(
-		1,
-		linkTokenContract,
-		env.ContractDeployer,
-		workerNodes,
+
+	ocrInstances, err := actions.DeployOCRContractsForwarderFlow(
+		l,
+		sethClient,
+		config.OCR,
+		common.HexToAddress(linkContract.Address()),
+		contracts.PluginClientToPluginNodeWithKeysAndAddress(workerNodes),
 		authorizedForwarders,
-		env.EVMClient,
 	)
 	require.NoError(t, err, "Error deploying OCR contracts")
 
-	err = actions.CreateOCRJobsWithForwarderLocal(ocrInstances, bootstrapNode, workerNodes, 5, env.MockAdapter, env.EVMClient.GetChainID().String())
+	err = actions.CreateOCRJobsWithForwarderLocal(ocrInstances, bootstrapNode, workerNodes, 5, env.MockAdapter, fmt.Sprint(sethClient.ChainID))
 	require.NoError(t, err, "failed to setup forwarder jobs")
-	err = actions.WatchNewRound(1, ocrInstances, env.EVMClient, l)
-	require.NoError(t, err)
-	err = env.EVMClient.WaitForEvents()
-	require.NoError(t, err, "Error waiting for events")
+	err = actions.WatchNewOCRRound(l, sethClient, 1, contracts.V1OffChainAgrregatorToOffChainAggregatorWithRounds(ocrInstances), time.Duration(10*time.Minute))
+	require.NoError(t, err, "error watching for new OCR round")
 
 	answer, err := ocrInstances[0].GetLatestAnswer(testcontext.Get(t))
 	require.NoError(t, err, "Getting latest answer from OCR contract shouldn't fail")
@@ -85,10 +103,8 @@ func TestForwarderOCRBasic(t *testing.T) {
 
 	err = actions.SetAllAdapterResponsesToTheSameValueLocal(10, ocrInstances, workerNodes, env.MockAdapter)
 	require.NoError(t, err)
-	err = actions.WatchNewRound(2, ocrInstances, env.EVMClient, l)
-	require.NoError(t, err)
-	err = env.EVMClient.WaitForEvents()
-	require.NoError(t, err, "Error waiting for events")
+	err = actions.WatchNewOCRRound(l, sethClient, 2, contracts.V1OffChainAgrregatorToOffChainAggregatorWithRounds(ocrInstances), time.Duration(10*time.Minute))
+	require.NoError(t, err, "error watching for new OCR round")
 
 	answer, err = ocrInstances[0].GetLatestAnswer(testcontext.Get(t))
 	require.NoError(t, err, "Error getting latest OCR answer")

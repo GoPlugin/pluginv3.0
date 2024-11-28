@@ -4,13 +4,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
 )
 
 // nolint
 var (
-	ErrEnvUnset = errors.New("env var unset")
+	ErrEnvUnset = pkgerrors.New("env var unset")
 )
 
 type LogfFn func(string, ...any)
@@ -25,6 +25,7 @@ type AppConfig interface {
 	CosmosEnabled() bool
 	SolanaEnabled() bool
 	StarkNetEnabled() bool
+	AptosEnabled() bool
 
 	Validate() error
 	ValidateDB() error
@@ -35,6 +36,7 @@ type AppConfig interface {
 
 	AuditLogger() AuditLogger
 	AutoPprof() AutoPprof
+	Capabilities() Capabilities
 	Database() Database
 	Feature() Feature
 	FluxMonitor() FluxMonitor
@@ -54,6 +56,7 @@ type AppConfig interface {
 	Threshold() Threshold
 	WebServer() WebServer
 	Tracing() Tracing
+	Telemetry() Telemetry
 }
 
 type DatabaseBackupMode string

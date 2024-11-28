@@ -6,14 +6,25 @@ import (
 	"time"
 
 	"github.com/goplugin/plugin-common/pkg/logger"
+
+	clientMocks "github.com/goplugin/pluginv3.0/v2/common/client/mocks"
 	"github.com/goplugin/pluginv3.0/v2/common/types"
 )
 
 type testNodeConfig struct {
-	pollFailureThreshold uint32
-	pollInterval         time.Duration
-	selectionMode        string
-	syncThreshold        uint32
+	pollFailureThreshold       uint32
+	pollInterval               time.Duration
+	selectionMode              string
+	syncThreshold              uint32
+	nodeIsSyncingEnabled       bool
+	enforceRepeatableRead      bool
+	finalizedBlockPollInterval time.Duration
+	deathDeclarationDelay      time.Duration
+	newHeadsPollInterval       time.Duration
+}
+
+func (n testNodeConfig) NewHeadsPollInterval() time.Duration {
+	return n.newHeadsPollInterval
 }
 
 func (n testNodeConfig) PollFailureThreshold() uint32 {
@@ -32,22 +43,38 @@ func (n testNodeConfig) SyncThreshold() uint32 {
 	return n.syncThreshold
 }
 
+func (n testNodeConfig) NodeIsSyncingEnabled() bool {
+	return n.nodeIsSyncingEnabled
+}
+
+func (n testNodeConfig) FinalizedBlockPollInterval() time.Duration {
+	return n.finalizedBlockPollInterval
+}
+
+func (n testNodeConfig) EnforceRepeatableRead() bool {
+	return n.enforceRepeatableRead
+}
+
+func (n testNodeConfig) DeathDeclarationDelay() time.Duration {
+	return n.deathDeclarationDelay
+}
+
 type testNode struct {
 	*node[types.ID, Head, NodeClient[types.ID, Head]]
 }
 
 type testNodeOpts struct {
-	config              testNodeConfig
-	noNewHeadsThreshold time.Duration
-	lggr                logger.Logger
-	wsuri               url.URL
-	httpuri             *url.URL
-	name                string
-	id                  int32
-	chainID             types.ID
-	nodeOrder           int32
-	rpc                 *mockNodeClient[types.ID, Head]
-	chainFamily         string
+	config      testNodeConfig
+	chainConfig clientMocks.ChainConfig
+	lggr        logger.Logger
+	wsuri       *url.URL
+	httpuri     *url.URL
+	name        string
+	id          int
+	chainID     types.ID
+	nodeOrder   int32
+	rpc         *mockNodeClient[types.ID, Head]
+	chainFamily string
 }
 
 func newTestNode(t *testing.T, opts testNodeOpts) testNode {
@@ -71,7 +98,7 @@ func newTestNode(t *testing.T, opts testNodeOpts) testNode {
 		opts.id = 42
 	}
 
-	nodeI := NewNode[types.ID, Head, NodeClient[types.ID, Head]](opts.config, opts.noNewHeadsThreshold, opts.lggr,
+	nodeI := NewNode[types.ID, Head, NodeClient[types.ID, Head]](opts.config, opts.chainConfig, opts.lggr,
 		opts.wsuri, opts.httpuri, opts.name, opts.id, opts.chainID, opts.nodeOrder, opts.rpc, opts.chainFamily)
 
 	return testNode{

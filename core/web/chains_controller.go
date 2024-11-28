@@ -12,7 +12,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/logger/audit"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
-	"github.com/goplugin/pluginv3.0/v2/core/services/relay"
 )
 
 type ChainsController interface {
@@ -23,7 +22,7 @@ type ChainsController interface {
 }
 
 type chainsController[R jsonapi.EntityNamer] struct {
-	network       relay.Network
+	network       string
 	resourceName  string
 	chainStats    plugin.ChainStatuser
 	errNotEnabled error
@@ -41,7 +40,7 @@ func (e errChainDisabled) Error() string {
 	return fmt.Sprintf("%s is disabled: Set %s=true to enable", e.name, e.tomlKey)
 }
 
-func newChainsController[R jsonapi.EntityNamer](network relay.Network, chainStats plugin.ChainsNodesStatuser, errNotEnabled error,
+func newChainsController[R jsonapi.EntityNamer](network string, chainStats plugin.ChainsNodesStatuser, errNotEnabled error,
 	newResource func(types.ChainStatus) R, lggr logger.Logger, auditLogger audit.AuditLogger) *chainsController[R] {
 	return &chainsController[R]{
 		network:       network,
@@ -59,7 +58,7 @@ func (cc *chainsController[R]) Index(c *gin.Context, size, page, offset int) {
 		jsonAPIError(c, http.StatusBadRequest, cc.errNotEnabled)
 		return
 	}
-	chains, count, err := cc.chainStats.ChainStatuses(c, offset, size)
+	chains, count, err := cc.chainStats.ChainStatuses(c.Request.Context(), offset, size)
 
 	if err != nil {
 		jsonAPIError(c, http.StatusBadRequest, err)
@@ -79,8 +78,8 @@ func (cc *chainsController[R]) Show(c *gin.Context) {
 		jsonAPIError(c, http.StatusBadRequest, cc.errNotEnabled)
 		return
 	}
-	relayID := relay.ID{Network: cc.network, ChainID: c.Param("ID")}
-	chain, err := cc.chainStats.ChainStatus(c, relayID)
+	relayID := types.RelayID{Network: cc.network, ChainID: c.Param("ID")}
+	chain, err := cc.chainStats.ChainStatus(c.Request.Context(), relayID)
 	if err != nil {
 		jsonAPIError(c, http.StatusBadRequest, err)
 		return

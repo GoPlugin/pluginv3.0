@@ -1,3 +1,6 @@
+ok Cosmos.Foo.Chain
+ok Cosmos.Foo.Relayer
+ok Cosmos.Foo.Txm
 ok EVM.0
 ok EVM.0.BalanceMonitor
 ok EVM.0.HeadBroadcaster
@@ -5,16 +8,25 @@ ok EVM.0.HeadTracker
 !  EVM.0.HeadTracker.HeadListener
 	Listener is not connected
 ok EVM.0.LogBroadcaster
+ok EVM.0.Relayer
 ok EVM.0.Txm
 ok EVM.0.Txm.BlockHistoryEstimator
 ok EVM.0.Txm.Broadcaster
 ok EVM.0.Txm.Confirmer
+ok EVM.0.Txm.Finalizer
 ok EVM.0.Txm.WrappedEvmEstimator
+ok HeadReporter
 ok JobSpawner
 ok Mailbox.Monitor
 ok Mercury.WSRPCPool
 ok Mercury.WSRPCPool.CacheSet
 ok PipelineORM
 ok PipelineRunner
-ok PromReporter
+ok PipelineRunner.BridgeCache
+ok Solana.Bar.Chain
+ok Solana.Bar.Relayer
+ok Solana.Bar.Txm
+ok StarkNet.Baz.Chain
+ok StarkNet.Baz.Relayer
+ok StarkNet.Baz.Txm
 ok TelemetryManager

@@ -14,11 +14,11 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goplugin/pluginv3.0/v2/core"
-	"github.com/goplugin/pluginv3.0/v2/core/config/env"
-	"github.com/goplugin/pluginv3.0/v2/core/static"
-	"github.com/goplugin/pluginv3.0/v2/internal/testdb"
-	"github.com/goplugin/pluginv3.0/v2/tools/txtar"
+	"github.com/goplugin/pluginv3.0/core"
+	"github.com/goplugin/pluginv3.0/core/config/env"
+	"github.com/goplugin/pluginv3.0/core/static"
+	"github.com/goplugin/pluginv3.0/internal/testdb"
+	"github.com/goplugin/pluginv3.0/tools/txtar"
 )
 
 // special files can be included to allocate additional test resources
@@ -42,7 +42,14 @@ func TestMain(m *testing.M) {
 	}))
 }
 
+// TestScripts walks through the testdata/scripts directory and runs all tests that end in
+// .txt or .txtar with the testscripts library. To run an individual test, specify it in the
+// -run param of go test without the txtar or txt suffix, like so:
+// go test . -run TestScripts/node/validate/default
 func TestScripts(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping testscript")
+	}
 	t.Parallel()
 
 	visitor := txtar.NewDirVisitor("testdata/scripts", txtar.Recurse, func(path string) error {
@@ -53,7 +60,7 @@ func TestScripts(t *testing.T) {
 				Dir:             path,
 				Setup:           commonEnv,
 				ContinueOnError: true,
-				//UpdateScripts:   true, // uncomment to update golden files
+				// UpdateScripts:   true, // uncomment to update golden files
 			})
 		})
 		return nil

@@ -10,8 +10,8 @@ var ErrEVMNotEnabled = errChainDisabled{name: "EVM", tomlKey: "EVM.Enabled"}
 
 func NewEVMChainsController(app plugin.Application) ChainsController {
 	return newChainsController[presenters.EVMChainResource](
-		relay.EVM,
-		app.GetRelayers().List(plugin.FilterRelayersByType(relay.EVM)),
+		relay.NetworkEVM,
+		app.GetRelayers().List(plugin.FilterRelayersByType(relay.NetworkEVM)),
 		ErrEVMNotEnabled,
 		presenters.NewEVMChainResource,
 		app.GetLogger(),

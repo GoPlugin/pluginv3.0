@@ -6,12 +6,17 @@ FinalityTagEnabled = false
 LogBackfillBatchSize = 1000
 LogPollInterval = '15s'
 LogKeepBlocksDepth = 100000
-MinContractPayment = '.00001 pli'
+LogPrunePageSize = 0
+BackupLogPollerBlockDelay = 100
+MinContractPayment = '.00001 link'
 MinIncomingConfirmations = 3
 NonceAutoSync = true
 NoNewHeadsThreshold = '3m'
 RPCDefaultBatchSize = 250
 RPCBlockQueryDelay = 1
+FinalizedBlockOffset = 0
+NoNewFinalizedHeadsThreshold = '0'
+LogBroadcasterEnabled = true
 
 [Transactions]
 ForwardersEnabled = false
@@ -20,6 +25,9 @@ MaxQueued = 250
 ReaperInterval = '1h'
 ReaperThreshold = '168h'
 ResendAfterThreshold = '1m'
+
+[Transactions.AutoPurge]
+Enabled = false
 
 [BalanceMonitor]
 Enabled = true
@@ -40,6 +48,7 @@ EIP1559DynamicFees = false
 FeeCapDefault = '100 gwei'
 TipCapDefault = '1'
 TipCapMin = '1'
+EstimateLimit = false
 
 [GasEstimator.BlockHistory]
 BatchSize = 25
@@ -48,10 +57,16 @@ CheckInclusionBlocks = 12
 CheckInclusionPercentile = 90
 TransactionPercentile = 60
 
+[GasEstimator.FeeHistory]
+CacheTimeout = '10s'
+
 [HeadTracker]
 HistoryDepth = 100
 MaxBufferSize = 3
 SamplingInterval = '1s'
+FinalityTagBypass = true
+MaxAllowedFinalityDepth = 10000
+PersistenceEnabled = true
 
 [NodePool]
 PollFailureThreshold = 5
@@ -59,6 +74,11 @@ PollInterval = '10s'
 SelectionMode = 'HighestHead'
 SyncThreshold = 5
 LeaseDuration = '0s'
+NodeIsSyncingEnabled = false
+FinalizedBlockPollInterval = '5s'
+EnforceRepeatableRead = false
+DeathDeclarationDelay = '10s'
+NewHeadsPollInterval = '0s'
 
 [OCR]
 ContractConfirmations = 4
@@ -70,3 +90,6 @@ ObservationGracePeriod = '1s'
 
 [OCR2.Automation]
 GasLimit = 5400000
+
+[Workflow]
+GasLimitDefault = 400_000

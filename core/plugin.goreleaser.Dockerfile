@@ -1,7 +1,7 @@
 # This will replace plugin.Dockerfile once all builds are migrated to goreleaser
 
 # Final image: ubuntu with plugin binary
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 ARG PLUGIN_USER=root
 ARG TARGETARCH
@@ -11,12 +11,33 @@ RUN apt-get update && apt-get install -y ca-certificates gnupg lsb-release curl
 # Install Postgres for CLI tools, needed specifically for DB backups
 RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
   && echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" |tee /etc/apt/sources.list.d/pgdg.list \
-  && apt-get update && apt-get install -y postgresql-client-15 \
-  && apt-get clean all
+  && apt-get update && apt-get install -y postgresql-client-16 \
+  && apt-get clean all \
+  && rm -rf /var/lib/apt/lists/*
 
-COPY . /usr/local/bin/
+COPY ./plugin /usr/local/bin/
+
 # Copy native libs if cgo is enabled
-COPY ./tmp/linux_${TARGETARCH}/libs /usr/local/bin/libs
+COPY ./tmp/libs /usr/local/bin/libs
+
+# Copy plugins if exist and enable them
+# https://stackoverflow.com/questions/70096208/dockerfile-copy-folder-if-it-exists-conditional-copy/70096420#70096420
+COPY ./tm[p]/plugin[s]/ /usr/local/bin/
+
+# Allow individual plugins to be enabled by supplying their path 
+ARG CL_MEDIAN_CMD
+ARG CL_MERCURY_CMD
+ARG CL_SOLANA_CMD
+ARG CL_STARKNET_CMD
+ENV CL_MEDIAN_CMD=${CL_MEDIAN_CMD} \
+  CL_MERCURY_CMD=${CL_MERCURY_CMD} \
+  CL_SOLANA_CMD=${CL_SOLANA_CMD} \
+  CL_STARKNET_CMD=${CL_STARKNET_CMD}
+
+# CCIP specific
+COPY ./cci[p]/confi[g] /plugin/ccip-config
+ARG CL_CHAIN_DEFAULTS
+ENV CL_CHAIN_DEFAULTS=${CL_CHAIN_DEFAULTS}
 
 RUN if [ ${PLUGIN_USER} != root ]; then \
   useradd --uid 14933 --create-home ${PLUGIN_USER}; \

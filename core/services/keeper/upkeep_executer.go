@@ -23,7 +23,6 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/config"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"
 )
 
@@ -60,11 +59,11 @@ type UpkeepExecuter struct {
 	ethClient              evmclient.Client
 	config                 UpkeepExecuterConfig
 	executionQueue         chan struct{}
-	headBroadcaster        httypes.HeadBroadcasterRegistry
+	headBroadcaster        httypes.HeadBroadcaster
 	gasEstimator           gas.EvmFeeEstimator
 	job                    job.Job
 	mailbox                *mailbox.Mailbox[*evmtypes.Head]
-	orm                    ORM
+	orm                    *ORM
 	pr                     pipeline.Runner
 	logger                 logger.Logger
 	wgDone                 sync.WaitGroup
@@ -74,7 +73,7 @@ type UpkeepExecuter struct {
 // NewUpkeepExecuter is the constructor of UpkeepExecuter
 func NewUpkeepExecuter(
 	job job.Job,
-	orm ORM,
+	orm *ORM,
 	pr pipeline.Runner,
 	ethClient evmclient.Client,
 	headBroadcaster httypes.HeadBroadcaster,
@@ -133,17 +132,19 @@ func (ex *UpkeepExecuter) OnNewLongestChain(_ context.Context, head *evmtypes.He
 
 func (ex *UpkeepExecuter) run() {
 	defer ex.wgDone.Done()
+	ctx, cancel := ex.chStop.NewCtx()
+	defer cancel()
 	for {
 		select {
 		case <-ex.chStop:
 			return
 		case <-ex.mailbox.Notify():
-			ex.processActiveUpkeeps()
+			ex.processActiveUpkeeps(ctx)
 		}
 	}
 }
 
-func (ex *UpkeepExecuter) processActiveUpkeeps() {
+func (ex *UpkeepExecuter) processActiveUpkeeps(ctx context.Context) {
 	// Keepers could miss their turn in the turn taking algo if they are too overloaded
 	// with work because processActiveUpkeeps() blocks
 	head, exists := ex.mailbox.Retrieve()
@@ -154,19 +155,20 @@ func (ex *UpkeepExecuter) processActiveUpkeeps() {
 
 	ex.logger.Debugw("checking active upkeeps", "blockheight", head.Number)
 
-	registry, err := ex.orm.RegistryByContractAddress(ex.job.KeeperSpec.ContractAddress)
+	registry, err := ex.orm.RegistryByContractAddress(ctx, ex.job.KeeperSpec.ContractAddress)
 	if err != nil {
 		ex.logger.Error(errors.Wrap(err, "unable to load registry"))
 		return
 	}
 
 	var activeUpkeeps []UpkeepRegistration
-	turnBinary, err2 := ex.turnBlockHashBinary(registry, head, ex.config.TurnLookBack())
+	turnBinary, err2 := ex.turnBlockHashBinary(ctx, registry, head, ex.config.TurnLookBack())
 	if err2 != nil {
 		ex.logger.Error(errors.Wrap(err2, "unable to get turn block number hash"))
 		return
 	}
 	activeUpkeeps, err2 = ex.orm.EligibleUpkeepsForRegistry(
+		ctx,
 		ex.job.KeeperSpec.ContractAddress,
 		head.Number,
 		ex.config.MaxGracePeriod(),
@@ -225,14 +227,14 @@ func (ex *UpkeepExecuter) execute(upkeep UpkeepRegistration, head *evmtypes.Head
 	ex.job.PipelineSpec.DotDagSource = pipeline.KeepersObservationSource
 	run := pipeline.NewRun(*ex.job.PipelineSpec, vars)
 
-	if _, err := ex.pr.Run(ctxService, run, svcLogger, true, nil); err != nil {
+	if _, err := ex.pr.Run(ctxService, run, true, nil); err != nil {
 		svcLogger.Error(errors.Wrap(err, "failed executing run"))
 		return
 	}
 
 	// Only after task runs where a tx was broadcast
 	if run.State == pipeline.RunStatusCompleted {
-		rowsAffected, err := ex.orm.SetLastRunInfoForUpkeepOnJob(ex.job.ID, upkeep.UpkeepID, head.Number, upkeep.Registry.FromAddress, pg.WithParentCtx(ctxService))
+		rowsAffected, err := ex.orm.SetLastRunInfoForUpkeepOnJob(ctxService, ex.job.ID, upkeep.UpkeepID, head.Number, upkeep.Registry.FromAddress)
 		if err != nil {
 			svcLogger.Error(errors.Wrap(err, "failed to set last run height for upkeep"))
 		}
@@ -245,9 +247,9 @@ func (ex *UpkeepExecuter) execute(upkeep UpkeepRegistration, head *evmtypes.Head
 	}
 }
 
-func (ex *UpkeepExecuter) turnBlockHashBinary(registry Registry, head *evmtypes.Head, lookback int64) (string, error) {
+func (ex *UpkeepExecuter) turnBlockHashBinary(ctx context.Context, registry Registry, head *evmtypes.Head, lookback int64) (string, error) {
 	turnBlock := head.Number - (head.Number % int64(registry.BlockCountPerTurn)) - lookback
-	block, err := ex.ethClient.HeadByNumber(context.Background(), big.NewInt(turnBlock))
+	block, err := ex.ethClient.HeadByNumber(ctx, big.NewInt(turnBlock))
 	if err != nil {
 		return "", err
 	}

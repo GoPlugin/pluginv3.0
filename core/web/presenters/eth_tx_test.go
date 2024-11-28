@@ -26,7 +26,7 @@ func TestEthTxResource(t *testing.T) {
 		EncodedPayload: []byte(`{"data": "is wilding out"}`),
 		FromAddress:    common.HexToAddress("0x1"),
 		ToAddress:      common.HexToAddress("0x2"),
-		FeeLimit:       uint32(5000),
+		FeeLimit:       uint64(5000),
 		ChainID:        chainID,
 		State:          txmgrcommon.TxConfirmed,
 		Value:          big.Int(assets.NewEthValue(1)),
@@ -73,7 +73,7 @@ func TestEthTxResource(t *testing.T) {
 	txa := txmgr.TxAttempt{
 		Tx:                      tx,
 		Hash:                    hash,
-		TxFee:                   gas.EvmFee{Legacy: gasPrice},
+		TxFee:                   gas.EvmFee{GasPrice: gasPrice},
 		SignedRawTx:             hexutil.MustDecode("0xcafe"),
 		BroadcastBeforeBlockNum: &broadcastBefore,
 	}

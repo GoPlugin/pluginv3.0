@@ -2,6 +2,33 @@
   "data": [
     {
       "type": "checks",
+      "id": "Cosmos.Foo.Chain",
+      "attributes": {
+        "name": "Cosmos.Foo.Chain",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "Cosmos.Foo.Relayer",
+      "attributes": {
+        "name": "Cosmos.Foo.Relayer",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "Cosmos.Foo.Txm",
+      "attributes": {
+        "name": "Cosmos.Foo.Txm",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
       "id": "EVM.0",
       "attributes": {
         "name": "EVM.0",
@@ -56,6 +83,15 @@
     },
     {
       "type": "checks",
+      "id": "EVM.0.Relayer",
+      "attributes": {
+        "name": "EVM.0.Relayer",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
       "id": "EVM.0.Txm",
       "attributes": {
         "name": "EVM.0.Txm",
@@ -92,9 +128,27 @@
     },
     {
       "type": "checks",
+      "id": "EVM.0.Txm.Finalizer",
+      "attributes": {
+        "name": "EVM.0.Txm.Finalizer",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
       "id": "EVM.0.Txm.WrappedEvmEstimator",
       "attributes": {
         "name": "EVM.0.Txm.WrappedEvmEstimator",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "HeadReporter",
+      "attributes": {
+        "name": "HeadReporter",
         "status": "passing",
         "output": ""
       }
@@ -155,9 +209,63 @@
     },
     {
       "type": "checks",
-      "id": "PromReporter",
+      "id": "PipelineRunner.BridgeCache",
       "attributes": {
-        "name": "PromReporter",
+        "name": "PipelineRunner.BridgeCache",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "Solana.Bar.Chain",
+      "attributes": {
+        "name": "Solana.Bar.Chain",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "Solana.Bar.Relayer",
+      "attributes": {
+        "name": "Solana.Bar.Relayer",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "Solana.Bar.Txm",
+      "attributes": {
+        "name": "Solana.Bar.Txm",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "StarkNet.Baz.Chain",
+      "attributes": {
+        "name": "StarkNet.Baz.Chain",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "StarkNet.Baz.Relayer",
+      "attributes": {
+        "name": "StarkNet.Baz.Relayer",
+        "status": "passing",
+        "output": ""
+      }
+    },
+    {
+      "type": "checks",
+      "id": "StarkNet.Baz.Txm",
+      "attributes": {
+        "name": "StarkNet.Baz.Txm",
         "status": "passing",
         "output": ""
       }

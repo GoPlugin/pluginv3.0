@@ -479,7 +479,23 @@ func NewRedialBackoff() backoff.Backoff {
 		Max:    15 * time.Second,
 		Jitter: true,
 	}
+}
 
+func NewHTTPFetchBackoff() backoff.Backoff {
+	return backoff.Backoff{
+		Min:    100 * time.Millisecond,
+		Max:    15 * time.Second,
+		Jitter: true,
+	}
+}
+
+// NewDBBackoff is a standard backoff to use for database connection issues
+func NewDBBackoff() backoff.Backoff {
+	return backoff.Backoff{
+		Min:    100 * time.Millisecond,
+		Max:    5 * time.Second,
+		Jitter: true,
+	}
 }
 
 // KeyedMutex allows to lock based on particular values

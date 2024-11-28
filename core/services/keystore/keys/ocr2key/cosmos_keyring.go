@@ -7,12 +7,13 @@ import (
 
 	"github.com/hdevalence/ed25519consensus"
 	"github.com/pkg/errors"
-	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
-	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
-	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 	"golang.org/x/crypto/blake2s"
 
 	"github.com/goplugin/pluginv3.0/v2/core/utils"
+
+	"github.com/goplugin/plugin-libocr/offchainreporting2/types"
+	"github.com/goplugin/plugin-libocr/offchainreporting2plus/chains/evmutil"
+	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting2plus/types"
 )
 
 var _ ocrtypes.OnchainKeyring = &cosmosKeyring{}
@@ -108,6 +109,10 @@ func (ckr *cosmosKeyring) Unmarshal(in []byte) error {
 	}
 	privKey := ed25519.NewKeyFromSeed(in)
 	ckr.privKey = privKey
-	ckr.pubKey = privKey.Public().(ed25519.PublicKey)
+	pubKey, ok := privKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return errors.New("failed to cast public key to ed25519.PublicKey")
+	}
+	ckr.pubKey = pubKey
 	return nil
 }

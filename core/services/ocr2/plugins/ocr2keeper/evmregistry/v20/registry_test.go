@@ -12,7 +12,7 @@ import (
 
 	ocr2keepers "github.com/goplugin/plugin-automation/pkg/v2"
 
-	commonmocks "github.com/goplugin/pluginv3.0/v2/common/mocks"
+	htmocks "github.com/goplugin/pluginv3.0/v2/common/headtracker/mocks"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller/mocks"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
@@ -46,7 +46,7 @@ func TestGetActiveUpkeepKeys(t *testing.T) {
 				actives[id] = activeUpkeep{ID: idNum}
 			}
 
-			mht := commonmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
+			mht := htmocks.NewHeadTracker[*evmtypes.Head, common.Hash](t)
 
 			rg := &EvmRegistry{
 				HeadProvider: HeadProvider{
@@ -186,6 +186,7 @@ func TestPollLogs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
+			ctx := testutils.Context(t)
 			mp := new(mocks.LogPoller)
 
 			if test.LatestBlock != nil {
@@ -195,7 +196,7 @@ func TestPollLogs(t *testing.T) {
 
 			if test.LogsWithSigs != nil {
 				fc := test.LogsWithSigs
-				mp.On("LogsWithSigs", fc.InputStart, fc.InputEnd, upkeepStateEvents, test.Address, mock.Anything).Return(fc.OutputLogs, fc.OutputErr)
+				mp.On("LogsWithSigs", mock.Anything, fc.InputStart, fc.InputEnd, upkeepStateEvents, test.Address).Return(fc.OutputLogs, fc.OutputErr)
 			}
 
 			rg := &EvmRegistry{
@@ -205,7 +206,7 @@ func TestPollLogs(t *testing.T) {
 				chLog:         make(chan logpoller.Log, 10),
 			}
 
-			err := rg.pollLogs()
+			err := rg.pollLogs(ctx)
 
 			assert.Equal(t, test.ExpectedLastPoll, rg.lastPollBlock)
 			if test.ExpectedErr != nil {

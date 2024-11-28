@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	tc "github.com/goplugin/pluginv3.0/integration-tests/testconfig"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lib/pq"
 	"github.com/rs/zerolog"
@@ -18,14 +20,68 @@ import (
 	ocr2keepers20config "github.com/goplugin/plugin-automation/pkg/v2/config"
 	ocr2keepers30config "github.com/goplugin/plugin-automation/pkg/v3/config"
 
-	"github.com/goplugin/pluginv3.0/v2/core/services/job"
-	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/chaintype"
-	"github.com/goplugin/pluginv3.0/v2/core/store/models"
-
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts/ethereum"
+	"github.com/goplugin/pluginv3.0/v2/core/services/job"
+	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/chaintype"
+	"github.com/goplugin/pluginv3.0/v2/core/store/models"
 )
+
+func ReadRegistryConfig(c tc.AutomationTestConfig) contracts.KeeperRegistrySettings {
+	registrySettings := c.GetAutomationConfig().AutomationConfig.RegistrySettings
+	return contracts.KeeperRegistrySettings{
+		PaymentPremiumPPB:    *registrySettings.PaymentPremiumPPB,
+		FlatFeeMicroPLI:     *registrySettings.FlatFeeMicroPLI,
+		CheckGasLimit:        *registrySettings.CheckGasLimit,
+		StalenessSeconds:     registrySettings.StalenessSeconds,
+		GasCeilingMultiplier: *registrySettings.GasCeilingMultiplier,
+		MinUpkeepSpend:       registrySettings.MinUpkeepSpend,
+		MaxPerformGas:        *registrySettings.MaxPerformGas,
+		FallbackGasPrice:     registrySettings.FallbackGasPrice,
+		FallbackLinkPrice:    registrySettings.FallbackLinkPrice,
+		FallbackNativePrice:  registrySettings.FallbackNativePrice,
+		MaxCheckDataSize:     *registrySettings.MaxCheckDataSize,
+		MaxPerformDataSize:   *registrySettings.MaxPerformDataSize,
+		MaxRevertDataSize:    *registrySettings.MaxRevertDataSize,
+	}
+}
+
+func ReadPluginConfig(c tc.AutomationTestConfig) ocr2keepers30config.OffchainConfig {
+	plCfg := c.GetAutomationConfig().AutomationConfig.PluginConfig
+	return ocr2keepers30config.OffchainConfig{
+		TargetProbability:    *plCfg.TargetProbability,
+		TargetInRounds:       *plCfg.TargetInRounds,
+		PerformLockoutWindow: *plCfg.PerformLockoutWindow,
+		GasLimitPerReport:    *plCfg.GasLimitPerReport,
+		GasOverheadPerUpkeep: *plCfg.GasOverheadPerUpkeep,
+		MinConfirmations:     *plCfg.MinConfirmations,
+		MaxUpkeepBatchSize:   *plCfg.MaxUpkeepBatchSize,
+		LogProviderConfig: ocr2keepers30config.LogProviderConfig{
+			BlockRate: *plCfg.LogProviderConfig.BlockRate,
+			LogLimit:  *plCfg.LogProviderConfig.LogLimit,
+		},
+	}
+}
+
+func ReadPublicConfig(c tc.AutomationTestConfig) ocr3.PublicConfig {
+	pubCfg := c.GetAutomationConfig().AutomationConfig.PublicConfig
+	return ocr3.PublicConfig{
+		DeltaProgress:                           *pubCfg.DeltaProgress,
+		DeltaResend:                             *pubCfg.DeltaResend,
+		DeltaInitial:                            *pubCfg.DeltaInitial,
+		DeltaRound:                              *pubCfg.DeltaRound,
+		DeltaGrace:                              *pubCfg.DeltaGrace,
+		DeltaCertifiedCommitRequest:             *pubCfg.DeltaCertifiedCommitRequest,
+		DeltaStage:                              *pubCfg.DeltaStage,
+		RMax:                                    *pubCfg.RMax,
+		MaxDurationQuery:                        *pubCfg.MaxDurationQuery,
+		MaxDurationObservation:                  *pubCfg.MaxDurationObservation,
+		MaxDurationShouldAcceptAttestedReport:   *pubCfg.MaxDurationShouldAcceptAttestedReport,
+		MaxDurationShouldTransmitAcceptedReport: *pubCfg.MaxDurationShouldTransmitAcceptedReport,
+		F:                                       *pubCfg.F,
+	}
+}
 
 func BuildAutoOCR2ConfigVarsLocal(
 	l zerolog.Logger,
@@ -34,8 +90,10 @@ func BuildAutoOCR2ConfigVarsLocal(
 	registrar string,
 	deltaStage time.Duration,
 	registryOwnerAddress common.Address,
+	chainModuleAddress common.Address,
+	reorgProtectionEnabled bool,
 ) (contracts.OCRv2Config, error) {
-	return BuildAutoOCR2ConfigVarsWithKeyIndexLocal(l, pluginNodes, registryConfig, registrar, deltaStage, 0, registryOwnerAddress)
+	return BuildAutoOCR2ConfigVarsWithKeyIndexLocal(l, pluginNodes, registryConfig, registrar, deltaStage, 0, registryOwnerAddress, chainModuleAddress, reorgProtectionEnabled)
 }
 
 func BuildAutoOCR2ConfigVarsWithKeyIndexLocal(
@@ -46,6 +104,8 @@ func BuildAutoOCR2ConfigVarsWithKeyIndexLocal(
 	deltaStage time.Duration,
 	keyIndex int,
 	registryOwnerAddress common.Address,
+	chainModuleAddress common.Address,
+	reorgProtectionEnabled bool,
 ) (contracts.OCRv2Config, error) {
 	S, oracleIdentities, err := GetOracleIdentitiesWithKeyIndexLocal(pluginNodes, keyIndex)
 	if err != nil {
@@ -59,7 +119,7 @@ func BuildAutoOCR2ConfigVarsWithKeyIndexLocal(
 	var offchainConfigVersion uint64
 	var offchainConfig []byte
 
-	if registryConfig.RegistryVersion == ethereum.RegistryVersion_2_1 {
+	if registryConfig.RegistryVersion == ethereum.RegistryVersion_2_1 || registryConfig.RegistryVersion == ethereum.RegistryVersion_2_2 {
 		offC, err = json.Marshal(ocr2keepers30config.OffchainConfig{
 			TargetProbability:    "0.999",
 			TargetInRounds:       1,
@@ -85,6 +145,7 @@ func BuildAutoOCR2ConfigVarsWithKeyIndexLocal(
 			S,                     // s []int,
 			oracleIdentities,      // oracles []OracleIdentityExtra,
 			offC,                  // reportingPluginConfig []byte,
+			nil,
 			20*time.Millisecond,   // maxDurationQuery time.Duration,
 			20*time.Millisecond,   // maxDurationObservation time.Duration, // good to here
 			1200*time.Millisecond, // maxDurationShouldAcceptAttestedReport time.Duration,
@@ -120,6 +181,7 @@ func BuildAutoOCR2ConfigVarsWithKeyIndexLocal(
 			S,                     // s []int,
 			oracleIdentities,      // oracles []OracleIdentityExtra,
 			offC,                  // reportingPluginConfig []byte,
+			nil,
 			20*time.Millisecond,   // maxDurationQuery time.Duration,
 			20*time.Millisecond,   // maxDurationObservation time.Duration,
 			1200*time.Millisecond, // maxDurationReport time.Duration,
@@ -149,20 +211,24 @@ func BuildAutoOCR2ConfigVarsWithKeyIndexLocal(
 		transmitters = append(transmitters, common.HexToAddress(string(transmitter)))
 	}
 
-	onchainConfig, err := registryConfig.EncodeOnChainConfig(registrar, registryOwnerAddress)
-	if err != nil {
-		return contracts.OCRv2Config{}, err
-	}
-
-	l.Info().Msg("Done building OCR config")
-	return contracts.OCRv2Config{
+	ocrConfig := contracts.OCRv2Config{
 		Signers:               signers,
 		Transmitters:          transmitters,
 		F:                     f,
-		OnchainConfig:         onchainConfig,
 		OffchainConfigVersion: offchainConfigVersion,
 		OffchainConfig:        offchainConfig,
-	}, nil
+	}
+
+	if registryConfig.RegistryVersion == ethereum.RegistryVersion_2_0 {
+		ocrConfig.OnchainConfig = registryConfig.Encode20OnchainConfig(registrar)
+	} else if registryConfig.RegistryVersion == ethereum.RegistryVersion_2_1 {
+		ocrConfig.TypedOnchainConfig21 = registryConfig.Create21OnchainConfig(registrar, registryOwnerAddress)
+	} else if registryConfig.RegistryVersion == ethereum.RegistryVersion_2_2 {
+		ocrConfig.TypedOnchainConfig22 = registryConfig.Create22OnchainConfig(registrar, registryOwnerAddress, chainModuleAddress, reorgProtectionEnabled)
+	}
+
+	l.Info().Msg("Done building OCR config")
+	return ocrConfig, nil
 }
 
 // CreateOCRKeeperJobs bootstraps the first node and to the other nodes sends ocr jobs
@@ -183,12 +249,14 @@ func CreateOCRKeeperJobsLocal(
 	bootstrapP2PId := bootstrapP2PIds.Data[0].Attributes.PeerID
 
 	var contractVersion string
-	if registryVersion == ethereum.RegistryVersion_2_1 {
+	if registryVersion == ethereum.RegistryVersion_2_2 {
+		contractVersion = "v2.1+"
+	} else if registryVersion == ethereum.RegistryVersion_2_1 {
 		contractVersion = "v2.1"
 	} else if registryVersion == ethereum.RegistryVersion_2_0 {
 		contractVersion = "v2.0"
 	} else {
-		return fmt.Errorf("v2.0 and v2.1 are the only supported versions")
+		return fmt.Errorf("v2.0, v2.1, and v2.2 are the only supported versions")
 	}
 
 	bootstrapSpec := &client.OCR2TaskJobSpec{

@@ -6,21 +6,23 @@ import (
 
 	"github.com/kylelemons/godebug/diff"
 	gotoml "github.com/pelletier/go-toml/v2"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	coscfg "github.com/goplugin/plugin-cosmos/pkg/cosmos/config"
-	"github.com/goplugin/plugin-solana/pkg/solana"
+	solcfg "github.com/goplugin/plugin-solana/pkg/solana/config"
 	stkcfg "github.com/goplugin/plugin-starknet/relayer/pkg/plugin/config"
 
 	"github.com/goplugin/plugin-common/pkg/config"
+
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/assets"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/chaintype"
 	evmcfg "github.com/goplugin/pluginv3.0/v2/core/chains/evm/config/toml"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 	"github.com/goplugin/pluginv3.0/v2/core/config/docs"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin/cfgtest"
-	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ethkey"
 )
 
 func TestDoc(t *testing.T) {
@@ -31,7 +33,7 @@ func TestDoc(t *testing.T) {
 	var strict *gotoml.StrictMissingError
 	if err != nil && strings.Contains(err.Error(), "undecoded keys: ") {
 		t.Errorf("Docs contain extra fields: %v", err)
-	} else if errors.As(err, &strict) {
+	} else if pkgerrors.As(err, &strict) {
 		t.Fatal("StrictMissingError:", strict.String())
 	} else {
 		require.NoError(t, err)
@@ -46,12 +48,12 @@ func TestDoc(t *testing.T) {
 		fallbackDefaults := evmcfg.Defaults(nil)
 		docDefaults := defaults.EVM[0].Chain
 
-		require.Equal(t, "", *docDefaults.ChainType)
+		require.Equal(t, chaintype.ChainType(""), docDefaults.ChainType.ChainType())
 		docDefaults.ChainType = nil
 
 		// clean up KeySpecific as a special case
 		require.Equal(t, 1, len(docDefaults.KeySpecific))
-		ks := evmcfg.KeySpecific{Key: new(ethkey.EIP55Address),
+		ks := evmcfg.KeySpecific{Key: new(types.EIP55Address),
 			GasEstimator: evmcfg.KeySpecificGasEstimator{PriceMax: new(assets.Wei)}}
 		require.Equal(t, ks, docDefaults.KeySpecific[0])
 		docDefaults.KeySpecific = nil
@@ -80,10 +82,23 @@ func TestDoc(t *testing.T) {
 		docDefaults.FlagsContractAddress = nil
 		docDefaults.LinkContractAddress = nil
 		docDefaults.OperatorFactoryAddress = nil
-		require.Empty(t, docDefaults.ChainWriter.FromAddress)
-		require.Empty(t, docDefaults.ChainWriter.ForwarderAddress)
-		docDefaults.ChainWriter.FromAddress = nil
-		docDefaults.ChainWriter.ForwarderAddress = nil
+		require.Empty(t, docDefaults.Workflow.FromAddress)
+		require.Empty(t, docDefaults.Workflow.ForwarderAddress)
+		gasLimitDefault := uint64(400_000)
+		require.Equal(t, &gasLimitDefault, docDefaults.Workflow.GasLimitDefault)
+
+		docDefaults.Workflow.FromAddress = nil
+		docDefaults.Workflow.ForwarderAddress = nil
+		docDefaults.Workflow.GasLimitDefault = &gasLimitDefault
+		docDefaults.NodePool.Errors = evmcfg.ClientErrors{}
+
+		// Transactions.AutoPurge configs are only set if the feature is enabled
+		docDefaults.Transactions.AutoPurge.DetectionApiUrl = nil
+		docDefaults.Transactions.AutoPurge.Threshold = nil
+		docDefaults.Transactions.AutoPurge.MinAttempts = nil
+
+		// GasEstimator.DAOracle.OracleAddress is only set if DA oracle config is used
+		docDefaults.GasEstimator.DAOracle.OracleAddress = nil
 
 		assertTOML(t, fallbackDefaults, docDefaults)
 	})
@@ -96,7 +111,7 @@ func TestDoc(t *testing.T) {
 	})
 
 	t.Run("Solana", func(t *testing.T) {
-		var fallbackDefaults solana.TOMLConfig
+		var fallbackDefaults solcfg.TOMLConfig
 		fallbackDefaults.SetDefaults()
 
 		assertTOML(t, fallbackDefaults.Chain, defaults.Solana[0].Chain)

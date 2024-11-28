@@ -9,10 +9,10 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/synchronization"
 	"github.com/goplugin/pluginv3.0/v2/core/services/telemetry"
 
-	"github.com/goplugin/plugin-common/pkg/types"
+	"github.com/goplugin/plugin-common/pkg/types/core"
 )
 
-var _ types.TelemetryService = (*TelemetryAdapter)(nil)
+var _ core.TelemetryService = (*TelemetryAdapter)(nil)
 
 type TelemetryAdapter struct {
 	endpointGenerator telemetry.MonitoringEndpointGenerator

@@ -6,14 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-	"github.com/goplugin/plugin-testing-framework/docker/test_env"
+	"github.com/goplugin/plugin-testing-framework/lib/docker/test_env"
 
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
@@ -23,32 +20,6 @@ import (
 	These methods should be cleaned merged after we decouple PluginClient and PluginK8sClient
 	Please, use them while refactoring other tests to local docker env
 */
-
-// FundPluginNodesLocal will fund all the provided Plugin nodes with a set amount of native currency
-func FundPluginNodesLocal(
-	nodes []*client.PluginClient,
-	client blockchain.EVMClient,
-	amount *big.Float,
-) error {
-	for _, cl := range nodes {
-		toAddress, err := cl.PrimaryEthAddress()
-		if err != nil {
-			return err
-		}
-		toAddr := common.HexToAddress(toAddress)
-		gasEstimates, err := client.EstimateGas(ethereum.CallMsg{
-			To: &toAddr,
-		})
-		if err != nil {
-			return err
-		}
-		err = client.Fund(toAddress, amount, gasEstimates)
-		if err != nil {
-			return err
-		}
-	}
-	return client.WaitForEvents()
-}
 
 func PluginNodeAddressesLocal(nodes []*client.PluginClient) ([]common.Address, error) {
 	addresses := make([]common.Address, 0)
@@ -60,84 +31,6 @@ func PluginNodeAddressesLocal(nodes []*client.PluginClient) ([]common.Address, e
 		addresses = append(addresses, common.HexToAddress(primaryAddress))
 	}
 	return addresses, nil
-}
-
-func DeployOCRContractsLocal(
-	numberOfContracts int,
-	linkTokenContract contracts.LinkToken,
-	contractDeployer contracts.ContractDeployer,
-	workerNodes []*client.PluginClient,
-	client blockchain.EVMClient,
-) ([]contracts.OffchainAggregator, error) {
-	// Deploy contracts
-	var ocrInstances []contracts.OffchainAggregator
-	for contractCount := 0; contractCount < numberOfContracts; contractCount++ {
-		ocrInstance, err := contractDeployer.DeployOffChainAggregator(
-			linkTokenContract.Address(),
-			contracts.DefaultOffChainAggregatorOptions(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("OCR instance deployment have failed: %w", err)
-		}
-		ocrInstances = append(ocrInstances, ocrInstance)
-		err = client.WaitForEvents()
-		if err != nil {
-			return nil, fmt.Errorf("failed to wait for OCR contract deployments: %w", err)
-		}
-	}
-	err := client.WaitForEvents()
-	if err != nil {
-		return nil, fmt.Errorf("error waiting for OCR contract deployments: %w", err)
-	}
-
-	// Gather transmitter and address payees
-	var transmitters, payees []string
-	for _, node := range workerNodes {
-		addr, err := node.PrimaryEthAddress()
-		if err != nil {
-			return nil, fmt.Errorf("error getting node's primary ETH address: %w", err)
-		}
-		transmitters = append(transmitters, addr)
-		payees = append(payees, client.GetDefaultWallet().Address())
-	}
-
-	// Set Payees
-	for _, ocrInstance := range ocrInstances {
-		err = ocrInstance.SetPayees(transmitters, payees)
-		if err != nil {
-			return nil, fmt.Errorf("error settings OCR payees: %w", err)
-		}
-		err = client.WaitForEvents()
-		if err != nil {
-			return nil, fmt.Errorf("failed to wait for setting OCR payees: %w", err)
-		}
-	}
-
-	// Set Config
-	transmitterAddresses, err := PluginNodeAddressesLocal(workerNodes)
-	if err != nil {
-		return nil, fmt.Errorf("getting node common addresses should not fail: %w", err)
-	}
-	for _, ocrInstance := range ocrInstances {
-		// Exclude the first node, which will be used as a bootstrapper
-		err = ocrInstance.SetConfigLocal(
-			workerNodes,
-			contracts.DefaultOffChainAggregatorConfig(len(workerNodes)),
-			transmitterAddresses,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error setting OCR config for contract '%s': %w", ocrInstance.Address(), err)
-		}
-		err = client.WaitForEvents()
-		if err != nil {
-			return nil, fmt.Errorf("failed to wait for setting OCR config: %w", err)
-		}
-	}
-	err = client.WaitForEvents()
-	if err != nil {
-		return nil, fmt.Errorf("error waiting for OCR contracts to set config: %w", err)
-	}
-	return ocrInstances, nil
 }
 
 func CreateOCRJobsLocal(
@@ -182,7 +75,7 @@ func CreateOCRJobsLocal(
 			}
 			nodeOCRKeyId := nodeOCRKeys.Data[0].ID
 
-			nodeContractPairID, err := BuildNodeContractPairIDLocal(node, ocrInstance)
+			nodeContractPairID, err := BuildNodeContractPairID(node, ocrInstance)
 			if err != nil {
 				return err
 			}
@@ -218,29 +111,13 @@ func CreateOCRJobsLocal(
 	return nil
 }
 
-func BuildNodeContractPairIDLocal(node *client.PluginClient, ocrInstance contracts.OffchainAggregator) (string, error) {
-	if node == nil {
-		return "", fmt.Errorf("plugin node is nil")
-	}
-	if ocrInstance == nil {
-		return "", fmt.Errorf("OCR Instance is nil")
-	}
-	nodeAddress, err := node.PrimaryEthAddress()
-	if err != nil {
-		return "", fmt.Errorf("getting plugin node's primary ETH address failed: %w", err)
-	}
-	shortNodeAddr := nodeAddress[2:12]
-	shortOCRAddr := ocrInstance.Address()[2:12]
-	return strings.ToLower(fmt.Sprintf("node_%s_contract_%s", shortNodeAddr, shortOCRAddr)), nil
-}
-
 func SetAdapterResponseLocal(
 	response int,
 	ocrInstance contracts.OffchainAggregator,
 	pluginNode *client.PluginClient,
 	mockAdapter *test_env.Killgrave,
 ) error {
-	nodeContractPairID, err := BuildNodeContractPairIDLocal(pluginNode, ocrInstance)
+	nodeContractPairID, err := BuildNodeContractPairID(pluginNode, ocrInstance)
 	if err != nil {
 		return err
 	}
@@ -269,92 +146,6 @@ func SetAllAdapterResponsesToTheSameValueLocal(
 		}
 	}
 	return eg.Wait()
-}
-
-func TrackForwarderLocal(
-	chainClient blockchain.EVMClient,
-	authorizedForwarder common.Address,
-	node *client.PluginClient,
-	logger zerolog.Logger,
-) error {
-	chainID := chainClient.GetChainID()
-	_, _, err := node.TrackForwarder(chainID, authorizedForwarder)
-	if err != nil {
-		return fmt.Errorf("failed to track forwarder, err: %w", err)
-	}
-	logger.Info().Str("NodeURL", node.Config.URL).
-		Str("ForwarderAddress", authorizedForwarder.Hex()).
-		Str("ChaindID", chainID.String()).
-		Msg("Forwarder tracked")
-	return nil
-}
-
-func DeployOCRContractsForwarderFlowLocal(
-	numberOfContracts int,
-	linkTokenContract contracts.LinkToken,
-	contractDeployer contracts.ContractDeployer,
-	workerNodes []*client.PluginClient,
-	forwarderAddresses []common.Address,
-	client blockchain.EVMClient,
-) ([]contracts.OffchainAggregator, error) {
-	// Deploy contracts
-	var ocrInstances []contracts.OffchainAggregator
-	for contractCount := 0; contractCount < numberOfContracts; contractCount++ {
-		ocrInstance, err := contractDeployer.DeployOffChainAggregator(
-			linkTokenContract.Address(),
-			contracts.DefaultOffChainAggregatorOptions(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to deploy offchain aggregator, err: %w", err)
-		}
-		ocrInstances = append(ocrInstances, ocrInstance)
-		err = client.WaitForEvents()
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := client.WaitForEvents(); err != nil {
-		return nil, err
-	}
-
-	// Gather transmitter and address payees
-	var transmitters, payees []string
-	for _, forwarderCommonAddress := range forwarderAddresses {
-		forwarderAddress := forwarderCommonAddress.Hex()
-		transmitters = append(transmitters, forwarderAddress)
-		payees = append(payees, client.GetDefaultWallet().Address())
-	}
-
-	// Set Payees
-	for _, ocrInstance := range ocrInstances {
-		err := ocrInstance.SetPayees(transmitters, payees)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set OCR payees, err: %w", err)
-		}
-		if err := client.WaitForEvents(); err != nil {
-			return nil, err
-		}
-	}
-	if err := client.WaitForEvents(); err != nil {
-		return nil, err
-	}
-
-	// Set Config
-	for _, ocrInstance := range ocrInstances {
-		// Exclude the first node, which will be used as a bootstrapper
-		err := ocrInstance.SetConfigLocal(
-			workerNodes,
-			contracts.DefaultOffChainAggregatorConfig(len(workerNodes)),
-			forwarderAddresses,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set on-chain config, err: %w", err)
-		}
-		if err = client.WaitForEvents(); err != nil {
-			return nil, err
-		}
-	}
-	return ocrInstances, client.WaitForEvents()
 }
 
 func CreateOCRJobsWithForwarderLocal(
@@ -399,7 +190,7 @@ func CreateOCRJobsWithForwarderLocal(
 			}
 			nodeOCRKeyId := nodeOCRKeys.Data[0].ID
 
-			nodeContractPairID, err := BuildNodeContractPairIDLocal(node, ocrInstance)
+			nodeContractPairID, err := BuildNodeContractPairID(node, ocrInstance)
 			if err != nil {
 				return err
 			}

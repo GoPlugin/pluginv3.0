@@ -12,21 +12,29 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/grafana/pyroscope-go"
+	"github.com/jonboulle/clockwork"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/goplugin/plugin-common/pkg/loop"
 	commonservices "github.com/goplugin/plugin-common/pkg/services"
+	"github.com/goplugin/plugin-common/pkg/sqlutil"
 	"github.com/goplugin/plugin-common/pkg/utils"
+	"github.com/goplugin/plugin-common/pkg/utils/jsonserializable"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"
-	"github.com/goplugin/pluginv3.0/v2/core/capabilities"
-	"github.com/goplugin/pluginv3.0/v2/core/static"
 
 	"github.com/goplugin/pluginv3.0/v2/core/bridges"
 	"github.com/goplugin/pluginv3.0/v2/core/build"
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities"
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities/ccip"
+	gatewayconnector "github.com/goplugin/pluginv3.0/v2/core/capabilities/gateway_connector"
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities/remote"
+	remotetypes "github.com/goplugin/pluginv3.0/v2/core/capabilities/remote/types"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/txmgr"
 	evmtypes "github.com/goplugin/pluginv3.0/v2/core/chains/evm/types"
 	evmutils "github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
@@ -41,6 +49,7 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/feeds"
 	"github.com/goplugin/pluginv3.0/v2/core/services/fluxmonitorv2"
 	"github.com/goplugin/pluginv3.0/v2/core/services/gateway"
+	"github.com/goplugin/pluginv3.0/v2/core/services/headreporter"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keeper"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore"
@@ -48,33 +57,35 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocr2"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocrbootstrap"
 	"github.com/goplugin/pluginv3.0/v2/core/services/ocrcommon"
+	p2ptypes "github.com/goplugin/pluginv3.0/v2/core/services/p2p/types"
+	externalp2p "github.com/goplugin/pluginv3.0/v2/core/services/p2p/wrapper"
 	"github.com/goplugin/pluginv3.0/v2/core/services/periodicbackup"
-	"github.com/goplugin/pluginv3.0/v2/core/services/pg"
 	"github.com/goplugin/pluginv3.0/v2/core/services/pipeline"
-	"github.com/goplugin/pluginv3.0/v2/core/services/promreporter"
+	"github.com/goplugin/pluginv3.0/v2/core/services/registrysyncer"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury"
 	"github.com/goplugin/pluginv3.0/v2/core/services/relay/evm/mercury/wsrpc"
+	"github.com/goplugin/pluginv3.0/v2/core/services/standardcapabilities"
 	"github.com/goplugin/pluginv3.0/v2/core/services/streams"
 	"github.com/goplugin/pluginv3.0/v2/core/services/telemetry"
 	"github.com/goplugin/pluginv3.0/v2/core/services/vrf"
 	"github.com/goplugin/pluginv3.0/v2/core/services/webhook"
 	"github.com/goplugin/pluginv3.0/v2/core/services/workflows"
+	workflowstore "github.com/goplugin/pluginv3.0/v2/core/services/workflows/store"
 	"github.com/goplugin/pluginv3.0/v2/core/sessions"
 	"github.com/goplugin/pluginv3.0/v2/core/sessions/ldapauth"
 	"github.com/goplugin/pluginv3.0/v2/core/sessions/localauth"
+	"github.com/goplugin/pluginv3.0/v2/core/static"
 	"github.com/goplugin/pluginv3.0/v2/plugins"
 )
 
 // Application implements the common functions used in the core node.
-//
-//go:generate mockery --quiet --name Application --output ../../internal/mocks/ --case=underscore
 type Application interface {
 	Start(ctx context.Context) error
 	Stop() error
 	GetLogger() logger.SugaredLogger
 	GetAuditLogger() audit.AuditLogger
 	GetHealthChecker() services.Checker
-	GetSqlxDB() *sqlx.DB
+	GetDB() sqlutil.DataSource
 	GetConfig() GeneralConfig
 	SetLogLevel(lvl zapcore.Level) error
 	GetKeyStore() keystore.Master
@@ -84,6 +95,7 @@ type Application interface {
 	GetExternalInitiatorManager() webhook.ExternalInitiatorManager
 	GetRelayers() RelayerChainInteroperators
 	GetLoopRegistry() *plugins.LoopRegistry
+	GetLoopRegistrarConfig() plugins.RegistrarConfig
 
 	// V2 Jobs (TOML specified)
 	JobSpawner() job.Spawner
@@ -96,7 +108,7 @@ type Application interface {
 	TxmStorageService() txmgr.EvmTxStore
 	AddJobV2(ctx context.Context, job *job.Job) error
 	DeleteJob(ctx context.Context, jobID int32) error
-	RunWebhookJobV2(ctx context.Context, jobUUID uuid.UUID, requestBody string, meta pipeline.JSONSerializable) (int64, error)
+	RunWebhookJobV2(ctx context.Context, jobUUID uuid.UUID, requestBody string, meta jsonserializable.JSONSerializable) (int64, error)
 	ResumeJobV2(ctx context.Context, taskID uuid.UUID, result pipeline.Result) error
 	// Testing only
 	RunJobV2(ctx context.Context, jobID int32, meta map[string]interface{}) (int64, error)
@@ -112,6 +124,11 @@ type Application interface {
 	ID() uuid.UUID
 
 	SecretGenerator() SecretGenerator
+
+	// FindLCA - finds last common ancestor for LogPoller's chain available in the database and RPC chain
+	FindLCA(ctx context.Context, chainID *big.Int) (*logpoller.LogPollerBlock, error)
+	// DeleteLogPollerDataAfter - delete LogPoller state starting from the specified block
+	DeleteLogPollerDataAfter(ctx context.Context, chainID *big.Int, start int64) error
 }
 
 // PluginApplication contains fields for the JobSubscriber, Scheduler,
@@ -136,14 +153,14 @@ type PluginApplication struct {
 	shutdownOnce             sync.Once
 	srvcs                    []services.ServiceCtx
 	HealthChecker            services.Checker
-	Nurse                    *services.Nurse
 	logger                   logger.SugaredLogger
 	AuditLogger              audit.AuditLogger
 	closeLogger              func() error
-	sqlxDB                   *sqlx.DB
+	ds                       sqlutil.DataSource
 	secretGenerator          SecretGenerator
 	profiler                 *pyroscope.Profiler
 	loopRegistry             *plugins.LoopRegistry
+	loopRegistrarConfig      plugins.RegistrarConfig
 
 	started     bool
 	startStopMu sync.Mutex
@@ -153,7 +170,7 @@ type ApplicationOpts struct {
 	Config                     GeneralConfig
 	Logger                     logger.Logger
 	MailMon                    *mailbox.Monitor
-	SqlxDB                     *sqlx.DB
+	DS                         sqlutil.DataSource
 	KeyStore                   keystore.Master
 	RelayerChainInteroperators *CoreRelayerChainInteroperators
 	AuditLogger                audit.AuditLogger
@@ -166,6 +183,9 @@ type ApplicationOpts struct {
 	LoopRegistry               *plugins.LoopRegistry
 	GRPCOpts                   loop.GRPCOpts
 	MercuryPool                wsrpc.Pool
+	CapabilitiesRegistry       *capabilities.Registry
+	CapabilitiesDispatcher     remotetypes.Dispatcher
+	CapabilitiesPeerWrapper    p2ptypes.PeerWrapper
 }
 
 // NewApplication initializes a new store if one is not already
@@ -176,7 +196,6 @@ type ApplicationOpts struct {
 func NewApplication(opts ApplicationOpts) (Application, error) {
 	var srvcs []services.ServiceCtx
 	auditLogger := opts.AuditLogger
-	db := opts.SqlxDB
 	cfg := opts.Config
 	relayerChainInterops := opts.RelayerChainInteroperators
 	mailMon := opts.MailMon
@@ -185,7 +204,81 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 	keyStore := opts.KeyStore
 	restrictedHTTPClient := opts.RestrictedHTTPClient
 	unrestrictedHTTPClient := opts.UnrestrictedHTTPClient
-	registry := capabilities.NewRegistry()
+
+	if opts.CapabilitiesRegistry == nil {
+		// for tests only, in prod Registry should always be set at this point
+		opts.CapabilitiesRegistry = capabilities.NewRegistry(globalLogger)
+	}
+
+	var externalPeerWrapper p2ptypes.PeerWrapper
+	if cfg.Capabilities().Peering().Enabled() {
+		var dispatcher remotetypes.Dispatcher
+		if opts.CapabilitiesDispatcher == nil {
+			externalPeer := externalp2p.NewExternalPeerWrapper(keyStore.P2P(), cfg.Capabilities().Peering(), opts.DS, globalLogger)
+			signer := externalPeer
+			externalPeerWrapper = externalPeer
+			remoteDispatcher, err := remote.NewDispatcher(cfg.Capabilities().Dispatcher(), externalPeerWrapper, signer, opts.CapabilitiesRegistry, globalLogger)
+			if err != nil {
+				return nil, fmt.Errorf("could not create dispatcher: %w", err)
+			}
+			dispatcher = remoteDispatcher
+		} else {
+			dispatcher = opts.CapabilitiesDispatcher
+			externalPeerWrapper = opts.CapabilitiesPeerWrapper
+		}
+
+		srvcs = append(srvcs, externalPeerWrapper, dispatcher)
+
+		if cfg.Capabilities().ExternalRegistry().Address() != "" {
+			rid := cfg.Capabilities().ExternalRegistry().RelayID()
+			registryAddress := cfg.Capabilities().ExternalRegistry().Address()
+			relayer, err := relayerChainInterops.Get(rid)
+			if err != nil {
+				return nil, fmt.Errorf("could not fetch relayer %s configured for capabilities registry: %w", rid, err)
+			}
+			registrySyncer, err := registrysyncer.New(
+				globalLogger,
+				func() (p2ptypes.PeerID, error) {
+					p := externalPeerWrapper.GetPeer()
+					if p == nil {
+						return p2ptypes.PeerID{}, errors.New("could not get peer")
+					}
+
+					return p.ID(), nil
+				},
+				relayer,
+				registryAddress,
+				registrysyncer.NewORM(opts.DS, globalLogger),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("could not configure syncer: %w", err)
+			}
+
+			wfLauncher := capabilities.NewLauncher(
+				globalLogger,
+				externalPeerWrapper,
+				dispatcher,
+				opts.CapabilitiesRegistry,
+			)
+			registrySyncer.AddLauncher(wfLauncher)
+
+			srvcs = append(srvcs, wfLauncher, registrySyncer)
+		}
+	} else {
+		globalLogger.Debug("External registry not configured, skipping registry syncer and starting with an empty registry")
+		opts.CapabilitiesRegistry.SetLocalRegistry(&capabilities.TestMetadataRegistry{})
+	}
+
+	var gatewayConnectorWrapper *gatewayconnector.ServiceWrapper
+	if cfg.Capabilities().GatewayConnector().DonID() != "" {
+		globalLogger.Debugw("Creating GatewayConnector wrapper", "donID", cfg.Capabilities().GatewayConnector().DonID())
+		gatewayConnectorWrapper = gatewayconnector.NewGatewayConnectorServiceWrapper(
+			cfg.Capabilities().GatewayConnector(),
+			keyStore.Eth(),
+			clockwork.NewRealClock(),
+			globalLogger)
+		srvcs = append(srvcs, gatewayConnectorWrapper)
+	}
 
 	// LOOPs can be created as options, in the  case of LOOP relayers, or
 	// as OCR2 job implementations, in the case of Median today.
@@ -193,7 +286,7 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 	// we need to initialize in case we serve OCR2 LOOPs
 	loopRegistry := opts.LoopRegistry
 	if loopRegistry == nil {
-		loopRegistry = plugins.NewLoopRegistry(globalLogger, opts.Config.Tracing())
+		loopRegistry = plugins.NewLoopRegistry(globalLogger, opts.Config.Tracing(), opts.Config.Telemetry())
 	}
 
 	// If the audit logger is enabled
@@ -214,14 +307,9 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 	}
 
 	ap := cfg.AutoPprof()
-	var nurse *services.Nurse
 	if ap.Enabled() {
 		globalLogger.Info("Nurse service (automatic pprof profiling) is enabled")
-		nurse = services.NewNurse(ap, globalLogger)
-		err := nurse.Start()
-		if err != nil {
-			return nil, err
-		}
+		srvcs = append(srvcs, services.NewNurse(ap, globalLogger))
 	} else {
 		globalLogger.Info("Nurse service (automatic pprof profiling) is disabled")
 	}
@@ -257,12 +345,10 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 
 	srvcs = append(srvcs, mailMon)
 	srvcs = append(srvcs, relayerChainInterops.Services()...)
-	promReporter := promreporter.NewPromReporter(db.DB, legacyEVMChains, globalLogger)
-	srvcs = append(srvcs, promReporter)
 
 	// Initialize Local Users ORM and Authentication Provider specified in config
 	// BasicAdminUsersORM is initialized and required regardless of separate Authentication Provider
-	localAdminUsersORM := localauth.NewORM(db, cfg.WebServer().SessionTimeout().Duration(), globalLogger, cfg.Database(), auditLogger)
+	localAdminUsersORM := localauth.NewORM(opts.DS, cfg.WebServer().SessionTimeout().Duration(), globalLogger, auditLogger)
 
 	// Initialize Sessions ORM based on environment configured authenticator
 	// localDB auth or remote LDAP auth
@@ -274,35 +360,46 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 	case sessions.LDAPAuth:
 		var err error
 		authenticationProvider, err = ldapauth.NewLDAPAuthenticator(
-			db, cfg.Database(), cfg.WebServer().LDAP(), cfg.Insecure().DevWebServer(), globalLogger, auditLogger,
+			opts.DS, cfg.WebServer().LDAP(), cfg.Insecure().DevWebServer(), globalLogger, auditLogger,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "NewApplication: failed to initialize LDAP Authentication module")
 		}
-		sessionReaper = ldapauth.NewLDAPServerStateSync(db, cfg.Database(), cfg.WebServer().LDAP(), globalLogger)
+		sessionReaper = ldapauth.NewLDAPServerStateSync(opts.DS, cfg.WebServer().LDAP(), globalLogger)
 	case sessions.LocalAuth:
-		authenticationProvider = localauth.NewORM(db, cfg.WebServer().SessionTimeout().Duration(), globalLogger, cfg.Database(), auditLogger)
-		sessionReaper = localauth.NewSessionReaper(db.DB, cfg.WebServer(), globalLogger)
+		authenticationProvider = localauth.NewORM(opts.DS, cfg.WebServer().SessionTimeout().Duration(), globalLogger, auditLogger)
+		sessionReaper = localauth.NewSessionReaper(opts.DS, cfg.WebServer(), globalLogger)
 	default:
 		return nil, errors.Errorf("NewApplication: Unexpected 'AuthenticationMethod': %s supported values: %s, %s", authMethod, sessions.LocalAuth, sessions.LDAPAuth)
 	}
 
 	var (
-		pipelineORM    = pipeline.NewORM(db, globalLogger, cfg.Database(), cfg.JobPipeline().MaxSuccessfulRuns())
-		bridgeORM      = bridges.NewORM(db, globalLogger, cfg.Database())
-		mercuryORM     = mercury.NewORM(db, globalLogger, cfg.Database())
+		pipelineORM    = pipeline.NewORM(opts.DS, globalLogger, cfg.JobPipeline().MaxSuccessfulRuns())
+		bridgeORM      = bridges.NewORM(opts.DS)
+		mercuryORM     = mercury.NewORM(opts.DS)
 		pipelineRunner = pipeline.NewRunner(pipelineORM, bridgeORM, cfg.JobPipeline(), cfg.WebServer(), legacyEVMChains, keyStore.Eth(), keyStore.VRF(), globalLogger, restrictedHTTPClient, unrestrictedHTTPClient)
-		jobORM         = job.NewORM(db, pipelineORM, bridgeORM, keyStore, globalLogger, cfg.Database())
-		txmORM         = txmgr.NewTxStore(db, globalLogger, cfg.Database())
+		jobORM         = job.NewORM(opts.DS, pipelineORM, bridgeORM, keyStore, globalLogger)
+		txmORM         = txmgr.NewTxStore(opts.DS, globalLogger)
 		streamRegistry = streams.NewRegistry(globalLogger, pipelineRunner)
+		workflowORM    = workflowstore.NewDBStore(opts.DS, globalLogger, clockwork.NewRealClock())
 	)
 
+	promReporter := headreporter.NewPrometheusReporter(opts.DS, legacyEVMChains)
+	chainIDs := make([]*big.Int, legacyEVMChains.Len())
+	for i, chain := range legacyEVMChains.Slice() {
+		chainIDs[i] = chain.ID()
+	}
+	telemReporter := headreporter.NewTelemetryReporter(telemetryManager, globalLogger, chainIDs...)
+	headReporter := headreporter.NewHeadReporterService(opts.DS, globalLogger, promReporter, telemReporter)
+	srvcs = append(srvcs, headReporter)
 	for _, chain := range legacyEVMChains.Slice() {
-		chain.HeadBroadcaster().Subscribe(promReporter)
+		chain.HeadBroadcaster().Subscribe(headReporter)
 		chain.TxManager().RegisterResumeCallback(pipelineRunner.ResumeRun)
 	}
 
 	srvcs = append(srvcs, pipelineORM)
+
+	loopRegistrarConfig := plugins.NewRegistrarConfig(opts.GRPCOpts, opts.LoopRegistry.Register, opts.LoopRegistry.Unregister)
 
 	var (
 		delegates = map[job.Type]job.Delegate{
@@ -313,20 +410,20 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 				legacyEVMChains,
 				mailMon),
 			job.Keeper: keeper.NewDelegate(
-				db,
+				cfg,
+				opts.DS,
 				jobORM,
 				pipelineRunner,
 				globalLogger,
 				legacyEVMChains,
 				mailMon),
 			job.VRF: vrf.NewDelegate(
-				db,
+				opts.DS,
 				keyStore,
 				pipelineRunner,
 				pipelineORM,
 				legacyEVMChains,
 				globalLogger,
-				cfg.Database(),
 				mailMon),
 			job.Webhook: webhook.NewDelegate(
 				pipelineRunner,
@@ -336,31 +433,34 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 				pipelineRunner,
 				globalLogger),
 			job.BlockhashStore: blockhashstore.NewDelegate(
+				cfg,
 				globalLogger,
 				legacyEVMChains,
 				keyStore.Eth()),
 			job.BlockHeaderFeeder: blockheaderfeeder.NewDelegate(
+				cfg,
 				globalLogger,
 				legacyEVMChains,
 				keyStore.Eth()),
 			job.Gateway: gateway.NewDelegate(
 				legacyEVMChains,
 				keyStore.Eth(),
-				db,
-				cfg.Database(),
+				opts.DS,
 				globalLogger),
 			job.Stream: streams.NewDelegate(
 				globalLogger,
 				streamRegistry,
 				pipelineRunner,
-				cfg.JobPipeline()),
-			job.Workflow: workflows.NewDelegate(
-				globalLogger,
-				registry,
-				legacyEVMChains,
+				cfg.JobPipeline(),
 			),
 		}
 		webhookJobRunner = delegates[job.Webhook].(*webhook.Delegate).WebhookJobRunner()
+	)
+
+	delegates[job.Workflow] = workflows.NewDelegate(
+		globalLogger,
+		opts.CapabilitiesRegistry,
+		workflowORM,
 	)
 
 	// Flux monitor requires ethereum just to boot, silence errors with a null delegate
@@ -368,11 +468,12 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 		delegates[job.FluxMonitor] = &job.NullDelegate{Type: job.FluxMonitor}
 	} else {
 		delegates[job.FluxMonitor] = fluxmonitorv2.NewDelegate(
+			cfg,
 			keyStore.Eth(),
 			jobORM,
 			pipelineORM,
 			pipelineRunner,
-			db,
+			opts.DS,
 			legacyEVMChains,
 			globalLogger,
 		)
@@ -385,15 +486,29 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 		if err := ocrcommon.ValidatePeerWrapperConfig(cfg.P2P()); err != nil {
 			return nil, err
 		}
-		peerWrapper = ocrcommon.NewSingletonPeerWrapper(keyStore, cfg.P2P(), cfg.OCR(), cfg.Database(), db, globalLogger)
+		peerWrapper = ocrcommon.NewSingletonPeerWrapper(keyStore, cfg.P2P(), cfg.OCR(), opts.DS, globalLogger)
 		srvcs = append(srvcs, peerWrapper)
 	} else {
-		globalLogger.Debug("P2P stack disabled")
+		return nil, fmt.Errorf("P2P stack required for OCR or OCR2")
 	}
+
+	// If peer wrapper is initialized, Oracle Factory dependency will be available to standard capabilities
+	delegates[job.StandardCapabilities] = standardcapabilities.NewDelegate(
+		globalLogger,
+		opts.DS, jobORM,
+		opts.CapabilitiesRegistry,
+		loopRegistrarConfig,
+		telemetryManager,
+		pipelineRunner,
+		opts.RelayerChainInteroperators,
+		gatewayConnectorWrapper,
+		keyStore,
+		peerWrapper,
+	)
 
 	if cfg.OCR().Enabled() {
 		delegates[job.OffchainReporting] = ocr.NewDelegate(
-			db,
+			opts.DS,
 			jobORM,
 			keyStore,
 			pipelineRunner,
@@ -401,43 +516,56 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 			telemetryManager,
 			legacyEVMChains,
 			globalLogger,
-			cfg.Database(),
+			cfg,
 			mailMon,
 		)
 	} else {
 		globalLogger.Debug("Off-chain reporting disabled")
 	}
+
 	if cfg.OCR2().Enabled() {
 		globalLogger.Debug("Off-chain reporting v2 enabled")
-		registrarConfig := plugins.NewRegistrarConfig(opts.GRPCOpts, opts.LoopRegistry.Register)
-		ocr2DelegateConfig := ocr2.NewDelegateConfig(cfg.OCR2(), cfg.Mercury(), cfg.Threshold(), cfg.Insecure(), cfg.JobPipeline(), cfg.Database(), registrarConfig)
+
+		ocr2DelegateConfig := ocr2.NewDelegateConfig(cfg.OCR2(), cfg.Mercury(), cfg.Threshold(), cfg.Insecure(), cfg.JobPipeline(), loopRegistrarConfig)
+
 		delegates[job.OffchainReporting2] = ocr2.NewDelegate(
-			db,
+			opts.DS,
 			jobORM,
 			bridgeORM,
 			mercuryORM,
 			pipelineRunner,
+			streamRegistry,
 			peerWrapper,
 			telemetryManager,
 			legacyEVMChains,
 			globalLogger,
 			ocr2DelegateConfig,
 			keyStore.OCR2(),
-			keyStore.DKGSign(),
-			keyStore.DKGEncrypt(),
 			keyStore.Eth(),
 			opts.RelayerChainInteroperators,
 			mailMon,
-			registry,
+			opts.CapabilitiesRegistry,
 		)
 		delegates[job.Bootstrap] = ocrbootstrap.NewDelegateBootstrap(
-			db,
+			opts.DS,
 			jobORM,
 			peerWrapper,
 			globalLogger,
 			cfg.OCR2(),
 			cfg.Insecure(),
 			opts.RelayerChainInteroperators,
+		)
+		delegates[job.CCIP] = ccip.NewDelegate(
+			globalLogger,
+			loopRegistrarConfig,
+			pipelineRunner,
+			relayerChainInterops,
+			opts.KeyStore,
+			opts.DS,
+			peerWrapper,
+			telemetryManager,
+			cfg.Capabilities(),
+			cfg.EVMConfigs(),
 		)
 	} else {
 		globalLogger.Debug("Off-chain reporting v2 disabled")
@@ -449,7 +577,7 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 	for _, c := range legacyEVMChains.Slice() {
 		lbs = append(lbs, c.LogBroadcaster())
 	}
-	jobSpawner := job.NewSpawner(jobORM, cfg.Database(), healthChecker, delegates, db, globalLogger, lbs)
+	jobSpawner := job.NewSpawner(jobORM, cfg.Database(), healthChecker, delegates, globalLogger, lbs)
 	srvcs = append(srvcs, jobSpawner, pipelineRunner)
 
 	// We start the log poller after the job spawner
@@ -462,21 +590,23 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 
 	var feedsService feeds.Service
 	if cfg.Feature().FeedsManager() {
-		feedsORM := feeds.NewORM(db, opts.Logger, cfg.Database())
+		feedsORM := feeds.NewORM(opts.DS)
 		feedsService = feeds.NewService(
 			feedsORM,
 			jobORM,
-			db,
+			opts.DS,
 			jobSpawner,
 			keyStore,
+			cfg,
+			cfg.Feature(),
 			cfg.Insecure(),
 			cfg.JobPipeline(),
 			cfg.OCR(),
 			cfg.OCR2(),
-			cfg.Database(),
 			legacyEVMChains,
 			globalLogger,
 			opts.Version,
+			loopRegistrarConfig,
 		)
 	} else {
 		feedsService = &feeds.NullService{}
@@ -508,15 +638,15 @@ func NewApplication(opts ApplicationOpts) (Application, error) {
 		SessionReaper:            sessionReaper,
 		ExternalInitiatorManager: externalInitiatorManager,
 		HealthChecker:            healthChecker,
-		Nurse:                    nurse,
 		logger:                   globalLogger,
 		AuditLogger:              auditLogger,
 		closeLogger:              opts.CloseLogger,
 		secretGenerator:          opts.SecretGenerator,
 		profiler:                 profiler,
 		loopRegistry:             loopRegistry,
+		loopRegistrarConfig:      loopRegistrarConfig,
 
-		sqlxDB: opts.SqlxDB,
+		ds: opts.DS,
 
 		// NOTE: Can keep things clean by putting more things in srvcs instead of manually start/closing
 		srvcs: srvcs,
@@ -539,6 +669,14 @@ func (app *PluginApplication) Start(ctx context.Context) error {
 	if app.started {
 		panic("application is already started")
 	}
+
+	var span trace.Span
+	ctx, span = otel.Tracer("").Start(ctx, "Start", trace.WithAttributes(
+		attribute.String("app-id", app.ID().String()),
+		attribute.String("version", static.Version),
+		attribute.String("commit", static.Sha),
+	))
+	defer span.End()
 
 	if app.FeedsService != nil {
 		if err := app.FeedsService.Start(ctx); err != nil {
@@ -584,6 +722,9 @@ func (app *PluginApplication) StopIfStarted() error {
 func (app *PluginApplication) GetLoopRegistry() *plugins.LoopRegistry {
 	return app.loopRegistry
 }
+func (app *PluginApplication) GetLoopRegistrarConfig() plugins.RegistrarConfig {
+	return app.loopRegistrarConfig
+}
 
 // Stop allows the application to exit by halting schedules, closing
 // logs, and closing the DB connection.
@@ -622,10 +763,6 @@ func (app *PluginApplication) stop() (err error) {
 		if app.FeedsService != nil {
 			app.logger.Debug("Closing Feeds Service...")
 			err = multierr.Append(err, app.FeedsService.Close())
-		}
-
-		if app.Nurse != nil {
-			err = multierr.Append(err, app.Nurse.Close())
 		}
 
 		if app.profiler != nil {
@@ -706,7 +843,7 @@ func (app *PluginApplication) WakeSessionReaper() {
 }
 
 func (app *PluginApplication) AddJobV2(ctx context.Context, j *job.Job) error {
-	return app.jobSpawner.CreateJob(j, pg.WithParentCtx(ctx))
+	return app.jobSpawner.CreateJob(ctx, nil, j)
 }
 
 func (app *PluginApplication) DeleteJob(ctx context.Context, jobID int32) error {
@@ -720,10 +857,10 @@ func (app *PluginApplication) DeleteJob(ctx context.Context, jobID int32) error 
 		return errors.New("job must be deleted in the feeds manager")
 	}
 
-	return app.jobSpawner.DeleteJob(jobID, pg.WithParentCtx(ctx))
+	return app.jobSpawner.DeleteJob(ctx, nil, jobID)
 }
 
-func (app *PluginApplication) RunWebhookJobV2(ctx context.Context, jobUUID uuid.UUID, requestBody string, meta pipeline.JSONSerializable) (int64, error) {
+func (app *PluginApplication) RunWebhookJobV2(ctx context.Context, jobUUID uuid.UUID, requestBody string, meta jsonserializable.JSONSerializable) (int64, error) {
 	return app.webhookJobRunner.RunJob(ctx, jobUUID, requestBody, meta)
 }
 
@@ -787,7 +924,7 @@ func (app *PluginApplication) RunJobV2(
 				},
 			}
 		}
-		runID, _, err = app.pipelineRunner.ExecuteAndInsertFinishedRun(ctx, *jb.PipelineSpec, pipeline.NewVarsFrom(vars), app.logger, saveTasks)
+		runID, _, err = app.pipelineRunner.ExecuteAndInsertFinishedRun(ctx, *jb.PipelineSpec, pipeline.NewVarsFrom(vars), saveTasks)
 	}
 	return runID, err
 }
@@ -797,7 +934,7 @@ func (app *PluginApplication) ResumeJobV2(
 	taskID uuid.UUID,
 	result pipeline.Result,
 ) error {
-	return app.pipelineRunner.ResumeRun(taskID, result.Value, result.Error)
+	return app.pipelineRunner.ResumeRun(ctx, taskID, result.Value, result.Error)
 }
 
 func (app *PluginApplication) GetFeedsService() feeds.Service {
@@ -821,8 +958,8 @@ func (app *PluginApplication) GetRelayers() RelayerChainInteroperators {
 	return app.relayers
 }
 
-func (app *PluginApplication) GetSqlxDB() *sqlx.DB {
-	return app.sqlxDB
+func (app *PluginApplication) GetDB() sqlutil.DataSource {
+	return app.ds
 }
 
 // Returns the configuration to use for creating and authenticating
@@ -846,4 +983,40 @@ func (app *PluginApplication) GetWebAuthnConfiguration() sessions.WebAuthnConfig
 
 func (app *PluginApplication) ID() uuid.UUID {
 	return app.Config.AppID()
+}
+
+// FindLCA - finds last common ancestor
+func (app *PluginApplication) FindLCA(ctx context.Context, chainID *big.Int) (*logpoller.LogPollerBlock, error) {
+	chain, err := app.GetRelayers().LegacyEVMChains().Get(chainID.String())
+	if err != nil {
+		return nil, err
+	}
+	if !app.Config.Feature().LogPoller() {
+		return nil, fmt.Errorf("FindLCA is only available if LogPoller is enabled")
+	}
+
+	lca, err := chain.LogPoller().FindLCA(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find lca: %w", err)
+	}
+
+	return lca, nil
+}
+
+// DeleteLogPollerDataAfter - delete LogPoller state starting from the specified block
+func (app *PluginApplication) DeleteLogPollerDataAfter(ctx context.Context, chainID *big.Int, start int64) error {
+	chain, err := app.GetRelayers().LegacyEVMChains().Get(chainID.String())
+	if err != nil {
+		return err
+	}
+	if !app.Config.Feature().LogPoller() {
+		return fmt.Errorf("DeleteLogPollerDataAfter is only available if LogPoller is enabled")
+	}
+
+	err = chain.LogPoller().DeleteLogsAndBlocksAfter(ctx, start)
+	if err != nil {
+		return fmt.Errorf("failed to recover LogPoller: %w", err)
+	}
+
+	return nil
 }

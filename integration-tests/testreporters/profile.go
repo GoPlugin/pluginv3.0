@@ -10,7 +10,7 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/goplugin/plugin-testing-framework/testreporters"
+	"github.com/goplugin/plugin-testing-framework/lib/testreporters"
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 )
 

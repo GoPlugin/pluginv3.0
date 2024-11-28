@@ -1,6 +1,7 @@
 package automationv2
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
@@ -11,11 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goplugin/pluginv3.0/integration-tests/docker/test_env"
+	tt "github.com/goplugin/pluginv3.0/integration-tests/types"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lib/pq"
+	"github.com/rs/zerolog"
 	"github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
 	ocr2 "github.com/goplugin/plugin-libocr/offchainreporting2plus/confighelper"
 	ocr3 "github.com/goplugin/plugin-libocr/offchainreporting2plus/ocr3confighelper"
@@ -24,22 +26,29 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/guregu/null.v4"
 
+	"github.com/goplugin/plugin-testing-framework/seth"
+
+	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/i_automation_registry_master_wrapper_2_3"
+
 	ocr2keepers20config "github.com/goplugin/plugin-automation/pkg/v2/config"
 	ocr2keepers30config "github.com/goplugin/plugin-automation/pkg/v3/config"
 
-	"github.com/goplugin/plugin-testing-framework/blockchain"
-	"github.com/goplugin/plugin-testing-framework/logging"
+	"github.com/goplugin/pluginv3.0/integration-tests/actions"
+	"github.com/goplugin/pluginv3.0/integration-tests/docker/test_env"
+	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/automation_registrar_wrapper2_1"
+
 	"github.com/goplugin/pluginv3.0/integration-tests/client"
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts"
 	"github.com/goplugin/pluginv3.0/integration-tests/contracts/ethereum"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
-	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/automation_registrar_wrapper2_1"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/generated/keeper_registrar_wrapper2_0"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/chaintype"
 	"github.com/goplugin/pluginv3.0/v2/core/store/models"
 
-	ctfTestEnv "github.com/goplugin/plugin-testing-framework/docker/test_env"
+	ctf_concurrency "github.com/goplugin/plugin-testing-framework/lib/concurrency"
+	ctftestenv "github.com/goplugin/plugin-testing-framework/lib/docker/test_env"
+	"github.com/goplugin/plugin-testing-framework/lib/logging"
 )
 
 type NodeDetails struct {
@@ -52,12 +61,16 @@ type NodeDetails struct {
 }
 
 type AutomationTest struct {
-	ChainClient blockchain.EVMClient
-	Deployer    contracts.ContractDeployer
+	ChainClient *seth.Client
+
+	TestConfig tt.AutomationTestConfig
 
 	LinkToken   contracts.LinkToken
 	Transcoder  contracts.UpkeepTranscoder
-	EthLinkFeed contracts.MockETHPLIFeed
+	PLIETHFeed contracts.MockPLIETHFeed
+	ETHUSDFeed  contracts.MockETHUSDFeed
+	PLIUSDFeed contracts.MockETHUSDFeed
+	WETHToken   contracts.WETHToken
 	GasFeed     contracts.MockGasFeed
 	Registry    contracts.KeeperRegistry
 	Registrar   contracts.KeeperRegistrar
@@ -78,8 +91,10 @@ type AutomationTest struct {
 
 	NodeDetails              []NodeDetails
 	DefaultP2Pv2Bootstrapper string
-	MercuryCredentialName    string
+	mercuryCredentialName    string
 	TransmitterKeyIndex      int
+
+	Logger zerolog.Logger
 }
 
 type UpkeepConfig struct {
@@ -96,32 +111,38 @@ type UpkeepConfig struct {
 }
 
 func NewAutomationTestK8s(
-	chainClient blockchain.EVMClient,
-	deployer contracts.ContractDeployer,
+	l zerolog.Logger,
+	chainClient *seth.Client,
 	pluginNodes []*client.PluginK8sClient,
+	config tt.AutomationTestConfig,
 ) *AutomationTest {
 	return &AutomationTest{
 		ChainClient:            chainClient,
-		Deployer:               deployer,
+		TestConfig:             config,
 		PluginNodesk8s:      pluginNodes,
 		IsOnk8s:                true,
 		TransmitterKeyIndex:    0,
-		UpkeepPrivilegeManager: common.HexToAddress(chainClient.GetDefaultWallet().Address()),
+		UpkeepPrivilegeManager: chainClient.MustGetRootKeyAddress(),
+		mercuryCredentialName:  "",
+		Logger:                 l,
 	}
 }
 
 func NewAutomationTestDocker(
-	chainClient blockchain.EVMClient,
-	deployer contracts.ContractDeployer,
+	l zerolog.Logger,
+	chainClient *seth.Client,
 	pluginNodes []*client.PluginClient,
+	config tt.AutomationTestConfig,
 ) *AutomationTest {
 	return &AutomationTest{
 		ChainClient:            chainClient,
-		Deployer:               deployer,
+		TestConfig:             config,
 		PluginNodes:         pluginNodes,
 		IsOnk8s:                false,
 		TransmitterKeyIndex:    0,
-		UpkeepPrivilegeManager: common.HexToAddress(chainClient.GetDefaultWallet().Address()),
+		UpkeepPrivilegeManager: chainClient.MustGetRootKeyAddress(),
+		mercuryCredentialName:  "",
+		Logger:                 l,
 	}
 }
 
@@ -130,7 +151,7 @@ func (a *AutomationTest) SetIsOnk8s(flag bool) {
 }
 
 func (a *AutomationTest) SetMercuryCredentialName(name string) {
-	a.MercuryCredentialName = name
+	a.mercuryCredentialName = name
 }
 
 func (a *AutomationTest) SetTransmitterKeyIndex(index int) {
@@ -146,121 +167,166 @@ func (a *AutomationTest) SetDockerEnv(env *test_env.CLClusterTestEnv) {
 }
 
 func (a *AutomationTest) DeployPLI() error {
-	linkToken, err := a.Deployer.DeployLinkTokenContract()
+	linkToken, err := contracts.DeployLinkTokenContract(a.Logger, a.ChainClient)
 	if err != nil {
 		return err
 	}
 	a.LinkToken = linkToken
-	err = a.ChainClient.WaitForEvents()
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed waiting for link token contract to deploy"))
-	}
 	return nil
 }
 
 func (a *AutomationTest) LoadPLI(address string) error {
-	linkToken, err := a.Deployer.LoadLinkToken(common.HexToAddress(address))
+	linkToken, err := contracts.LoadLinkTokenContract(a.Logger, a.ChainClient, common.HexToAddress(address))
 	if err != nil {
 		return err
 	}
 	a.LinkToken = linkToken
+	a.Logger.Info().Str("PLI Token Address", a.LinkToken.Address()).Msg("Successfully loaded PLI Token")
 	return nil
 }
 
 func (a *AutomationTest) DeployTranscoder() error {
-	transcoder, err := a.Deployer.DeployUpkeepTranscoder()
+	transcoder, err := contracts.DeployUpkeepTranscoder(a.ChainClient)
 	if err != nil {
 		return err
 	}
 	a.Transcoder = transcoder
-	err = a.ChainClient.WaitForEvents()
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed waiting for transcoder contract to deploy"))
-	}
 	return nil
 }
 
 func (a *AutomationTest) LoadTranscoder(address string) error {
-	transcoder, err := a.Deployer.LoadUpkeepTranscoder(common.HexToAddress(address))
+	transcoder, err := contracts.LoadUpkeepTranscoder(a.ChainClient, common.HexToAddress(address))
 	if err != nil {
 		return err
 	}
 	a.Transcoder = transcoder
+	a.Logger.Info().Str("Transcoder Address", a.Transcoder.Address()).Msg("Successfully loaded Transcoder")
 	return nil
 }
 
-func (a *AutomationTest) DeployEthLinkFeed() error {
-	ethLinkFeed, err := a.Deployer.DeployMockETHPLIFeed(a.RegistrySettings.FallbackLinkPrice)
+func (a *AutomationTest) DeployLinkEthFeed() error {
+	ethLinkFeed, err := contracts.DeployMockPLIETHFeed(a.ChainClient, a.RegistrySettings.FallbackLinkPrice)
 	if err != nil {
 		return err
 	}
-	a.EthLinkFeed = ethLinkFeed
-	err = a.ChainClient.WaitForEvents()
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed waiting for Mock ETH PLI feed to deploy"))
-	}
+	a.PLIETHFeed = ethLinkFeed
 	return nil
 }
 
-func (a *AutomationTest) LoadEthLinkFeed(address string) error {
-	ethLinkFeed, err := a.Deployer.LoadETHPLIFeed(common.HexToAddress(address))
+func (a *AutomationTest) LoadLinkEthFeed(address string) error {
+	ethLinkFeed, err := contracts.LoadMockPLIETHFeed(a.ChainClient, common.HexToAddress(address))
 	if err != nil {
 		return err
 	}
-	a.EthLinkFeed = ethLinkFeed
+	a.PLIETHFeed = ethLinkFeed
+	a.Logger.Info().Str("PLI/ETH Feed Address", a.PLIETHFeed.Address()).Msg("Successfully loaded PLI/ETH Feed")
+	return nil
+}
+
+func (a *AutomationTest) DeployEthUSDFeed() error {
+	ethUSDFeed, err := contracts.DeployMockETHUSDFeed(a.ChainClient, a.RegistrySettings.FallbackLinkPrice)
+	if err != nil {
+		return err
+	}
+	a.ETHUSDFeed = ethUSDFeed
+	return nil
+}
+
+func (a *AutomationTest) LoadEthUSDFeed(address string) error {
+	ethUSDFeed, err := contracts.LoadMockETHUSDFeed(a.ChainClient, common.HexToAddress(address))
+	if err != nil {
+		return err
+	}
+	a.ETHUSDFeed = ethUSDFeed
+	a.Logger.Info().Str("ETH/USD Feed Address", a.ETHUSDFeed.Address()).Msg("Successfully loaded ETH/USD Feed")
+	return nil
+}
+
+func (a *AutomationTest) DeployLinkUSDFeed() error {
+	linkUSDFeed, err := contracts.DeployMockETHUSDFeed(a.ChainClient, a.RegistrySettings.FallbackLinkPrice)
+	if err != nil {
+		return err
+	}
+	a.PLIUSDFeed = linkUSDFeed
+	return nil
+}
+
+func (a *AutomationTest) LoadLinkUSDFeed(address string) error {
+	linkUSDFeed, err := contracts.LoadMockETHUSDFeed(a.ChainClient, common.HexToAddress(address))
+	if err != nil {
+		return err
+	}
+	a.PLIUSDFeed = linkUSDFeed
+	a.Logger.Info().Str("PLI/USD Feed Address", a.PLIUSDFeed.Address()).Msg("Successfully loaded PLI/USD Feed")
+	return nil
+}
+
+func (a *AutomationTest) DeployWETH() error {
+	wethToken, err := contracts.DeployWETHTokenContract(a.Logger, a.ChainClient)
+	if err != nil {
+		return err
+	}
+	a.WETHToken = wethToken
+	return nil
+}
+
+func (a *AutomationTest) LoadWETH(address string) error {
+	wethToken, err := contracts.LoadWETHTokenContract(a.Logger, a.ChainClient, common.HexToAddress(address))
+	if err != nil {
+		return err
+	}
+	a.WETHToken = wethToken
+	a.Logger.Info().Str("WETH Token Address", a.WETHToken.Address()).Msg("Successfully loaded WETH Token")
 	return nil
 }
 
 func (a *AutomationTest) DeployGasFeed() error {
-	gasFeed, err := a.Deployer.DeployMockGasFeed(a.RegistrySettings.FallbackGasPrice)
+	gasFeed, err := contracts.DeployMockGASFeed(a.ChainClient, a.RegistrySettings.FallbackGasPrice)
 	if err != nil {
 		return err
 	}
 	a.GasFeed = gasFeed
-	err = a.ChainClient.WaitForEvents()
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed waiting for mock gas feed to deploy"))
-	}
 	return nil
 }
 
 func (a *AutomationTest) LoadEthGasFeed(address string) error {
-	gasFeed, err := a.Deployer.LoadGasFeed(common.HexToAddress(address))
+	gasFeed, err := contracts.LoadMockGASFeed(a.ChainClient, common.HexToAddress(address))
 	if err != nil {
 		return err
 	}
 	a.GasFeed = gasFeed
+	a.Logger.Info().Str("Gas Feed Address", a.GasFeed.Address()).Msg("Successfully loaded Gas Feed")
 	return nil
 }
 
 func (a *AutomationTest) DeployRegistry() error {
 	registryOpts := &contracts.KeeperRegistryOpts{
-		RegistryVersion: a.RegistrySettings.RegistryVersion,
-		LinkAddr:        a.LinkToken.Address(),
-		ETHFeedAddr:     a.EthLinkFeed.Address(),
-		GasFeedAddr:     a.GasFeed.Address(),
-		TranscoderAddr:  a.Transcoder.Address(),
-		RegistrarAddr:   utils.ZeroAddress.Hex(),
-		Settings:        a.RegistrySettings,
+		RegistryVersion:   a.RegistrySettings.RegistryVersion,
+		LinkAddr:          a.LinkToken.Address(),
+		ETHFeedAddr:       a.PLIETHFeed.Address(),
+		GasFeedAddr:       a.GasFeed.Address(),
+		TranscoderAddr:    a.Transcoder.Address(),
+		RegistrarAddr:     utils.ZeroAddress.Hex(),
+		Settings:          a.RegistrySettings,
+		LinkUSDFeedAddr:   a.ETHUSDFeed.Address(),
+		NativeUSDFeedAddr: a.PLIUSDFeed.Address(),
+		WrappedNativeAddr: a.WETHToken.Address(),
 	}
-	registry, err := a.Deployer.DeployKeeperRegistry(registryOpts)
+	registry, err := contracts.DeployKeeperRegistry(a.ChainClient, registryOpts)
 	if err != nil {
 		return err
 	}
 	a.Registry = registry
-	err = a.ChainClient.WaitForEvents()
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed waiting for registry contract to deploy"))
-	}
 	return nil
 }
 
-func (a *AutomationTest) LoadRegistry(address string) error {
-	registry, err := a.Deployer.LoadKeeperRegistry(common.HexToAddress(address), a.RegistrySettings.RegistryVersion)
+func (a *AutomationTest) LoadRegistry(registryAddress, chainModuleAddress string) error {
+	registry, err := contracts.LoadKeeperRegistry(a.Logger, a.ChainClient, common.HexToAddress(registryAddress), a.RegistrySettings.RegistryVersion, common.HexToAddress(chainModuleAddress))
 	if err != nil {
 		return err
 	}
 	a.Registry = registry
+	a.Logger.Info().Str("ChainModule Address", chainModuleAddress).Str("Registry Address", a.Registry.Address()).Msg("Successfully loaded Registry")
 	return nil
 }
 
@@ -269,15 +335,12 @@ func (a *AutomationTest) DeployRegistrar() error {
 		return fmt.Errorf("registry must be deployed or loaded before registrar")
 	}
 	a.RegistrarSettings.RegistryAddr = a.Registry.Address()
-	registrar, err := a.Deployer.DeployKeeperRegistrar(a.RegistrySettings.RegistryVersion, a.LinkToken.Address(), a.RegistrarSettings)
+	a.RegistrarSettings.WETHTokenAddr = a.WETHToken.Address()
+	registrar, err := contracts.DeployKeeperRegistrar(a.ChainClient, a.RegistrySettings.RegistryVersion, a.LinkToken.Address(), a.RegistrarSettings)
 	if err != nil {
 		return err
 	}
 	a.Registrar = registrar
-	err = a.ChainClient.WaitForEvents()
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed waiting for registrar contract to deploy"))
-	}
 	return nil
 }
 
@@ -286,10 +349,11 @@ func (a *AutomationTest) LoadRegistrar(address string) error {
 		return fmt.Errorf("registry must be deployed or loaded before registrar")
 	}
 	a.RegistrarSettings.RegistryAddr = a.Registry.Address()
-	registrar, err := a.Deployer.LoadKeeperRegistrar(common.HexToAddress(address), a.RegistrySettings.RegistryVersion)
+	registrar, err := contracts.LoadKeeperRegistrar(a.ChainClient, common.HexToAddress(address), a.RegistrySettings.RegistryVersion)
 	if err != nil {
 		return err
 	}
+	a.Logger.Info().Str("Registrar Address", registrar.Address()).Msg("Successfully loaded Registrar")
 	a.Registrar = registrar
 	return nil
 }
@@ -331,7 +395,7 @@ func (a *AutomationTest) CollectNodeDetails() error {
 			}
 		}
 
-		TransmitterKeys, err := node.EthAddressesForChain(a.ChainClient.GetChainID().String())
+		TransmitterKeys, err := node.EthAddressesForChain(fmt.Sprint(a.ChainClient.ChainID))
 		nodeDetail.TransmitterAddresses = make([]string, 0)
 		if err != nil {
 			return errors.Join(err, fmt.Errorf("failed to read Transmitter keys from node %d", i))
@@ -357,7 +421,7 @@ func (a *AutomationTest) AddBootstrapJob() error {
 			ContractID: a.Registry.Address(),
 			Relay:      "evm",
 			RelayConfig: map[string]interface{}{
-				"chainID": int(a.ChainClient.GetChainID().Int64()),
+				"chainID": int(a.ChainClient.ChainID),
 			},
 			ContractConfigTrackerPollInterval: *models.NewInterval(time.Second * 15),
 		},
@@ -371,12 +435,22 @@ func (a *AutomationTest) AddBootstrapJob() error {
 
 func (a *AutomationTest) AddAutomationJobs() error {
 	var contractVersion string
-	if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_1 {
+	if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_2 || a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_3 {
+		contractVersion = "v2.1+"
+	} else if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_1 {
 		contractVersion = "v2.1"
 	} else if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_0 {
 		contractVersion = "v2.0"
 	} else {
-		return fmt.Errorf("v2.0 and v2.1 are the only supported versions")
+		return fmt.Errorf("v2.0, v2.1, v2.2 and v2.3 are the only supported versions")
+	}
+	pluginCfg := map[string]interface{}{
+		"contractVersion": "\"" + contractVersion + "\"",
+	}
+	if strings.Contains(contractVersion, "v2.1") {
+		if a.mercuryCredentialName != "" {
+			pluginCfg["mercuryCredentialName"] = "\"" + a.mercuryCredentialName + "\""
+		}
 	}
 	for i := 1; i < len(a.PluginNodes); i++ {
 		autoOCR2JobSpec := client.OCR2TaskJobSpec{
@@ -387,12 +461,9 @@ func (a *AutomationTest) AddAutomationJobs() error {
 				ContractID: a.Registry.Address(),
 				Relay:      "evm",
 				RelayConfig: map[string]interface{}{
-					"chainID": int(a.ChainClient.GetChainID().Int64()),
+					"chainID": int(a.ChainClient.ChainID),
 				},
-				PluginConfig: map[string]interface{}{
-					"mercuryCredentialName": "\"" + a.MercuryCredentialName + "\"",
-					"contractVersion":       "\"" + contractVersion + "\"",
-				},
+				PluginConfig:                      pluginCfg,
 				ContractConfigTrackerPollInterval: *models.NewInterval(time.Second * 15),
 				TransmitterID:                     null.StringFrom(a.NodeDetails[i].TransmitterAddresses[a.TransmitterKeyIndex]),
 				P2PV2Bootstrappers:                pq.StringArray{a.DefaultP2Pv2Bootstrapper},
@@ -411,7 +482,6 @@ func (a *AutomationTest) SetConfigOnRegistry() error {
 	donNodes := a.NodeDetails[1:]
 	S := make([]int, len(donNodes))
 	oracleIdentities := make([]confighelper.OracleIdentityExtra, len(donNodes))
-	var offC []byte
 	var signerOnchainPublicKeys []types.OnchainPublicKey
 	var transmitterAccounts []types.Account
 	var f uint8
@@ -470,63 +540,17 @@ func (a *AutomationTest) SetConfigOnRegistry() error {
 
 	switch a.RegistrySettings.RegistryVersion {
 	case ethereum.RegistryVersion_2_0:
-		offC, err = json.Marshal(ocr2keepers20config.OffchainConfig{
-			TargetProbability:    a.PluginConfig.TargetProbability,
-			TargetInRounds:       a.PluginConfig.TargetInRounds,
-			PerformLockoutWindow: a.PluginConfig.PerformLockoutWindow,
-			GasLimitPerReport:    a.PluginConfig.GasLimitPerReport,
-			GasOverheadPerUpkeep: a.PluginConfig.GasOverheadPerUpkeep,
-			MinConfirmations:     a.PluginConfig.MinConfirmations,
-			MaxUpkeepBatchSize:   a.PluginConfig.MaxUpkeepBatchSize,
-		})
-		if err != nil {
-			return errors.Join(err, fmt.Errorf("failed to marshal plugin config"))
-		}
-
-		signerOnchainPublicKeys, transmitterAccounts, f, _, offchainConfigVersion, offchainConfig, err = ocr2.ContractSetConfigArgsForTests(
-			a.PublicConfig.DeltaProgress, a.PublicConfig.DeltaResend,
-			a.PublicConfig.DeltaRound, a.PublicConfig.DeltaGrace,
-			a.PublicConfig.DeltaStage, uint8(a.PublicConfig.RMax),
-			S, oracleIdentities, offC,
-			a.PublicConfig.MaxDurationQuery, a.PublicConfig.MaxDurationObservation,
-			1200*time.Millisecond,
-			a.PublicConfig.MaxDurationShouldAcceptAttestedReport,
-			a.PublicConfig.MaxDurationShouldTransmitAcceptedReport,
-			a.PublicConfig.F, a.PublicConfig.OnchainConfig,
-		)
+		signerOnchainPublicKeys, transmitterAccounts, f, _, offchainConfigVersion, offchainConfig, err = calculateOCR2ConfigArgs(a, S, oracleIdentities)
 		if err != nil {
 			return errors.Join(err, fmt.Errorf("failed to build config args"))
 		}
-
-	case ethereum.RegistryVersion_2_1:
-		offC, err = json.Marshal(ocr2keepers30config.OffchainConfig{
-			TargetProbability:    a.PluginConfig.TargetProbability,
-			TargetInRounds:       a.PluginConfig.TargetInRounds,
-			PerformLockoutWindow: a.PluginConfig.PerformLockoutWindow,
-			GasLimitPerReport:    a.PluginConfig.GasLimitPerReport,
-			GasOverheadPerUpkeep: a.PluginConfig.GasOverheadPerUpkeep,
-			MinConfirmations:     a.PluginConfig.MinConfirmations,
-			MaxUpkeepBatchSize:   a.PluginConfig.MaxUpkeepBatchSize,
-		})
-		if err != nil {
-			return errors.Join(err, fmt.Errorf("failed to marshal plugin config"))
-		}
-
-		signerOnchainPublicKeys, transmitterAccounts, f, _, offchainConfigVersion, offchainConfig, err = ocr3.ContractSetConfigArgsForTests(
-			a.PublicConfig.DeltaProgress, a.PublicConfig.DeltaResend, a.PublicConfig.DeltaInitial,
-			a.PublicConfig.DeltaRound, a.PublicConfig.DeltaGrace, a.PublicConfig.DeltaCertifiedCommitRequest,
-			a.PublicConfig.DeltaStage, a.PublicConfig.RMax,
-			S, oracleIdentities, offC,
-			a.PublicConfig.MaxDurationQuery, a.PublicConfig.MaxDurationObservation,
-			a.PublicConfig.MaxDurationShouldAcceptAttestedReport,
-			a.PublicConfig.MaxDurationShouldTransmitAcceptedReport,
-			a.PublicConfig.F, a.PublicConfig.OnchainConfig,
-		)
+	case ethereum.RegistryVersion_2_1, ethereum.RegistryVersion_2_2, ethereum.RegistryVersion_2_3:
+		signerOnchainPublicKeys, transmitterAccounts, f, _, offchainConfigVersion, offchainConfig, err = calculateOCR3ConfigArgs(a, S, oracleIdentities)
 		if err != nil {
 			return errors.Join(err, fmt.Errorf("failed to build config args"))
 		}
 	default:
-		return fmt.Errorf("v2.0 and v2.1 are the only supported versions")
+		return fmt.Errorf("v2.0, v2.1, v2.2 and v2.3 are the only supported versions")
 	}
 
 	var signers []common.Address
@@ -545,82 +569,244 @@ func (a *AutomationTest) SetConfigOnRegistry() error {
 		transmitters = append(transmitters, common.HexToAddress(string(transmitter)))
 	}
 
-	onchainConfig, err := a.RegistrySettings.EncodeOnChainConfig(a.Registrar.Address(), a.UpkeepPrivilegeManager)
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed to encode onchain config"))
-	}
-
 	ocrConfig := contracts.OCRv2Config{
 		Signers:               signers,
 		Transmitters:          transmitters,
 		F:                     f,
-		OnchainConfig:         onchainConfig,
 		OffchainConfigVersion: offchainConfigVersion,
 		OffchainConfig:        offchainConfig,
 	}
 
-	err = a.Registry.SetConfig(a.RegistrySettings, ocrConfig)
-	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed to set config on registry"))
+	if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_0 {
+		ocrConfig.OnchainConfig = a.RegistrySettings.Encode20OnchainConfig(a.Registrar.Address())
+		err = a.Registry.SetConfig(a.RegistrySettings, ocrConfig)
+		if err != nil {
+			return errors.Join(err, fmt.Errorf("failed to set config on registry"))
+		}
+	} else {
+		if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_1 {
+			ocrConfig.TypedOnchainConfig21 = a.RegistrySettings.Create21OnchainConfig(a.Registrar.Address(), a.UpkeepPrivilegeManager)
+		} else if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_2 {
+			ocrConfig.TypedOnchainConfig22 = a.RegistrySettings.Create22OnchainConfig(a.Registrar.Address(), a.UpkeepPrivilegeManager, a.Registry.ChainModuleAddress(), a.Registry.ReorgProtectionEnabled())
+		} else if a.RegistrySettings.RegistryVersion == ethereum.RegistryVersion_2_3 {
+			ocrConfig.TypedOnchainConfig23 = a.RegistrySettings.Create23OnchainConfig(a.Registrar.Address(), a.UpkeepPrivilegeManager, a.Registry.ChainModuleAddress(), a.Registry.ReorgProtectionEnabled())
+			ocrConfig.BillingTokens = []common.Address{
+				common.HexToAddress(a.LinkToken.Address()),
+				common.HexToAddress(a.WETHToken.Address()),
+			}
+
+			ocrConfig.BillingConfigs = []i_automation_registry_master_wrapper_2_3.AutomationRegistryBase23BillingConfig{
+				{
+					GasFeePPB:         100,
+					FlatFeeMilliCents: big.NewInt(500),
+					PriceFeed:         common.HexToAddress(a.ETHUSDFeed.Address()),
+					Decimals:          18,
+					FallbackPrice:     big.NewInt(1000),
+					MinSpend:          big.NewInt(200),
+				},
+				{
+					GasFeePPB:         100,
+					FlatFeeMilliCents: big.NewInt(500),
+					PriceFeed:         common.HexToAddress(a.PLIUSDFeed.Address()),
+					Decimals:          18,
+					FallbackPrice:     big.NewInt(1000),
+					MinSpend:          big.NewInt(200),
+				},
+			}
+		}
+		a.Logger.Debug().Interface("ocrConfig", ocrConfig).Msg("Setting OCR3 config")
+		err = a.Registry.SetConfigTypeSafe(ocrConfig)
+		if err != nil {
+			return errors.Join(err, fmt.Errorf("failed to set config on registry"))
+		}
 	}
 	return nil
 }
 
-func (a *AutomationTest) RegisterUpkeeps(upkeepConfigs []UpkeepConfig) ([]common.Hash, error) {
-	var registrarABI *abi.ABI
-	var err error
-	var registrationRequest []byte
-	registrationTxHashes := make([]common.Hash, 0)
+func calculateOCR2ConfigArgs(a *AutomationTest, S []int, oracleIdentities []confighelper.OracleIdentityExtra) (
+	signers []types.OnchainPublicKey,
+	transmitters []types.Account,
+	f_ uint8,
+	onchainConfig_ []byte,
+	offchainConfigVersion uint64,
+	offchainConfig []byte,
+	err error,
+) {
+	offC, _ := json.Marshal(ocr2keepers20config.OffchainConfig{
+		TargetProbability:    a.PluginConfig.TargetProbability,
+		TargetInRounds:       a.PluginConfig.TargetInRounds,
+		PerformLockoutWindow: a.PluginConfig.PerformLockoutWindow,
+		GasLimitPerReport:    a.PluginConfig.GasLimitPerReport,
+		GasOverheadPerUpkeep: a.PluginConfig.GasOverheadPerUpkeep,
+		MinConfirmations:     a.PluginConfig.MinConfirmations,
+		MaxUpkeepBatchSize:   a.PluginConfig.MaxUpkeepBatchSize,
+	})
 
-	for _, upkeepConfig := range upkeepConfigs {
+	return ocr2.ContractSetConfigArgsForTests(
+		a.PublicConfig.DeltaProgress, a.PublicConfig.DeltaResend,
+		a.PublicConfig.DeltaRound, a.PublicConfig.DeltaGrace,
+		a.PublicConfig.DeltaStage, uint8(a.PublicConfig.RMax),
+		S, oracleIdentities, offC,
+		nil,
+		a.PublicConfig.MaxDurationQuery, a.PublicConfig.MaxDurationObservation,
+		1200*time.Millisecond,
+		a.PublicConfig.MaxDurationShouldAcceptAttestedReport,
+		a.PublicConfig.MaxDurationShouldTransmitAcceptedReport,
+		a.PublicConfig.F, a.PublicConfig.OnchainConfig,
+	)
+}
+
+func calculateOCR3ConfigArgs(a *AutomationTest, S []int, oracleIdentities []confighelper.OracleIdentityExtra) (
+	signers []types.OnchainPublicKey,
+	transmitters []types.Account,
+	f_ uint8,
+	onchainConfig_ []byte,
+	offchainConfigVersion uint64,
+	offchainConfig []byte,
+	err error,
+) {
+	offC, _ := json.Marshal(a.PluginConfig)
+
+	return ocr3.ContractSetConfigArgsForTests(
+		a.PublicConfig.DeltaProgress, a.PublicConfig.DeltaResend, a.PublicConfig.DeltaInitial,
+		a.PublicConfig.DeltaRound, a.PublicConfig.DeltaGrace, a.PublicConfig.DeltaCertifiedCommitRequest,
+		a.PublicConfig.DeltaStage, a.PublicConfig.RMax,
+		S, oracleIdentities, offC,
+		nil, a.PublicConfig.MaxDurationQuery, a.PublicConfig.MaxDurationObservation,
+		a.PublicConfig.MaxDurationShouldAcceptAttestedReport,
+		a.PublicConfig.MaxDurationShouldTransmitAcceptedReport,
+		a.PublicConfig.F, a.PublicConfig.OnchainConfig,
+	)
+}
+
+type registrationResult struct {
+	txHash common.Hash
+}
+
+func (r registrationResult) GetResult() common.Hash {
+	return r.txHash
+}
+
+func (a *AutomationTest) RegisterUpkeeps(upkeepConfigs []UpkeepConfig, maxConcurrency int) ([]common.Hash, error) {
+	concurrency, err := actions.GetAndAssertCorrectConcurrency(a.ChainClient, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	if concurrency > maxConcurrency {
+		concurrency = maxConcurrency
+		a.Logger.Debug().
+			Msgf("Concurrency is higher than max concurrency, setting concurrency to %d", concurrency)
+	}
+
+	var registerUpkeep = func(resultCh chan registrationResult, errorCh chan error, executorNum int, upkeepConfig UpkeepConfig) {
+		keyNum := executorNum + 1 // key 0 is the root key
+		var registrationRequest []byte
+		var registrarABI *abi.ABI
+		var err error
 		switch a.RegistrySettings.RegistryVersion {
 		case ethereum.RegistryVersion_2_0:
 			registrarABI, err = keeper_registrar_wrapper2_0.KeeperRegistrarMetaData.GetAbi()
 			if err != nil {
-				return nil, errors.Join(err, fmt.Errorf("failed to get registrar abi"))
+				errorCh <- errors.Join(err, fmt.Errorf("failed to get registrar abi"))
+				return
 			}
 			registrationRequest, err = registrarABI.Pack(
-				"register", upkeepConfig.UpkeepName, upkeepConfig.EncryptedEmail,
-				upkeepConfig.UpkeepContract, upkeepConfig.GasLimit, upkeepConfig.AdminAddress,
+				"register",
+				upkeepConfig.UpkeepName,
+				upkeepConfig.EncryptedEmail,
+				upkeepConfig.UpkeepContract,
+				upkeepConfig.GasLimit,
+				upkeepConfig.AdminAddress,
 				upkeepConfig.CheckData,
-				upkeepConfig.OffchainConfig, upkeepConfig.FundingAmount,
-				common.HexToAddress(a.ChainClient.GetDefaultWallet().Address()))
+				upkeepConfig.OffchainConfig,
+				upkeepConfig.FundingAmount,
+				a.ChainClient.Addresses[keyNum])
 			if err != nil {
-				return nil, errors.Join(err, fmt.Errorf("failed to pack registrar request"))
+				errorCh <- errors.Join(err, fmt.Errorf("failed to pack registrar request"))
+				return
 			}
-		case ethereum.RegistryVersion_2_1:
+		case ethereum.RegistryVersion_2_1, ethereum.RegistryVersion_2_2: // 2.1 and 2.2 use the same registrar
 			registrarABI, err = automation_registrar_wrapper2_1.AutomationRegistrarMetaData.GetAbi()
 			if err != nil {
-				return nil, errors.Join(err, fmt.Errorf("failed to get registrar abi"))
+				errorCh <- errors.Join(err, fmt.Errorf("failed to get registrar abi"))
+				return
 			}
 			registrationRequest, err = registrarABI.Pack(
-				"register", upkeepConfig.UpkeepName, upkeepConfig.EncryptedEmail,
-				upkeepConfig.UpkeepContract, upkeepConfig.GasLimit, upkeepConfig.AdminAddress,
-				upkeepConfig.TriggerType, upkeepConfig.CheckData, upkeepConfig.TriggerConfig,
-				upkeepConfig.OffchainConfig, upkeepConfig.FundingAmount,
-				common.HexToAddress(a.ChainClient.GetDefaultWallet().Address()))
+				"register",
+				upkeepConfig.UpkeepName,
+				upkeepConfig.EncryptedEmail,
+				upkeepConfig.UpkeepContract,
+				upkeepConfig.GasLimit,
+				upkeepConfig.AdminAddress,
+				upkeepConfig.TriggerType,
+				upkeepConfig.CheckData,
+				upkeepConfig.TriggerConfig,
+				upkeepConfig.OffchainConfig,
+				upkeepConfig.FundingAmount,
+				a.ChainClient.Addresses[keyNum])
 			if err != nil {
-				return nil, errors.Join(err, fmt.Errorf("failed to pack registrar request"))
+				errorCh <- errors.Join(err, fmt.Errorf("failed to pack registrar request"))
+				return
 			}
 		default:
-			return nil, fmt.Errorf("v2.0 and v2.1 are the only supported versions")
+			errorCh <- fmt.Errorf("v2.0, v2.1, and v2.2 are the only supported versions")
+			return
 		}
-		tx, err := a.LinkToken.TransferAndCall(a.Registrar.Address(), upkeepConfig.FundingAmount, registrationRequest)
+
+		tx, err := a.LinkToken.TransferAndCallFromKey(a.Registrar.Address(), upkeepConfig.FundingAmount, registrationRequest, keyNum)
 		if err != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to register upkeep"))
+			errorCh <- errors.Join(err, fmt.Errorf("client number %d failed to register upkeep %s", keyNum, upkeepConfig.UpkeepContract.Hex()))
+			return
 		}
-		registrationTxHashes = append(registrationTxHashes, tx.Hash())
+
+		resultCh <- registrationResult{txHash: tx.Hash()}
 	}
-	return registrationTxHashes, nil
+
+	executor := ctf_concurrency.NewConcurrentExecutor[common.Hash, registrationResult, UpkeepConfig](a.Logger)
+	results, err := executor.Execute(concurrency, upkeepConfigs, registerUpkeep)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(results) != len(upkeepConfigs) {
+		return nil, fmt.Errorf("failed to register all upkeeps. Expected %d, got %d", len(upkeepConfigs), len(results))
+	}
+
+	a.Logger.Info().Msg("Successfully registered all upkeeps")
+
+	return results, nil
 }
 
-func (a *AutomationTest) ConfirmUpkeepsRegistered(registrationTxHashes []common.Hash) ([]*big.Int, error) {
-	upkeepIds := make([]*big.Int, 0)
-	for _, txHash := range registrationTxHashes {
-		receipt, err := a.ChainClient.GetTxReceipt(txHash)
+type UpkeepId = *big.Int
+
+type confirmationResult struct {
+	upkeepID UpkeepId
+}
+
+func (c confirmationResult) GetResult() UpkeepId {
+	return c.upkeepID
+}
+
+func (a *AutomationTest) ConfirmUpkeepsRegistered(registrationTxHashes []common.Hash, maxConcurrency int) ([]*big.Int, error) {
+	concurrency, err := actions.GetAndAssertCorrectConcurrency(a.ChainClient, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	if concurrency > maxConcurrency {
+		concurrency = maxConcurrency
+		a.Logger.Debug().
+			Msgf("Concurrency is higher than max concurrency, setting concurrency to %d", concurrency)
+	}
+
+	var confirmUpkeep = func(resultCh chan confirmationResult, errorCh chan error, _ int, txHash common.Hash) {
+		receipt, err := a.ChainClient.Client.TransactionReceipt(context.Background(), txHash)
 		if err != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to confirm upkeep registration"))
+			errorCh <- errors.Join(err, fmt.Errorf("failed to confirm upkeep registration"))
+			return
 		}
+
 		var upkeepId *big.Int
 		for _, rawLog := range receipt.Logs {
 			parsedUpkeepId, err := a.Registry.ParseUpkeepIdFromRegisteredLog(rawLog)
@@ -630,12 +816,35 @@ func (a *AutomationTest) ConfirmUpkeepsRegistered(registrationTxHashes []common.
 			}
 		}
 		if upkeepId == nil {
-			return nil, fmt.Errorf("failed to parse upkeep id from registration receipt")
+			errorCh <- fmt.Errorf("failed to parse upkeep id from registration receipt")
+			return
 		}
-		upkeepIds = append(upkeepIds, upkeepId)
+		resultCh <- confirmationResult{upkeepID: upkeepId}
 	}
-	a.UpkeepIDs = upkeepIds
-	return upkeepIds, nil
+
+	executor := ctf_concurrency.NewConcurrentExecutor[UpkeepId, confirmationResult, common.Hash](a.Logger)
+	results, err := executor.Execute(concurrency, registrationTxHashes, confirmUpkeep)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed confirmations: %d | successful confirmations: %d", len(executor.GetErrors()), len(results))
+	}
+
+	if len(registrationTxHashes) != len(results) {
+		return nil, fmt.Errorf("failed to confirm all upkeeps. Expected %d, got %d", len(registrationTxHashes), len(results))
+	}
+
+	seen := make(map[*big.Int]bool)
+	for _, upkeepId := range results {
+		if seen[upkeepId] {
+			return nil, fmt.Errorf("duplicate upkeep id: %s. Something went wrong during upkeep confirmation. Please check the test code", upkeepId.String())
+		}
+		seen[upkeepId] = true
+	}
+
+	a.Logger.Info().Msg("Successfully confirmed all upkeeps")
+	a.UpkeepIDs = results
+
+	return results, nil
 }
 
 func (a *AutomationTest) AddJobsAndSetConfig(t *testing.T) {
@@ -645,7 +854,7 @@ func (a *AutomationTest) AddJobsAndSetConfig(t *testing.T) {
 	err = a.AddAutomationJobs()
 	require.NoError(t, err, "Error adding automation jobs")
 
-	l.Debug().
+	l.Info().
 		Interface("Plugin Config", a.PluginConfig).
 		Interface("Public Config", a.PublicConfig).
 		Interface("Registry Settings", a.RegistrySettings).
@@ -656,7 +865,7 @@ func (a *AutomationTest) AddJobsAndSetConfig(t *testing.T) {
 	l.Info().Str("Registry Address", a.Registry.Address()).Msg("Successfully setConfig on registry")
 }
 
-func (a *AutomationTest) SetupMercuryMock(t *testing.T, imposters []ctfTestEnv.KillgraveImposter) {
+func (a *AutomationTest) SetupMercuryMock(t *testing.T, imposters []ctftestenv.KillgraveImposter) {
 	if a.IsOnk8s {
 		t.Error("mercury mock is not supported on k8s")
 	}
@@ -670,53 +879,118 @@ func (a *AutomationTest) SetupMercuryMock(t *testing.T, imposters []ctfTestEnv.K
 }
 
 func (a *AutomationTest) SetupAutomationDeployment(t *testing.T) {
-	l := logging.GetTestLogger(t)
-	err := a.CollectNodeDetails()
-	require.NoError(t, err, "Error collecting node details")
-	l.Info().Msg("Collected Node Details")
-	l.Debug().Interface("Node Details", a.NodeDetails).Msg("Node Details")
-
-	err = a.DeployPLI()
-	require.NoError(t, err, "Error deploying link token contract")
-
-	err = a.DeployEthLinkFeed()
-	require.NoError(t, err, "Error deploying eth link feed contract")
-	err = a.DeployGasFeed()
-	require.NoError(t, err, "Error deploying gas feed contract")
-
-	err = a.DeployTranscoder()
-	require.NoError(t, err, "Error deploying transcoder contract")
-
-	err = a.DeployRegistry()
-	require.NoError(t, err, "Error deploying registry contract")
-	err = a.DeployRegistrar()
-	require.NoError(t, err, "Error deploying registrar contract")
-
-	a.AddJobsAndSetConfig(t)
+	a.setupDeployment(t, true)
 }
 
-func (a *AutomationTest) LoadAutomationDeployment(t *testing.T, linkTokenAddress,
-	ethLinkFeedAddress, gasFeedAddress, transcoderAddress, registryAddress, registrarAddress string) {
+func (a *AutomationTest) SetupAutomationDeploymentWithoutJobs(t *testing.T) {
+	a.setupDeployment(t, false)
+}
+
+func (a *AutomationTest) setupDeployment(t *testing.T, addJobs bool) {
 	l := logging.GetTestLogger(t)
 	err := a.CollectNodeDetails()
 	require.NoError(t, err, "Error collecting node details")
 	l.Info().Msg("Collected Node Details")
 	l.Debug().Interface("Node Details", a.NodeDetails).Msg("Node Details")
 
-	err = a.LoadPLI(linkTokenAddress)
-	require.NoError(t, err, "Error loading link token contract")
+	if a.TestConfig.GetAutomationConfig().UseExistingLinkTokenContract() {
+		linkAddress, err := a.TestConfig.GetAutomationConfig().LinkTokenContractAddress()
+		require.NoError(t, err, "Error getting link token contract address")
+		err = a.LoadPLI(linkAddress.String())
+		require.NoError(t, err, "Error loading link token contract")
+	} else {
+		err = a.DeployPLI()
+		require.NoError(t, err, "Error deploying link token contract")
+	}
 
-	err = a.LoadEthLinkFeed(ethLinkFeedAddress)
-	require.NoError(t, err, "Error loading eth link feed contract")
-	err = a.LoadEthGasFeed(gasFeedAddress)
-	require.NoError(t, err, "Error loading gas feed contract")
-	err = a.LoadTranscoder(transcoderAddress)
-	require.NoError(t, err, "Error loading transcoder contract")
-	err = a.LoadRegistry(registryAddress)
-	require.NoError(t, err, "Error loading registry contract")
-	err = a.LoadRegistrar(registrarAddress)
-	require.NoError(t, err, "Error loading registrar contract")
+	if a.TestConfig.GetAutomationConfig().UseExistingWethContract() {
+		wethAddress, err := a.TestConfig.GetAutomationConfig().WethContractAddress()
+		require.NoError(t, err, "Error getting weth token contract address")
+		err = a.LoadWETH(wethAddress.String())
+		require.NoError(t, err, "Error loading weth token contract")
+	} else {
+		err = a.DeployWETH()
+		require.NoError(t, err, "Error deploying weth token contract")
+	}
 
-	a.AddJobsAndSetConfig(t)
+	if a.TestConfig.GetAutomationConfig().UseExistingLinkEthFeedContract() {
+		linkEthFeedAddress, err := a.TestConfig.GetAutomationConfig().LinkEthFeedContractAddress()
+		require.NoError(t, err, "Error getting link eth feed contract address")
+		err = a.LoadLinkEthFeed(linkEthFeedAddress.String())
+		require.NoError(t, err, "Error loading link eth feed contract")
+	} else {
+		err = a.DeployLinkEthFeed()
+		require.NoError(t, err, "Error deploying link eth feed contract")
+	}
 
+	if a.TestConfig.GetAutomationConfig().UseExistingEthGasFeedContract() {
+		gasFeedAddress, err := a.TestConfig.GetAutomationConfig().EthGasFeedContractAddress()
+		require.NoError(t, err, "Error getting gas feed contract address")
+		err = a.LoadEthGasFeed(gasFeedAddress.String())
+		require.NoError(t, err, "Error loading gas feed contract")
+	} else {
+		err = a.DeployGasFeed()
+		require.NoError(t, err, "Error deploying gas feed contract")
+	}
+
+	if a.TestConfig.GetAutomationConfig().UseExistingEthUSDFeedContract() {
+		ethUsdFeedAddress, err := a.TestConfig.GetAutomationConfig().EthUSDFeedContractAddress()
+		require.NoError(t, err, "Error getting eth usd feed contract address")
+		err = a.LoadEthUSDFeed(ethUsdFeedAddress.String())
+		require.NoError(t, err, "Error loading eth usd feed contract")
+	} else {
+		err = a.DeployEthUSDFeed()
+		require.NoError(t, err, "Error deploying eth usd feed contract")
+	}
+
+	if a.TestConfig.GetAutomationConfig().UseExistingLinkUSDFeedContract() {
+		linkUsdFeedAddress, err := a.TestConfig.GetAutomationConfig().LinkUSDFeedContractAddress()
+		require.NoError(t, err, "Error getting link usd feed contract address")
+		err = a.LoadLinkUSDFeed(linkUsdFeedAddress.String())
+		require.NoError(t, err, "Error loading link usd feed contract")
+	} else {
+		err = a.DeployLinkUSDFeed()
+		require.NoError(t, err, "Error deploying link usd feed contract")
+	}
+
+	if a.TestConfig.GetAutomationConfig().UseExistingTranscoderContract() {
+		transcoderAddress, err := a.TestConfig.GetAutomationConfig().TranscoderContractAddress()
+		require.NoError(t, err, "Error getting transcoder contract address")
+		err = a.LoadTranscoder(transcoderAddress.String())
+		require.NoError(t, err, "Error loading transcoder contract")
+	} else {
+		err = a.DeployTranscoder()
+		require.NoError(t, err, "Error deploying transcoder contract")
+	}
+
+	if a.TestConfig.GetAutomationConfig().UseExistingRegistryContract() {
+		chainModuleAddress, err := a.TestConfig.GetAutomationConfig().ChainModuleContractAddress()
+		require.NoError(t, err, "Error getting chain module contract address")
+		registryAddress, err := a.TestConfig.GetAutomationConfig().RegistryContractAddress()
+		require.NoError(t, err, "Error getting registry contract address")
+		err = a.LoadRegistry(registryAddress.String(), chainModuleAddress.String())
+		require.NoError(t, err, "Error loading registry contract")
+		if a.Registry.RegistryOwnerAddress().String() != a.ChainClient.MustGetRootKeyAddress().String() {
+			l.Debug().Str("RootKeyAddress", a.ChainClient.MustGetRootKeyAddress().String()).Str("Registry Owner Address", a.Registry.RegistryOwnerAddress().String()).Msg("Registry owner address is not the root key address")
+			t.Error("Registry owner address is not the root key address")
+			t.FailNow()
+		}
+	} else {
+		err = a.DeployRegistry()
+		require.NoError(t, err, "Error deploying registry contract")
+	}
+
+	if a.TestConfig.GetAutomationConfig().UseExistingRegistrarContract() {
+		registrarAddress, err := a.TestConfig.GetAutomationConfig().RegistrarContractAddress()
+		require.NoError(t, err, "Error getting registrar contract address")
+		err = a.LoadRegistrar(registrarAddress.String())
+		require.NoError(t, err, "Error loading registrar contract")
+	} else {
+		err = a.DeployRegistrar()
+		require.NoError(t, err, "Error deploying registrar contract")
+	}
+
+	if addJobs {
+		a.AddJobsAndSetConfig(t)
+	}
 }

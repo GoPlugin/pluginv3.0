@@ -2,6 +2,7 @@
 package client
 
 import (
+	"crypto/tls"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -45,13 +46,9 @@ type PluginClient struct {
 
 // NewPluginClient creates a new Plugin model using a provided config
 func NewPluginClient(c *PluginConfig, logger zerolog.Logger) (*PluginClient, error) {
-	rc, err := initRestyClient(c.URL, c.Email, c.Password, c.HTTPTimeout)
+	rc, err := initRestyClient(c.URL, c.Email, c.Password, c.Headers, c.HTTPTimeout)
 	if err != nil {
 		return nil, err
-	}
-	_, isSet := os.LookupEnv("CL_CLIENT_DEBUG")
-	if isSet {
-		rc.SetDebug(true)
 	}
 	return &PluginClient{
 		Config:    c,
@@ -61,8 +58,11 @@ func NewPluginClient(c *PluginConfig, logger zerolog.Logger) (*PluginClient, err
 	}, nil
 }
 
-func initRestyClient(url string, email string, password string, timeout *time.Duration) (*resty.Client, error) {
-	rc := resty.New().SetBaseURL(url)
+func initRestyClient(url string, email string, password string, headers map[string]string, timeout *time.Duration) (*resty.Client, error) {
+	isDebug := os.Getenv("RESTY_DEBUG") == "true"
+	// G402 - TODO: certificates
+	//nolint
+	rc := resty.New().SetBaseURL(url).SetHeaders(headers).SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).SetDebug(isDebug)
 	if timeout != nil {
 		rc.SetTimeout(*timeout)
 	}
@@ -74,7 +74,7 @@ func initRestyClient(url string, email string, password string, timeout *time.Du
 	for i := 0; i < retryCount; i++ {
 		resp, err = rc.R().SetBody(session).Post("/sessions")
 		if err != nil {
-			log.Debug().Err(err).Str("URL", url).Interface("Session Details", session).Msg("Error connecting to Plugin node, retrying")
+			log.Warn().Err(err).Str("URL", url).Interface("Session Details", session).Msg("Error connecting to Plugin node, retrying")
 			time.Sleep(5 * time.Second)
 		} else {
 			break
@@ -84,12 +84,26 @@ func initRestyClient(url string, email string, password string, timeout *time.Du
 		return nil, fmt.Errorf("error connecting to plugin node after %d attempts: %w", retryCount, err)
 	}
 	rc.SetCookies(resp.Cookies())
+	log.Debug().Str("URL", url).Msg("Connected to Plugin node")
 	return rc, nil
 }
 
 // URL Plugin instance http url
 func (c *PluginClient) URL() string {
 	return c.Config.URL
+}
+
+// Health returns all statuses health info
+func (c *PluginClient) Health() (*HealthResponse, *http.Response, error) {
+	respBody := &HealthResponse{}
+	c.l.Info().Str(NodeURL, c.Config.URL).Msg("Requesting health data")
+	resp, err := c.APIClient.R().
+		SetResult(&respBody).
+		Get("/health")
+	if err != nil {
+		return nil, nil, err
+	}
+	return respBody, resp.RawResponse, err
 }
 
 // CreateJobRaw creates a Plugin job based on the provided spec string
@@ -117,6 +131,10 @@ func (c *PluginClient) MustCreateJob(spec JobSpec) (*Job, error) {
 		return nil, err
 	}
 	return job, VerifyStatusCodeWithResponse(resp, http.StatusOK)
+}
+
+func (c *PluginClient) GetConfig() PluginConfig {
+	return *c.Config
 }
 
 // CreateJob creates a Plugin job based on the provided spec struct
@@ -825,62 +843,6 @@ func (c *PluginClient) ImportVRFKey(vrfExportKey *VRFExportKey) (*VRFKey, *http.
 	return vrfKey, resp.RawResponse, err
 }
 
-// MustCreateDkgSignKey creates a DKG Sign key on the Plugin node
-// and returns error if the request is unsuccessful
-func (c *PluginClient) MustCreateDkgSignKey() (*DKGSignKey, error) {
-	dkgSignKey := &DKGSignKey{}
-	c.l.Info().Str(NodeURL, c.Config.URL).Msg("Creating DKG Sign Key")
-	resp, err := c.APIClient.R().
-		SetResult(dkgSignKey).
-		Post("/v2/keys/dkgsign")
-	if err == nil {
-		err = VerifyStatusCode(resp.StatusCode(), http.StatusOK)
-	}
-	return dkgSignKey, err
-}
-
-// MustCreateDkgEncryptKey creates a DKG Encrypt key on the Plugin node
-// and returns error if the request is unsuccessful
-func (c *PluginClient) MustCreateDkgEncryptKey() (*DKGEncryptKey, error) {
-	dkgEncryptKey := &DKGEncryptKey{}
-	c.l.Info().Str(NodeURL, c.Config.URL).Msg("Creating DKG Encrypt Key")
-	resp, err := c.APIClient.R().
-		SetResult(dkgEncryptKey).
-		Post("/v2/keys/dkgencrypt")
-	if err == nil {
-		err = VerifyStatusCode(resp.StatusCode(), http.StatusOK)
-	}
-	return dkgEncryptKey, err
-}
-
-// MustReadDKGSignKeys reads all DKG Sign Keys from the Plugin node returns err if response not 200
-func (c *PluginClient) MustReadDKGSignKeys() (*DKGSignKeys, error) {
-	dkgSignKeys := &DKGSignKeys{}
-	c.l.Info().Str(NodeURL, c.Config.URL).Msg("Reading DKG Sign Keys")
-	resp, err := c.APIClient.R().
-		SetResult(dkgSignKeys).
-		Get("/v2/keys/dkgsign")
-	if err != nil {
-		return nil, err
-	}
-	err = VerifyStatusCode(resp.StatusCode(), http.StatusOK)
-	return dkgSignKeys, err
-}
-
-// MustReadDKGEncryptKeys reads all DKG Encrypt Keys from the Plugin node returns err if response not 200
-func (c *PluginClient) MustReadDKGEncryptKeys() (*DKGEncryptKeys, error) {
-	dkgEncryptKeys := &DKGEncryptKeys{}
-	c.l.Info().Str(NodeURL, c.Config.URL).Msg("Reading DKG Encrypt Keys")
-	resp, err := c.APIClient.R().
-		SetResult(dkgEncryptKeys).
-		Get("/v2/keys/dkgencrypt")
-	if err != nil {
-		return nil, err
-	}
-	err = VerifyStatusCode(resp.StatusCode(), http.StatusOK)
-	return dkgEncryptKeys, err
-}
-
 // CreateCSAKey creates a CSA key on the Plugin node, only 1 CSA key per noe
 func (c *PluginClient) CreateCSAKey() (*CSAKey, *http.Response, error) {
 	csaKey := &CSAKey{}
@@ -1150,7 +1112,9 @@ func CreateNodeKeysBundle(nodes []*PluginClient, chainName string, chainId strin
 		if err != nil {
 			return nil, nil, err
 		}
-
+		if len(p2pkeys.Data) == 0 {
+			return nil, nil, fmt.Errorf("found no P2P Keys on the Plugin node. Node URL: %s", n.URL())
+		}
 		peerID := p2pkeys.Data[0].Attributes.PeerID
 		// If there is already a txkey present for the chain skip creating a new one
 		// otherwise the test logic will need multiple key management (like funding all the keys,

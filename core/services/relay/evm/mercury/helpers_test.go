@@ -20,6 +20,7 @@ import (
 	"github.com/goplugin/plugin-common/pkg/services/servicetest"
 
 	evmclient "github.com/goplugin/pluginv3.0/v2/core/chains/evm/client"
+	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/headtracker"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/logpoller"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/evm/utils"
 	"github.com/goplugin/pluginv3.0/v2/core/gethwrappers/llo-feeds/generated/verifier"
@@ -163,14 +164,22 @@ func SetupTH(t *testing.T, feedID common.Hash) TestHarness {
 	b.Commit()
 
 	db := pgtest.NewSqlxDB(t)
-	cfg := pgtest.NewQConfig(false)
 	ethClient := evmclient.NewSimulatedBackendClient(t, b, big.NewInt(1337))
 	lggr := logger.TestLogger(t)
-	lorm := logpoller.NewORM(big.NewInt(1337), db, lggr, cfg)
-	lp := logpoller.NewLogPoller(lorm, ethClient, lggr, 100*time.Millisecond, false, 1, 2, 2, 1000)
+	lorm := logpoller.NewORM(big.NewInt(1337), db, lggr)
+
+	lpOpts := logpoller.Opts{
+		PollPeriod:               100 * time.Millisecond,
+		FinalityDepth:            1,
+		BackfillBatchSize:        2,
+		RpcBatchSize:             2,
+		KeepFinalizedBlocksDepth: 1000,
+	}
+	ht := headtracker.NewSimulatedHeadTracker(ethClient, lpOpts.UseFinalityTag, lpOpts.FinalityDepth)
+	lp := logpoller.NewLogPoller(lorm, ethClient, lggr, ht, lpOpts)
 	servicetest.Run(t, lp)
 
-	configPoller, err := NewConfigPoller(lggr, lp, verifierAddress, feedID)
+	configPoller, err := NewConfigPoller(testutils.Context(t), lggr, lp, verifierAddress, feedID)
 	require.NoError(t, err)
 
 	configPoller.Start()

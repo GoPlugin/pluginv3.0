@@ -9,23 +9,24 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/test-go/testify/require"
 
-	ctf_config "github.com/goplugin/plugin-testing-framework/config"
-	"github.com/goplugin/plugin-testing-framework/utils/ptr"
+	ctf_config "github.com/goplugin/plugin-testing-framework/lib/config"
+	"github.com/goplugin/plugin-testing-framework/lib/utils/ptr"
 	a_config "github.com/goplugin/pluginv3.0/integration-tests/testconfig/automation"
 )
 
 func TestBase64ConfigRead(t *testing.T) {
-	networkConfigTOML := `
-	[RpcHttpUrls]
-	arbitrum_goerli = ["https://devnet-1.mt/ABC/rpc/"]
-	optimism_goerli = ["https://devnet-3.mt/ABC/rpc/"]
-
-	[RpcWsUrls]
-	arbitrum_goerli = ["wss://devnet-1.mt/ABC/rpc/"]
-	optimism_goerli = ["wss://devnet-2.mt/ABC/rpc/"]
-	`
-	networksEncoded := base64.StdEncoding.EncodeToString([]byte(networkConfigTOML))
-	os.Setenv(ctf_config.Base64NetworkConfigEnvVarName, networksEncoded)
+	os.Setenv("E2E_TEST_ARBITRUM_GOERLI_RPC_HTTP_URL", "https://devnet-1.mt/ABC/rpc/")
+	os.Setenv("E2E_TEST_ARBITRUM_GOERLI_RPC_WS_URL", "wss://devnet-1.mt/ABC/rpc/")
+	os.Setenv("E2E_TEST_ARBITRUM_GOERLI_WALLET_KEY", "0x3333333333333333333333333333333333333333")
+	defer os.Unsetenv("E2E_TEST_ARBITRUM_GOERLI_RPC_HTTP_URL")
+	defer os.Unsetenv("E2E_TEST_ARBITRUM_GOERLI_RPC_WS_URL")
+	defer os.Unsetenv("E2E_TEST_ARBITRUM_GOERLI_WALLET_KEY")
+	os.Setenv("E2E_TEST_OPTIMISM_GOERLI_RPC_HTTP_URL", "https://devnet-3.mt/ABC/rpc/")
+	os.Setenv("E2E_TEST_OPTIMISM_GOERLI_RPC_WS_URL", "wss://devnet-3.mt/ABC/rpc/")
+	os.Setenv("E2E_TEST_OPTIMISM_GOERLI_WALLET_KEY", "0x3333333333333333333333333333333333333333")
+	defer os.Unsetenv("E2E_TEST_OPTIMISM_GOERLI_RPC_HTTP_URL")
+	defer os.Unsetenv("E2E_TEST_OPTIMISM_GOERLI_RPC_WS_URL")
+	defer os.Unsetenv("E2E_TEST_OPTIMISM_GOERLI_WALLET_KEY")
 
 	testConfig := TestConfig{
 		Automation: &a_config.Config{
@@ -35,6 +36,8 @@ func TestBase64ConfigRead(t *testing.T) {
 				BlockTime:             ptr.Ptr(10),
 				SpecType:              ptr.Ptr("minimum"),
 				PluginNodeLogLevel: ptr.Ptr("debug"),
+				UsePrometheus:         ptr.Ptr(true),
+				RemoveNamespace:       ptr.Ptr(true),
 			},
 			Load: []a_config.Load{
 				{
@@ -57,13 +60,15 @@ func TestBase64ConfigRead(t *testing.T) {
 				},
 			},
 		},
-		Network: &ctf_config.NetworkConfig{
-			SelectedNetworks: []string{"OPTIMISM_GOERLI"},
-			RpcHttpUrls: map[string][]string{
-				"OPTIMISM_GOERLI": {"http://localhost:8545"},
-			},
-			WalletKeys: map[string][]string{
-				"OPTIMISM_GOERLI": {"0x3333333333333333333333333333333333333333"},
+		TestConfig: ctf_config.TestConfig{
+			Network: &ctf_config.NetworkConfig{
+				SelectedNetworks: []string{"OPTIMISM_GOERLI"},
+				RpcHttpUrls: map[string][]string{
+					"OPTIMISM_GOERLI": {"http://localhost:8545"},
+				},
+				WalletKeys: map[string][]string{
+					"OPTIMISM_GOERLI": {"0x3333333333333333333333333333333333333333"},
+				},
 			},
 		},
 	}
@@ -74,7 +79,7 @@ func TestBase64ConfigRead(t *testing.T) {
 	testConfigEncoded := base64.StdEncoding.EncodeToString(configMarshalled)
 	os.Setenv(Base64OverrideEnvVarName, testConfigEncoded)
 
-	readConfig, err := GetConfig("test", Automation)
+	readConfig, err := GetConfig([]string{"test"}, Automation)
 	require.NoError(t, err, "Error reading config")
 
 	require.NotNil(t, readConfig.Automation, "Automation config read from base64 is nil")

@@ -37,7 +37,12 @@ import (
 
 	ocrtypes "github.com/goplugin/plugin-libocr/offchainreporting/types"
 
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities"
+	remotetypes "github.com/goplugin/pluginv3.0/v2/core/capabilities/remote/types"
+	p2ptypes "github.com/goplugin/pluginv3.0/v2/core/services/p2p/types"
+
 	"github.com/goplugin/plugin-common/pkg/loop"
+	"github.com/goplugin/plugin-common/pkg/sqlutil"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"
 
 	"github.com/goplugin/pluginv3.0/v2/common/client"
@@ -65,10 +70,9 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/core/services/plugin"
 	"github.com/goplugin/pluginv3.0/v2/core/services/job"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore"
+	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/aptoskey"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/cosmoskey"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/csakey"
-	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/dkgencryptkey"
-	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/dkgsignkey"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ethkey"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ocr2key"
 	"github.com/goplugin/pluginv3.0/v2/core/services/keystore/keys/ocrkey"
@@ -118,16 +122,15 @@ var (
 	DefaultP2PPeerID p2pkey.PeerID
 	FixtureChainID   = *testutils.FixtureChainID
 
-	DefaultCosmosKey     = cosmoskey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
-	DefaultCSAKey        = csakey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
-	DefaultOCRKey        = ocrkey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
-	DefaultOCR2Key       = ocr2key.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed), "evm")
-	DefaultP2PKey        = p2pkey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
-	DefaultSolanaKey     = solkey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
-	DefaultStarkNetKey   = starkkey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
-	DefaultVRFKey        = vrfkey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
-	DefaultDKGSignKey    = dkgsignkey.MustNewXXXTestingOnly(big.NewInt(KeyBigIntSeed))
-	DefaultDKGEncryptKey = dkgencryptkey.MustNewXXXTestingOnly(big.NewInt(KeyBigIntSeed))
+	DefaultCosmosKey   = cosmoskey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
+	DefaultCSAKey      = csakey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
+	DefaultOCRKey      = ocrkey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
+	DefaultOCR2Key     = ocr2key.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed), "evm")
+	DefaultP2PKey      = p2pkey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
+	DefaultSolanaKey   = solkey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
+	DefaultStarkNetKey = starkkey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
+	DefaultAptosKey    = aptoskey.MustNewInsecure(keystest.NewRandReaderFromSeed(KeyBigIntSeed))
+	DefaultVRFKey      = vrfkey.MustNewV2XXXTestingOnly(big.NewInt(KeyBigIntSeed))
 )
 
 func init() {
@@ -180,11 +183,11 @@ type JobPipelineConfig interface {
 	MaxSuccessfulRuns() uint64
 }
 
-func NewJobPipelineV2(t testing.TB, cfg pipeline.BridgeConfig, jpcfg JobPipelineConfig, dbCfg pg.QConfig, legacyChains legacyevm.LegacyChainContainer, db *sqlx.DB, keyStore keystore.Master, restrictedHTTPClient, unrestrictedHTTPClient *http.Client) JobPipelineV2TestHelper {
+func NewJobPipelineV2(t testing.TB, cfg pipeline.BridgeConfig, jpcfg JobPipelineConfig, legacyChains legacyevm.LegacyChainContainer, db *sqlx.DB, keyStore keystore.Master, restrictedHTTPClient, unrestrictedHTTPClient *http.Client) JobPipelineV2TestHelper {
 	lggr := logger.TestLogger(t)
-	prm := pipeline.NewORM(db, lggr, dbCfg, jpcfg.MaxSuccessfulRuns())
-	btORM := bridges.NewORM(db, lggr, dbCfg)
-	jrm := job.NewORM(db, prm, btORM, keyStore, lggr, dbCfg)
+	prm := pipeline.NewORM(db, lggr, jpcfg.MaxSuccessfulRuns())
+	btORM := bridges.NewORM(db)
+	jrm := job.NewORM(db, prm, btORM, keyStore, lggr)
 	pr := pipeline.NewRunner(prm, btORM, jpcfg, cfg, legacyChains, keyStore.Eth(), keyStore.VRF(), lggr, restrictedHTTPClient, unrestrictedHTTPClient)
 	return JobPipelineV2TestHelper{
 		prm,
@@ -209,7 +212,12 @@ type TestApplication struct {
 func NewApplicationEVMDisabled(t *testing.T) *TestApplication {
 	t.Helper()
 
-	c := configtest.NewGeneralConfig(t, nil)
+	c := configtest.NewGeneralConfig(t, func(config *plugin.Config, secrets *plugin.Secrets) {
+		f := false
+		for _, c := range config.EVM {
+			c.Enabled = &f
+		}
+	})
 
 	return NewApplicationWithConfig(t, c)
 }
@@ -236,6 +244,7 @@ func NewApplicationWithKey(t *testing.T, flagsAndDeps ...interface{}) *TestAppli
 // NewApplicationWithConfigAndKey creates a new TestApplication with the given testorm
 // it will also provide an unlocked account on the keystore
 func NewApplicationWithConfigAndKey(t testing.TB, c plugin.GeneralConfig, flagsAndDeps ...interface{}) *TestApplication {
+	ctx := testutils.Context(t)
 	app := NewApplicationWithConfig(t, c, flagsAndDeps...)
 
 	chainID := *ubig.New(&FixtureChainID)
@@ -252,9 +261,9 @@ func NewApplicationWithConfigAndKey(t testing.TB, c plugin.GeneralConfig, flagsA
 	} else {
 		id, ks := chainID.ToInt(), app.KeyStore.Eth()
 		for _, k := range app.Keys {
-			ks.XXXTestingOnlyAdd(k)
-			require.NoError(t, ks.Add(k.Address, id))
-			require.NoError(t, ks.Enable(k.Address, id))
+			ks.XXXTestingOnlyAdd(ctx, k)
+			require.NoError(t, ks.Add(ctx, k.Address, id))
+			require.NoError(t, ks.Enable(ctx, k.Address, id))
 		}
 	}
 
@@ -262,18 +271,19 @@ func NewApplicationWithConfigAndKey(t testing.TB, c plugin.GeneralConfig, flagsA
 }
 
 func setKeys(t testing.TB, app *TestApplication, flagsAndDeps ...interface{}) (chainID ubig.Big) {
-	require.NoError(t, app.KeyStore.Unlock(Password))
+	ctx := testutils.Context(t)
+	require.NoError(t, app.KeyStore.Unlock(ctx, Password))
 
 	for _, dep := range flagsAndDeps {
 		switch v := dep.(type) {
 		case ethkey.KeyV2:
 			app.Keys = append(app.Keys, v)
 		case p2pkey.KeyV2:
-			require.NoError(t, app.GetKeyStore().P2P().Add(v))
+			require.NoError(t, app.GetKeyStore().P2P().Add(ctx, v))
 		case csakey.KeyV2:
-			require.NoError(t, app.GetKeyStore().CSA().Add(v))
+			require.NoError(t, app.GetKeyStore().CSA().Add(ctx, v))
 		case ocr2key.KeyBundle:
-			require.NoError(t, app.GetKeyStore().OCR2().Add(v))
+			require.NoError(t, app.GetKeyStore().OCR2().Add(ctx, v))
 		}
 	}
 
@@ -315,10 +325,37 @@ func NewApplicationWithConfig(t testing.TB, cfg plugin.GeneralConfig, flagsAndDe
 		auditLogger = audit.NoopLogger
 	}
 
+	var capabilitiesRegistry *capabilities.Registry
+	capabilitiesRegistry = capabilities.NewRegistry(lggr)
+	for _, dep := range flagsAndDeps {
+		registry, _ := dep.(*capabilities.Registry)
+		if registry != nil {
+			capabilitiesRegistry = registry
+		}
+	}
+
+	var dispatcher remotetypes.Dispatcher
+	for _, dep := range flagsAndDeps {
+		dispatcher, _ = dep.(remotetypes.Dispatcher)
+		if dispatcher != nil {
+			break
+		}
+	}
+
+	var peerWrapper p2ptypes.PeerWrapper
+	for _, dep := range flagsAndDeps {
+		peerWrapper, _ = dep.(p2ptypes.PeerWrapper)
+		if peerWrapper != nil {
+			break
+		}
+	}
+
 	url := cfg.Database().URL()
 	db, err := pg.NewConnection(url.String(), cfg.Database().Dialect(), cfg.Database())
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, db.Close()) })
+
+	ds := sqlutil.WrapDataSource(db, lggr, sqlutil.TimeoutHook(cfg.Database().DefaultQueryTimeout))
 
 	var ethClient evmclient.Client
 	var externalInitiatorManager webhook.ExternalInitiatorManager
@@ -334,16 +371,15 @@ func NewApplicationWithConfig(t testing.TB, cfg plugin.GeneralConfig, flagsAndDe
 		default:
 			switch flag {
 			case UseRealExternalInitiatorManager:
-				externalInitiatorManager = webhook.NewExternalInitiatorManager(db, clhttptest.NewTestLocalOnlyHTTPClient(), lggr, cfg.Database())
+				externalInitiatorManager = webhook.NewExternalInitiatorManager(ds, clhttptest.NewTestLocalOnlyHTTPClient())
 			}
-
 		}
 	}
 
-	keyStore := keystore.NewInMemory(db, utils.FastScryptParams, lggr, cfg.Database())
+	keyStore := keystore.NewInMemory(ds, utils.FastScryptParams, lggr)
 
 	mailMon := mailbox.NewMonitor(cfg.AppID().String(), lggr.Named("Mailbox"))
-	loopRegistry := plugins.NewLoopRegistry(lggr, nil)
+	loopRegistry := plugins.NewLoopRegistry(lggr, nil, nil)
 
 	mercuryPool := wsrpc.NewPool(lggr, cache.Config{
 		LatestReportTTL:      cfg.Mercury().Cache().LatestReportTTL(),
@@ -351,20 +387,24 @@ func NewApplicationWithConfig(t testing.TB, cfg plugin.GeneralConfig, flagsAndDe
 		LatestReportDeadline: cfg.Mercury().Cache().LatestReportDeadline(),
 	})
 
+	c := clhttptest.NewTestLocalOnlyHTTPClient()
 	relayerFactory := plugin.RelayerFactory{
-		Logger:       lggr,
-		LoopRegistry: loopRegistry,
-		GRPCOpts:     loop.GRPCOpts{},
-		MercuryPool:  mercuryPool,
+		Logger:               lggr,
+		LoopRegistry:         loopRegistry,
+		GRPCOpts:             loop.GRPCOpts{},
+		MercuryPool:          mercuryPool,
+		CapabilitiesRegistry: capabilitiesRegistry,
+		HTTPClient:           c,
 	}
 
 	evmOpts := plugin.EVMFactoryConfig{
 		ChainOpts: legacyevm.ChainOpts{
 			AppConfig: cfg,
 			MailMon:   mailMon,
-			DB:        db,
+			DS:        ds,
 		},
-		CSAETHKeystore: keyStore,
+		CSAETHKeystore:     keyStore,
+		MercuryTransmitter: cfg.Mercury().Transmitter(),
 	}
 
 	if cfg.EVMEnabled() {
@@ -382,14 +422,13 @@ func NewApplicationWithConfig(t testing.TB, cfg plugin.GeneralConfig, flagsAndDe
 
 	testCtx := testutils.Context(t)
 	// evm alway enabled for backward compatibility
-	initOps := []plugin.CoreRelayerChainInitFunc{plugin.InitEVM(testCtx, relayerFactory, evmOpts)}
+	initOps := []plugin.CoreRelayerChainInitFunc{plugin.InitDummy(testCtx, relayerFactory), plugin.InitEVM(testCtx, relayerFactory, evmOpts)}
 
 	if cfg.CosmosEnabled() {
 		cosmosCfg := plugin.CosmosFactoryConfig{
 			Keystore:    keyStore.Cosmos(),
 			TOMLConfigs: cfg.CosmosConfigs(),
-			DB:          db,
-			QConfig:     cfg.Database(),
+			DS:          ds,
 		}
 		initOps = append(initOps, plugin.InitCosmos(testCtx, relayerFactory, cosmosCfg))
 	}
@@ -406,17 +445,23 @@ func NewApplicationWithConfig(t testing.TB, cfg plugin.GeneralConfig, flagsAndDe
 			TOMLConfigs: cfg.StarknetConfigs(),
 		}
 		initOps = append(initOps, plugin.InitStarknet(testCtx, relayerFactory, starkCfg))
-
 	}
+	if cfg.AptosEnabled() {
+		aptosCfg := plugin.AptosFactoryConfig{
+			Keystore:    keyStore.Aptos(),
+			TOMLConfigs: cfg.AptosConfigs(),
+		}
+		initOps = append(initOps, plugin.InitAptos(testCtx, relayerFactory, aptosCfg))
+	}
+
 	relayChainInterops, err := plugin.NewCoreRelayerChainInteroperators(initOps...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := clhttptest.NewTestLocalOnlyHTTPClient()
 	appInstance, err := plugin.NewApplication(plugin.ApplicationOpts{
 		Config:                     cfg,
 		MailMon:                    mailMon,
-		SqlxDB:                     db,
+		DS:                         ds,
 		KeyStore:                   keyStore,
 		RelayerChainInteroperators: relayChainInterops,
 		Logger:                     lggr,
@@ -426,9 +471,13 @@ func NewApplicationWithConfig(t testing.TB, cfg plugin.GeneralConfig, flagsAndDe
 		RestrictedHTTPClient:       c,
 		UnrestrictedHTTPClient:     c,
 		SecretGenerator:            MockSecretGenerator{},
-		LoopRegistry:               plugins.NewLoopRegistry(lggr, nil),
+		LoopRegistry:               plugins.NewLoopRegistry(lggr, nil, nil),
 		MercuryPool:                mercuryPool,
+		CapabilitiesRegistry:       capabilitiesRegistry,
+		CapabilitiesDispatcher:     dispatcher,
+		CapabilitiesPeerWrapper:    peerWrapper,
 	})
+
 	require.NoError(t, err)
 	app := appInstance.(*plugin.PluginApplication)
 	ta := &TestApplication{
@@ -468,7 +517,7 @@ func NewEthMocksWithStartupAssertions(t testing.TB) *evmclimocks.Client {
 	c.On("Dial", mock.Anything).Maybe().Return(nil)
 	c.On("SubscribeNewHead", mock.Anything, mock.Anything).Maybe().Return(EmptyMockSubscription(t), nil)
 	c.On("SendTransaction", mock.Anything, mock.Anything).Maybe().Return(nil)
-	c.On("HeadByNumber", mock.Anything, (*big.Int)(nil)).Maybe().Return(Head(0), nil)
+	c.On("HeadByNumber", mock.Anything, mock.Anything).Maybe().Return(Head(0), nil)
 	c.On("ConfiguredChainID").Maybe().Return(&FixtureChainID)
 	c.On("CallContract", mock.Anything, mock.Anything, mock.Anything).Maybe().Return([]byte{}, nil)
 	c.On("SubscribeFilterLogs", mock.Anything, mock.Anything, mock.Anything).Maybe().Return(nil, errors.New("mocked"))
@@ -496,6 +545,7 @@ func NewEthMocksWithTransactionsOnBlocksAssertions(t testing.TB) *evmclimocks.Cl
 	h1 := HeadWithHash(1, h2.ParentHash)
 	h0 := HeadWithHash(0, h1.ParentHash)
 	c.On("HeadByNumber", mock.Anything, (*big.Int)(nil)).Maybe().Return(h2, nil)
+	c.On("HeadByNumber", mock.Anything, big.NewInt(0)).Maybe().Return(h0, nil) // finalized block
 	c.On("HeadByHash", mock.Anything, h1.Hash).Maybe().Return(h1, nil)
 	c.On("HeadByHash", mock.Anything, h0.Hash).Maybe().Return(h0, nil)
 	c.On("BatchCallContext", mock.Anything, mock.Anything).Maybe().Return(nil).Run(func(args mock.Arguments) {
@@ -530,7 +580,7 @@ func NewEthMocksWithTransactionsOnBlocksAssertions(t testing.TB) *evmclimocks.Cl
 func (ta *TestApplication) Start(ctx context.Context) error {
 	ta.t.Helper()
 	ta.Started = true
-	err := ta.PluginApplication.KeyStore.Unlock(Password)
+	err := ta.PluginApplication.KeyStore.Unlock(ctx, Password)
 	if err != nil {
 		return err
 	}
@@ -563,17 +613,18 @@ func (ta *TestApplication) Stop() error {
 }
 
 func (ta *TestApplication) MustSeedNewSession(email string) (id string) {
+	ctx := testutils.Context(ta.t)
 	session := NewSession()
 	ta.Logger.Infof("TestApplication creating session (id: %s, email: %s, last used: %s)", session.ID, email, session.LastUsed.String())
-	err := ta.GetSqlxDB().Get(&id, `INSERT INTO sessions (id, email, last_used, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id`, session.ID, email, session.LastUsed)
+	err := ta.GetDB().GetContext(ctx, &id, `INSERT INTO sessions (id, email, last_used, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id`, session.ID, email, session.LastUsed)
 	require.NoError(ta.t, err)
 	return id
 }
 
 // ImportKey adds private key to the application keystore and database
-func (ta *TestApplication) Import(content string) {
-	require.NoError(ta.t, ta.KeyStore.Unlock(Password))
-	_, err := ta.KeyStore.Eth().Import([]byte(content), Password, &FixtureChainID)
+func (ta *TestApplication) Import(ctx context.Context, content string) {
+	require.NoError(ta.t, ta.KeyStore.Unlock(ctx, Password))
+	_, err := ta.KeyStore.Eth().Import(ctx, []byte(content), Password, &FixtureChainID)
 	require.NoError(ta.t, err)
 }
 
@@ -584,6 +635,7 @@ type User struct {
 
 func (ta *TestApplication) NewHTTPClient(user *User) HTTPClientCleaner {
 	ta.t.Helper()
+	ctx := testutils.Context(ta.t)
 
 	if user == nil {
 		user = &User{}
@@ -600,7 +652,7 @@ func (ta *TestApplication) NewHTTPClient(user *User) HTTPClientCleaner {
 	u, err := clsessions.NewUser(user.Email, Password, user.Role)
 	require.NoError(ta.t, err)
 
-	err = ta.BasicAdminUsersORM().CreateUser(&u)
+	err = ta.BasicAdminUsersORM().CreateUser(ctx, &u)
 	require.NoError(ta.t, err)
 
 	sessionID := ta.MustSeedNewSession(user.Email)
@@ -656,9 +708,10 @@ func (ta *TestApplication) NewAuthenticatingShell(prompter cmd.Prompter) *cmd.Sh
 }
 
 // NewKeyStore returns a new, unlocked keystore
-func NewKeyStore(t testing.TB, db *sqlx.DB, cfg pg.QConfig) keystore.Master {
-	keystore := keystore.NewInMemory(db, utils.FastScryptParams, logger.TestLogger(t), cfg)
-	require.NoError(t, keystore.Unlock(Password))
+func NewKeyStore(t testing.TB, ds sqlutil.DataSource) keystore.Master {
+	ctx := testutils.Context(t)
+	keystore := keystore.NewInMemory(ds, utils.FastScryptParams, logger.TestLogger(t))
+	require.NoError(t, keystore.Unlock(ctx, Password))
 	return keystore
 }
 
@@ -895,13 +948,14 @@ const (
 
 // WaitForSpecErrorV2 polls until the passed in jobID has count number
 // of job spec errors.
-func WaitForSpecErrorV2(t *testing.T, db *sqlx.DB, jobID int32, count int) []job.SpecError {
+func WaitForSpecErrorV2(t *testing.T, ds sqlutil.DataSource, jobID int32, count int) []job.SpecError {
 	t.Helper()
+	ctx := testutils.Context(t)
 
 	g := gomega.NewWithT(t)
 	var jse []job.SpecError
 	g.Eventually(func() []job.SpecError {
-		err := db.Select(&jse, `SELECT * FROM job_spec_errors WHERE job_id = $1`, jobID)
+		err := ds.SelectContext(ctx, &jse, `SELECT * FROM job_spec_errors WHERE job_id = $1`, jobID)
 		assert.NoError(t, err)
 		return jse
 	}, testutils.WaitTimeout(t), DBPollingInterval).Should(gomega.HaveLen(count))
@@ -922,7 +976,7 @@ func WaitForPipeline(t testing.TB, nodeID int, jobID int32, expectedPipelineRuns
 
 	var pr []pipeline.Run
 	gomega.NewWithT(t).Eventually(func() bool {
-		prs, _, err := jo.PipelineRuns(&jobID, 0, 1000)
+		prs, _, err := jo.PipelineRuns(testutils.Context(t), &jobID, 0, 1000)
 		require.NoError(t, err)
 
 		var matched []pipeline.Run
@@ -956,13 +1010,14 @@ func WaitForPipeline(t testing.TB, nodeID int, jobID int32, expectedPipelineRuns
 }
 
 // AssertPipelineRunsStays asserts that the number of pipeline runs for a particular job remains at the provided values
-func AssertPipelineRunsStays(t testing.TB, pipelineSpecID int32, db *sqlx.DB, want int) []pipeline.Run {
+func AssertPipelineRunsStays(t testing.TB, pipelineSpecID int32, db sqlutil.DataSource, want int) []pipeline.Run {
 	t.Helper()
+	ctx := testutils.Context(t)
 	g := gomega.NewWithT(t)
 
 	var prs []pipeline.Run
 	g.Consistently(func() []pipeline.Run {
-		err := db.Select(&prs, `SELECT * FROM pipeline_runs WHERE pipeline_spec_id = $1`, pipelineSpecID)
+		err := db.SelectContext(ctx, &prs, `SELECT * FROM pipeline_runs WHERE pipeline_spec_id = $1`, pipelineSpecID)
 		assert.NoError(t, err)
 		return prs
 	}, AssertNoActionTimeout, DBPollingInterval).Should(gomega.HaveLen(want))
@@ -982,7 +1037,7 @@ func AssertEthTxAttemptCountStays(t testing.TB, txStore txmgr.TestEvmTxStore, wa
 	return txaIds
 }
 
-// Head given the value convert it into an Head
+// Head given the value convert it into a Head
 func Head(val interface{}) *evmtypes.Head {
 	var h evmtypes.Head
 	time := uint64(0)
@@ -1006,7 +1061,6 @@ func HeadWithHash(n int64, hash common.Hash) *evmtypes.Head {
 	time := uint64(0)
 	h = evmtypes.NewHead(big.NewInt(n), hash, evmutils.NewHash(), time, ubig.New(&FixtureChainID))
 	return &h
-
 }
 
 // LegacyTransactionsFromGasPrices returns transactions matching the given gas prices
@@ -1018,20 +1072,6 @@ func LegacyTransactionsFromGasPricesTxType(code evmtypes.TxType, gasPrices ...in
 	txs := make([]evmtypes.Transaction, len(gasPrices))
 	for i, gasPrice := range gasPrices {
 		txs[i] = evmtypes.Transaction{Type: code, GasPrice: assets.NewWeiI(gasPrice), GasLimit: 42}
-	}
-	return txs
-}
-
-// DynamicFeeTransactionsFromTipCaps returns EIP-1559 transactions with the
-// given TipCaps (FeeCap is arbitrary)
-func DynamicFeeTransactionsFromTipCaps(tipCaps ...int64) []evmtypes.Transaction {
-	return DynamicFeeTransactionsFromTipCapsTxType(0x02, tipCaps...)
-}
-
-func DynamicFeeTransactionsFromTipCapsTxType(code evmtypes.TxType, tipCaps ...int64) []evmtypes.Transaction {
-	txs := make([]evmtypes.Transaction, len(tipCaps))
-	for i, tipCap := range tipCaps {
-		txs[i] = evmtypes.Transaction{Type: code, MaxPriorityFeePerGas: assets.NewWeiI(tipCap), GasLimit: 42, MaxFeePerGas: assets.GWei(5000)}
 	}
 	return txs
 }
@@ -1153,11 +1193,12 @@ func NewSession(optionalSessionID ...string) clsessions.Session {
 	return session
 }
 
-func AllExternalInitiators(t testing.TB, db *sqlx.DB) []bridges.ExternalInitiator {
+func AllExternalInitiators(t testing.TB, ds sqlutil.DataSource) []bridges.ExternalInitiator {
 	t.Helper()
+	ctx := testutils.Context(t)
 
 	var all []bridges.ExternalInitiator
-	err := db.Select(&all, `SELECT * FROM external_initiators`)
+	err := ds.SelectContext(ctx, &all, `SELECT * FROM external_initiators`)
 	require.NoError(t, err)
 	return all
 }
@@ -1194,27 +1235,6 @@ func (a Awaiter) AwaitOrFail(t testing.TB, durationParams ...time.Duration) {
 	case <-a:
 	case <-time.After(duration):
 		t.Fatal("Timed out waiting for Awaiter to get ItHappened")
-	}
-}
-
-func CallbackOrTimeout(t testing.TB, msg string, callback func(), durationParams ...time.Duration) {
-	t.Helper()
-
-	duration := 100 * time.Millisecond
-	if len(durationParams) > 0 {
-		duration = durationParams[0]
-	}
-
-	done := make(chan struct{})
-	go func() {
-		callback()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(duration):
-		t.Fatalf("CallbackOrTimeout: %s timed out", msg)
 	}
 }
 
@@ -1369,7 +1389,7 @@ func (b *Blocks) ForkAt(t *testing.T, blockNum int64, numHashes int) *Blocks {
 	}
 
 	forked.Heads[blockNum].ParentHash = b.Heads[blockNum].ParentHash
-	forked.Heads[blockNum].Parent = b.Heads[blockNum].Parent
+	forked.Heads[blockNum].Parent.Store(b.Heads[blockNum].Parent.Load())
 	return forked
 }
 
@@ -1383,10 +1403,10 @@ func (b *Blocks) NewHead(number uint64) *evmtypes.Head {
 		Number:     parent.Number + 1,
 		Hash:       evmutils.NewHash(),
 		ParentHash: parent.Hash,
-		Parent:     parent,
 		Timestamp:  time.Unix(parent.Number+1, 0),
 		EVMChainID: ubig.New(&FixtureChainID),
 	}
+	head.Parent.Store(parent)
 	return head
 }
 
@@ -1427,7 +1447,7 @@ func NewBlocks(t *testing.T, numHashes int) *Blocks {
 		heads[i] = &evmtypes.Head{Hash: hash, Number: i, Timestamp: time.Unix(i, 0), EVMChainID: ubig.New(&FixtureChainID)}
 		if i > 0 {
 			parent := heads[i-1]
-			heads[i].Parent = parent
+			heads[i].Parent.Store(parent)
 			heads[i].ParentHash = parent.Hash
 		}
 	}
@@ -1443,31 +1463,6 @@ func NewBlocks(t *testing.T, numHashes int) *Blocks {
 		mHashes: hashesMap,
 		Heads:   heads,
 	}
-}
-
-// HeadBuffer - stores heads in sequence, with increasing timestamps
-type HeadBuffer struct {
-	t     *testing.T
-	Heads []*evmtypes.Head
-}
-
-func NewHeadBuffer(t *testing.T) *HeadBuffer {
-	return &HeadBuffer{
-		t:     t,
-		Heads: make([]*evmtypes.Head, 0),
-	}
-}
-
-func (hb *HeadBuffer) Append(head *evmtypes.Head) {
-	cloned := &evmtypes.Head{
-		Number:     head.Number,
-		Hash:       head.Hash,
-		ParentHash: head.ParentHash,
-		Parent:     head.Parent,
-		Timestamp:  time.Unix(int64(len(hb.Heads)), 0),
-		EVMChainID: head.EVMChainID,
-	}
-	hb.Heads = append(hb.Heads, cloned)
 }
 
 type HeadTrackableFunc func(context.Context, *evmtypes.Head)
@@ -1506,39 +1501,42 @@ func EventuallyExpectationsMet(t *testing.T, mock testifyExpectationsAsserter, t
 	}
 }
 
-func AssertCount(t *testing.T, db *sqlx.DB, tableName string, expected int64) {
-	testutils.AssertCount(t, db, tableName, expected)
+func AssertCount(t *testing.T, ds sqlutil.DataSource, tableName string, expected int64) {
+	testutils.AssertCount(t, ds, tableName, expected)
 }
 
-func WaitForCount(t *testing.T, db *sqlx.DB, tableName string, want int64) {
+func WaitForCount(t *testing.T, ds sqlutil.DataSource, tableName string, want int64) {
 	t.Helper()
+	ctx := testutils.Context(t)
 	g := gomega.NewWithT(t)
 	var count int64
 	var err error
 	g.Eventually(func() int64 {
-		err = db.Get(&count, fmt.Sprintf(`SELECT count(*) FROM %s;`, tableName))
+		err = ds.GetContext(ctx, &count, fmt.Sprintf(`SELECT count(*) FROM %s;`, tableName))
 		assert.NoError(t, err)
 		return count
 	}, testutils.WaitTimeout(t), DBPollingInterval).Should(gomega.Equal(want))
 }
 
-func AssertCountStays(t testing.TB, db *sqlx.DB, tableName string, want int64) {
+func AssertCountStays(t testing.TB, ds sqlutil.DataSource, tableName string, want int64) {
 	t.Helper()
+	ctx := testutils.Context(t)
 	g := gomega.NewWithT(t)
 	var count int64
 	var err error
 	g.Consistently(func() int64 {
-		err = db.Get(&count, fmt.Sprintf(`SELECT count(*) FROM %s`, tableName))
+		err = ds.GetContext(ctx, &count, fmt.Sprintf(`SELECT count(*) FROM %s`, tableName))
 		assert.NoError(t, err)
 		return count
 	}, AssertNoActionTimeout, DBPollingInterval).Should(gomega.Equal(want))
 }
 
-func AssertRecordEventually(t *testing.T, db *sqlx.DB, model interface{}, stmt string, check func() bool) {
+func AssertRecordEventually(t *testing.T, ds sqlutil.DataSource, model interface{}, stmt string, check func() bool) {
 	t.Helper()
+	ctx := testutils.Context(t)
 	g := gomega.NewWithT(t)
 	g.Eventually(func() bool {
-		err := db.Get(model, stmt)
+		err := ds.GetContext(ctx, model, stmt)
 		require.NoError(t, err, "unable to find record in DB")
 		return check()
 	}, testutils.WaitTimeout(t), DBPollingInterval).Should(gomega.BeTrue())
@@ -1555,8 +1553,8 @@ func NewTestChainScopedConfig(t testing.TB) evmconfig.ChainScopedConfig {
 	return evmtest.NewChainScopedConfig(t, cfg)
 }
 
-func NewTestTxStore(t *testing.T, db *sqlx.DB, cfg pg.QConfig) txmgr.TestEvmTxStore {
-	return txmgr.NewTxStore(db, logger.TestLogger(t), cfg)
+func NewTestTxStore(t *testing.T, ds sqlutil.DataSource) txmgr.TestEvmTxStore {
+	return txmgr.NewTxStore(ds, logger.TestLogger(t))
 }
 
 // ClearDBTables deletes all rows from the given tables

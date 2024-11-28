@@ -7,14 +7,23 @@ interface IFunctionsBilling {
   /// @return weiPerUnitLink - The amount of WEI in one PLI
   function getWeiPerUnitLink() external view returns (uint256);
 
+  /// @notice Return the current conversion from PLI to USD from the configured Plugin data feed
+  /// @return weiPerUnitLink - The amount of USD that one PLI is worth
+  /// @return decimals - The number of decimals that should be represented in the price feed's response
+  function getUsdPerUnitLink() external view returns (uint256, uint8);
+
   /// @notice Determine the fee that will be split between Node Operators for servicing a request
   /// @param requestCBOR - CBOR encoded Plugin Functions request data, use FunctionsRequest library to encode a request
   /// @return fee - Cost in Juels (1e18) of PLI
-  function getDONFee(bytes memory requestCBOR) external view returns (uint72);
+  function getDONFeeJuels(bytes memory requestCBOR) external view returns (uint72);
+
+  /// @notice Determine the fee that will be paid to the Coordinator owner for operating the network
+  /// @return fee - Cost in Juels (1e18) of PLI
+  function getOperationFeeJuels() external view returns (uint72);
 
   /// @notice Determine the fee that will be paid to the Router owner for operating the network
   /// @return fee - Cost in Juels (1e18) of PLI
-  function getAdminFee() external view returns (uint72);
+  function getAdminFeeJuels() external view returns (uint72);
 
   /// @notice Estimate the total cost that will be charged to a subscription to make a request: transmitter gas re-reimbursement, plus DON fee, plus Registry fee
   /// @param - subscriptionId An identifier of the billing account
@@ -50,12 +59,16 @@ interface IFunctionsBilling {
 
 struct FunctionsBillingConfig {
   uint32 fulfillmentGasPriceOverEstimationBP; // ══╗ Percentage of gas price overestimation to account for changes in gas price between request and response. Held as basis points (one hundredth of 1 percentage point)
-  uint32 feedStalenessSeconds; //                  ║ How long before we consider the feed price to be stale and fallback to fallbackNativePerUnitLink.
+  uint32 feedStalenessSeconds; //                  ║ How long before we consider the feed price to be stale and fallback to fallbackNativePerUnitLink. Default of 0 means no fallback.
   uint32 gasOverheadBeforeCallback; //             ║ Represents the average gas execution cost before the fulfillment callback. This amount is always billed for every request.
   uint32 gasOverheadAfterCallback; //              ║ Represents the average gas execution cost after the fulfillment callback. This amount is always billed for every request.
-  uint72 donFee; //                                ║ Additional flat fee (in Juels of PLI) that will be split between Node Operators. Max value is 2^80 - 1 == 1.2m PLI.
   uint40 minimumEstimateGasPriceWei; //            ║ The lowest amount of wei that will be used as the tx.gasprice when estimating the cost to fulfill the request
-  uint16 maxSupportedRequestDataVersion; // ═══════╝ The highest support request data version supported by the node. All lower versions should also be supported.
+  uint16 maxSupportedRequestDataVersion; //        ║ The highest support request data version supported by the node. All lower versions should also be supported.
+  uint64 fallbackUsdPerUnitLink; //                ║ Fallback PLI / USD conversion rate if the data feed is stale
+  uint8 fallbackUsdPerUnitLinkDecimals; // ════════╝ Fallback PLI / USD conversion rate decimal places if the data feed is stale
   uint224 fallbackNativePerUnitLink; // ═══════════╗ Fallback NATIVE CURRENCY / PLI conversion rate if the data feed is stale
   uint32 requestTimeoutSeconds; // ════════════════╝ How many seconds it takes before we consider a request to be timed out
+  uint16 donFeeCentsUsd; // ═══════════════════════════════╗ Additional flat fee (denominated in cents of USD, paid as PLI) that will be split between Node Operators.
+  uint16 operationFeeCentsUsd; //                          ║ Additional flat fee (denominated in cents of USD, paid as PLI) that will be paid to the owner of the Coordinator contract.
+  uint16 transmitTxSizeBytes; // ══════════════════════════╝ The size of the calldata for the transmit transaction in bytes assuming a single 256 byte response payload. Used to estimate L1 cost for fulfillments on L2 chains.
 }

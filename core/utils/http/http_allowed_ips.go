@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
-	"github.com/goplugin/pluginv3.0/v2/core/logger"
+	"github.com/goplugin/plugin-common/pkg/logger"
 )
 
 var privateIPBlocks []*net.IPNet

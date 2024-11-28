@@ -18,4 +18,6 @@ const (
 	RegistryVersion_1_3
 	RegistryVersion_2_0
 	RegistryVersion_2_1
+	RegistryVersion_2_2
+	RegistryVersion_2_3
 )

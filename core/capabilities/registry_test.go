@@ -2,6 +2,8 @@ package capabilities_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -12,14 +14,15 @@ import (
 	"github.com/goplugin/plugin-common/pkg/capabilities/triggers"
 	coreCapabilities "github.com/goplugin/pluginv3.0/v2/core/capabilities"
 	"github.com/goplugin/pluginv3.0/v2/core/internal/testutils"
+	"github.com/goplugin/pluginv3.0/v2/core/logger"
 )
 
 type mockCapability struct {
 	capabilities.CapabilityInfo
 }
 
-func (m *mockCapability) Execute(ctx context.Context, callback chan<- capabilities.CapabilityResponse, req capabilities.CapabilityRequest) error {
-	return nil
+func (m *mockCapability) Execute(ctx context.Context, req capabilities.CapabilityRequest) (capabilities.CapabilityResponse, error) {
+	return capabilities.CapabilityResponse{}, nil
 }
 
 func (m *mockCapability) RegisterToWorkflow(ctx context.Context, request capabilities.RegisterToWorkflowRequest) error {
@@ -33,14 +36,13 @@ func (m *mockCapability) UnregisterFromWorkflow(ctx context.Context, request cap
 func TestRegistry(t *testing.T) {
 	ctx := testutils.Context(t)
 
-	r := coreCapabilities.NewRegistry()
+	r := coreCapabilities.NewRegistry(logger.TestLogger(t))
 
-	id := "capability-1"
+	id := "capability-1@1.0.0"
 	ci, err := capabilities.NewCapabilityInfo(
 		id,
 		capabilities.CapabilityTypeAction,
 		"capability-1-description",
-		"v1.0.0",
 	)
 	require.NoError(t, err)
 
@@ -61,14 +63,13 @@ func TestRegistry(t *testing.T) {
 
 func TestRegistry_NoDuplicateIDs(t *testing.T) {
 	ctx := testutils.Context(t)
-	r := coreCapabilities.NewRegistry()
+	r := coreCapabilities.NewRegistry(logger.TestLogger(t))
 
-	id := "capability-1"
+	id := "capability-1@1.0.0"
 	ci, err := capabilities.NewCapabilityInfo(
 		id,
 		capabilities.CapabilityTypeAction,
 		"capability-1-description",
-		"v1.0.0",
 	)
 	require.NoError(t, err)
 
@@ -80,13 +81,12 @@ func TestRegistry_NoDuplicateIDs(t *testing.T) {
 		id,
 		capabilities.CapabilityTypeConsensus,
 		"capability-2-description",
-		"v1.0.0",
 	)
 	require.NoError(t, err)
 	c2 := &mockCapability{CapabilityInfo: ci}
 
 	err = r.Add(ctx, c2)
-	assert.ErrorContains(t, err, "capability with id: capability-1 already exists")
+	assert.True(t, errors.Is(err, coreCapabilities.ErrCapabilityAlreadyExists))
 }
 
 func TestRegistry_ChecksExecutionAPIByType(t *testing.T) {
@@ -99,12 +99,11 @@ func TestRegistry_ChecksExecutionAPIByType(t *testing.T) {
 		{
 			name: "action",
 			newCapability: func(ctx context.Context, reg *coreCapabilities.Registry) (string, error) {
-				id := uuid.New().String()
+				id := fmt.Sprintf("%s@%s", uuid.New().String(), "1.0.0")
 				ci, err := capabilities.NewCapabilityInfo(
 					id,
 					capabilities.CapabilityTypeAction,
 					"capability-1-description",
-					"v1.0.0",
 				)
 				require.NoError(t, err)
 
@@ -119,12 +118,11 @@ func TestRegistry_ChecksExecutionAPIByType(t *testing.T) {
 		{
 			name: "target",
 			newCapability: func(ctx context.Context, reg *coreCapabilities.Registry) (string, error) {
-				id := uuid.New().String()
+				id := fmt.Sprintf("%s@%s", uuid.New().String(), "1.0.0")
 				ci, err := capabilities.NewCapabilityInfo(
 					id,
 					capabilities.CapabilityTypeTarget,
 					"capability-1-description",
-					"v1.0.0",
 				)
 				require.NoError(t, err)
 
@@ -139,7 +137,7 @@ func TestRegistry_ChecksExecutionAPIByType(t *testing.T) {
 		{
 			name: "trigger",
 			newCapability: func(ctx context.Context, reg *coreCapabilities.Registry) (string, error) {
-				odt := triggers.NewOnDemand()
+				odt := triggers.NewOnDemand(logger.TestLogger(t))
 				info, err := odt.Info(ctx)
 				require.NoError(t, err)
 				return info.ID, reg.Add(ctx, odt)
@@ -152,12 +150,11 @@ func TestRegistry_ChecksExecutionAPIByType(t *testing.T) {
 		{
 			name: "consensus",
 			newCapability: func(ctx context.Context, reg *coreCapabilities.Registry) (string, error) {
-				id := uuid.New().String()
+				id := fmt.Sprintf("%s@%s", uuid.New().String(), "1.0.0")
 				ci, err := capabilities.NewCapabilityInfo(
 					id,
 					capabilities.CapabilityTypeConsensus,
 					"capability-1-description",
-					"v1.0.0",
 				)
 				require.NoError(t, err)
 
@@ -172,7 +169,7 @@ func TestRegistry_ChecksExecutionAPIByType(t *testing.T) {
 	}
 
 	ctx := testutils.Context(t)
-	reg := coreCapabilities.NewRegistry()
+	reg := coreCapabilities.NewRegistry(logger.TestLogger(t))
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			id, err := tc.newCapability(ctx, reg)

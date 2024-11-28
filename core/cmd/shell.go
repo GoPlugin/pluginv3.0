@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -24,18 +23,21 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/getsentry/sentry-go"
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/multierr"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/jmoiron/sqlx"
-
+	"github.com/goplugin/plugin-common/pkg/beholder"
 	"github.com/goplugin/plugin-common/pkg/loop"
+	"github.com/goplugin/plugin-common/pkg/sqlutil"
 	"github.com/goplugin/plugin-common/pkg/utils/mailbox"
-
 	"github.com/goplugin/pluginv3.0/v2/core/build"
+	"github.com/goplugin/pluginv3.0/v2/core/capabilities"
 	"github.com/goplugin/pluginv3.0/v2/core/chains/legacyevm"
 	"github.com/goplugin/pluginv3.0/v2/core/config"
 	"github.com/goplugin/pluginv3.0/v2/core/logger"
@@ -57,31 +59,65 @@ import (
 	"github.com/goplugin/pluginv3.0/v2/plugins"
 )
 
-func init() {
-	// hack to undo geth's disruption of the std default logger
-	// remove with geth v1.13.10
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
-}
-
 var (
 	initGlobalsOnce sync.Once
 	prometheus      *ginprom.Prometheus
 	grpcOpts        loop.GRPCOpts
 )
 
-func initGlobals(cfgProm config.Prometheus, cfgTracing config.Tracing, logger logger.Logger) error {
+func initGlobals(cfgProm config.Prometheus, cfgTracing config.Tracing, cfgTelemetry config.Telemetry, lggr logger.Logger) error {
 	// Avoid double initializations, but does not prevent relay methods from being called multiple times.
 	var err error
 	initGlobalsOnce.Do(func() {
-		prometheus = ginprom.New(ginprom.Namespace("service"), ginprom.Token(cfgProm.AuthToken()))
-		grpcOpts = loop.NewGRPCOpts(nil) // default prometheus.Registerer
-		err = loop.SetupTracing(loop.TracingConfig{
-			Enabled:         cfgTracing.Enabled(),
-			CollectorTarget: cfgTracing.CollectorTarget(),
-			NodeAttributes:  cfgTracing.Attributes(),
-			SamplingRatio:   cfgTracing.SamplingRatio(),
-			OnDialError:     func(error) { logger.Errorw("Failed to dial", "err", err) },
-		})
+		err = func() error {
+			prometheus = ginprom.New(ginprom.Namespace("service"), ginprom.Token(cfgProm.AuthToken()))
+			grpcOpts = loop.NewGRPCOpts(nil) // default prometheus.Registerer
+
+			otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+				lggr.Errorw("Telemetry error", "err", err)
+			}))
+
+			tracingCfg := loop.TracingConfig{
+				Enabled:         cfgTracing.Enabled(),
+				CollectorTarget: cfgTracing.CollectorTarget(),
+				NodeAttributes:  cfgTracing.Attributes(),
+				SamplingRatio:   cfgTracing.SamplingRatio(),
+				TLSCertPath:     cfgTracing.TLSCertPath(),
+				OnDialError:     func(error) { lggr.Errorw("Failed to dial", "err", err) },
+			}
+			if !cfgTelemetry.Enabled() {
+				return loop.SetupTracing(tracingCfg)
+			}
+
+			var attributes []attribute.KeyValue
+			if tracingCfg.Enabled {
+				attributes = tracingCfg.Attributes()
+			}
+			for k, v := range cfgTelemetry.ResourceAttributes() {
+				attributes = append(attributes, attribute.String(k, v))
+			}
+			clientCfg := beholder.Config{
+				InsecureConnection:       cfgTelemetry.InsecureConnection(),
+				CACertFile:               cfgTelemetry.CACertFile(),
+				OtelExporterGRPCEndpoint: cfgTelemetry.OtelExporterGRPCEndpoint(),
+				ResourceAttributes:       attributes,
+				TraceSampleRatio:         cfgTelemetry.TraceSampleRatio(),
+			}
+			if tracingCfg.Enabled {
+				clientCfg.TraceSpanExporter, err = tracingCfg.NewSpanExporter()
+				if err != nil {
+					return err
+				}
+			}
+			var beholderClient *beholder.Client
+			beholderClient, err = beholder.NewClient(clientCfg)
+			if err != nil {
+				return err
+			}
+			beholder.SetClient(beholderClient)
+			beholder.SetGlobalOtelProviders()
+			return nil
+		}()
 	})
 	return err
 }
@@ -144,7 +180,7 @@ type PluginAppFactory struct{}
 
 // NewApplication returns a new instance of the node with the given config.
 func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.GeneralConfig, appLggr logger.Logger, db *sqlx.DB) (app plugin.Application, err error) {
-	err = initGlobals(cfg.Prometheus(), cfg.Tracing(), appLggr)
+	err = initGlobals(cfg.Prometheus(), cfg.Tracing(), cfg.Telemetry(), appLggr)
 	if err != nil {
 		appLggr.Errorf("Failed to initialize globals: %v", err)
 	}
@@ -159,10 +195,12 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 		return nil, err
 	}
 
-	keyStore := keystore.New(db, utils.GetScryptParams(cfg), appLggr, cfg.Database())
+	ds := sqlutil.WrapDataSource(db, appLggr, sqlutil.TimeoutHook(cfg.Database().DefaultQueryTimeout), sqlutil.MonitorHook(cfg.Database().LogSQL))
+
+	keyStore := keystore.New(ds, utils.GetScryptParams(cfg), appLggr)
 	mailMon := mailbox.NewMonitor(cfg.AppID().String(), appLggr.Named("Mailbox"))
 
-	loopRegistry := plugins.NewLoopRegistry(appLggr, cfg.Tracing())
+	loopRegistry := plugins.NewLoopRegistry(appLggr, cfg.Tracing(), cfg.Telemetry())
 
 	mercuryPool := wsrpc.NewPool(appLggr, cache.Config{
 		LatestReportTTL:      cfg.Mercury().Cache().LatestReportTTL(),
@@ -170,28 +208,33 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 		LatestReportDeadline: cfg.Mercury().Cache().LatestReportDeadline(),
 	})
 
+	capabilitiesRegistry := capabilities.NewRegistry(appLggr)
+
+	unrestrictedClient := clhttp.NewUnrestrictedHTTPClient()
 	// create the relayer-chain interoperators from application configuration
 	relayerFactory := plugin.RelayerFactory{
-		Logger:       appLggr,
-		LoopRegistry: loopRegistry,
-		GRPCOpts:     grpcOpts,
-		MercuryPool:  mercuryPool,
+		Logger:               appLggr,
+		LoopRegistry:         loopRegistry,
+		GRPCOpts:             grpcOpts,
+		MercuryPool:          mercuryPool,
+		CapabilitiesRegistry: capabilitiesRegistry,
+		HTTPClient:           unrestrictedClient,
 	}
 
 	evmFactoryCfg := plugin.EVMFactoryConfig{
-		CSAETHKeystore: keyStore,
-		ChainOpts:      legacyevm.ChainOpts{AppConfig: cfg, MailMon: mailMon, DB: db},
+		CSAETHKeystore:     keyStore,
+		ChainOpts:          legacyevm.ChainOpts{AppConfig: cfg, MailMon: mailMon, DS: ds},
+		MercuryTransmitter: cfg.Mercury().Transmitter(),
 	}
 	// evm always enabled for backward compatibility
 	// TODO BCF-2510 this needs to change in order to clear the path for EVM extraction
-	initOps := []plugin.CoreRelayerChainInitFunc{plugin.InitEVM(ctx, relayerFactory, evmFactoryCfg)}
+	initOps := []plugin.CoreRelayerChainInitFunc{plugin.InitDummy(ctx, relayerFactory), plugin.InitEVM(ctx, relayerFactory, evmFactoryCfg)}
 
 	if cfg.CosmosEnabled() {
 		cosmosCfg := plugin.CosmosFactoryConfig{
 			Keystore:    keyStore.Cosmos(),
 			TOMLConfigs: cfg.CosmosConfigs(),
-			DB:          db,
-			QConfig:     cfg.Database(),
+			DS:          ds,
 		}
 		initOps = append(initOps, plugin.InitCosmos(ctx, relayerFactory, cosmosCfg))
 	}
@@ -208,7 +251,13 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 			TOMLConfigs: cfg.StarknetConfigs(),
 		}
 		initOps = append(initOps, plugin.InitStarknet(ctx, relayerFactory, starkCfg))
-
+	}
+	if cfg.AptosEnabled() {
+		aptosCfg := plugin.AptosFactoryConfig{
+			Keystore:    keyStore.Aptos(),
+			TOMLConfigs: cfg.AptosConfigs(),
+		}
+		initOps = append(initOps, plugin.InitAptos(ctx, relayerFactory, aptosCfg))
 	}
 
 	relayChainInterops, err := plugin.NewCoreRelayerChainInteroperators(initOps...)
@@ -223,11 +272,10 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 	}
 
 	restrictedClient := clhttp.NewRestrictedHTTPClient(cfg.Database(), appLggr)
-	unrestrictedClient := clhttp.NewUnrestrictedHTTPClient()
-	externalInitiatorManager := webhook.NewExternalInitiatorManager(db, unrestrictedClient, appLggr, cfg.Database())
+	externalInitiatorManager := webhook.NewExternalInitiatorManager(ds, unrestrictedClient)
 	return plugin.NewApplication(plugin.ApplicationOpts{
 		Config:                     cfg,
-		SqlxDB:                     db,
+		DS:                         ds,
 		KeyStore:                   keyStore,
 		RelayerChainInteroperators: relayChainInterops,
 		MailMon:                    mailMon,
@@ -241,6 +289,7 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 		LoopRegistry:               loopRegistry,
 		GRPCOpts:                   grpcOpts,
 		MercuryPool:                mercuryPool,
+		CapabilitiesRegistry:       capabilitiesRegistry,
 	})
 }
 
@@ -248,11 +297,14 @@ func (n PluginAppFactory) NewApplication(ctx context.Context, cfg plugin.General
 func handleNodeVersioning(ctx context.Context, db *sqlx.DB, appLggr logger.Logger, rootDir string, cfg config.Database, healthReportPort uint16) error {
 	var err error
 	// Set up the versioning Configs
-	verORM := versioning.NewORM(db, appLggr, cfg.DefaultQueryTimeout())
+	verORM := versioning.NewORM(db, appLggr)
+	ibhr := services.NewStartUpHealthReport(healthReportPort, appLggr)
+	ibhr.Start()
+	defer ibhr.Stop()
 
 	if static.Version != static.Unset {
 		var appv, dbv *semver.Version
-		appv, dbv, err = versioning.CheckVersion(db, appLggr, static.Version)
+		appv, dbv, err = versioning.CheckVersion(ctx, db, appLggr, static.Version)
 		if err != nil {
 			// Exit immediately and don't touch the database if the app version is too old
 			return fmt.Errorf("CheckVersion: %w", err)
@@ -264,9 +316,9 @@ func handleNodeVersioning(ctx context.Context, db *sqlx.DB, appLggr logger.Logge
 		if backupCfg.Mode() != config.DatabaseBackupModeNone && backupCfg.OnVersionUpgrade() {
 			if err = takeBackupIfVersionUpgrade(cfg.URL(), rootDir, cfg.Backup(), appLggr, appv, dbv, healthReportPort); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					appLggr.Debugf("Failed to find any node version in the DB: %w", err)
+					appLggr.Debugf("Failed to find any node version in the DB: %v", err)
 				} else if strings.Contains(err.Error(), "relation \"node_versions\" does not exist") {
-					appLggr.Debugf("Failed to find any node version in the DB, the node_versions table does not exist yet: %w", err)
+					appLggr.Debugf("Failed to find any node version in the DB, the node_versions table does not exist yet: %v", err)
 				} else {
 					return fmt.Errorf("initializeORM#FindLatestNodeVersion: %w", err)
 				}
@@ -276,7 +328,7 @@ func handleNodeVersioning(ctx context.Context, db *sqlx.DB, appLggr logger.Logge
 
 	// Migrate the database
 	if cfg.MigrateDatabase() {
-		if err = migrate.Migrate(ctx, db.DB, appLggr); err != nil {
+		if err = migrate.Migrate(ctx, db.DB); err != nil {
 			return fmt.Errorf("initializeORM#Migrate: %w", err)
 		}
 	}
@@ -284,7 +336,7 @@ func handleNodeVersioning(ctx context.Context, db *sqlx.DB, appLggr logger.Logge
 	// Update to latest version
 	if static.Version != static.Unset {
 		version := versioning.NewNodeVersion(static.Version)
-		if err = verORM.UpsertNodeVersion(version); err != nil {
+		if err = verORM.UpsertNodeVersion(ctx, version); err != nil {
 			return fmt.Errorf("UpsertNodeVersion: %w", err)
 		}
 	}
@@ -313,9 +365,6 @@ func takeBackupIfVersionUpgrade(dbUrl url.URL, rootDir string, cfg periodicbacku
 
 	//Because backups can take a long time we must start a "fake" health report to prevent
 	//node shutdown because of healthcheck fail/timeout
-	ibhr := services.NewInBackupHealthReport(healthReportPort, lggr)
-	ibhr.Start()
-	defer ibhr.Stop()
 	err = databaseBackup.RunBackup(appv.String())
 	return err
 }
@@ -794,7 +843,7 @@ func (f *fileSessionRequestBuilder) Build(file string) (sessions.SessionRequest,
 // needed to access the API. Does nothing if API user already exists.
 type APIInitializer interface {
 	// Initialize creates a new local Admin user for API access, or does nothing if one exists.
-	Initialize(orm sessions.BasicAdminUsersORM, lggr logger.Logger) (sessions.User, error)
+	Initialize(ctx context.Context, orm sessions.BasicAdminUsersORM, lggr logger.Logger) (sessions.User, error)
 }
 
 type promptingAPIInitializer struct {
@@ -808,9 +857,9 @@ func NewPromptingAPIInitializer(prompter Prompter) APIInitializer {
 }
 
 // Initialize uses the terminal to get credentials that it then saves in the store.
-func (t *promptingAPIInitializer) Initialize(orm sessions.BasicAdminUsersORM, lggr logger.Logger) (sessions.User, error) {
+func (t *promptingAPIInitializer) Initialize(ctx context.Context, orm sessions.BasicAdminUsersORM, lggr logger.Logger) (sessions.User, error) {
 	// Load list of users to determine which to assume, or if a user needs to be created
-	dbUsers, err := orm.ListUsers()
+	dbUsers, err := orm.ListUsers(ctx)
 	if err != nil {
 		return sessions.User{}, errors.Wrap(err, "Unable to List users for initialization")
 	}
@@ -830,8 +879,8 @@ func (t *promptingAPIInitializer) Initialize(orm sessions.BasicAdminUsersORM, lg
 				lggr.Errorw("Error creating API user", "err", err2)
 				continue
 			}
-			if err = orm.CreateUser(&user); err != nil {
-				lggr.Errorf("Error creating API user: ", err, "err")
+			if err = orm.CreateUser(ctx, &user); err != nil {
+				lggr.Errorw("Error creating API user", "err", err)
 			}
 			return user, err
 		}
@@ -844,7 +893,7 @@ func (t *promptingAPIInitializer) Initialize(orm sessions.BasicAdminUsersORM, lg
 
 	// Otherwise, multiple admin users exist, prompt for which to use
 	email := t.prompter.Prompt("Enter email of API user account to assume: ")
-	user, err := orm.FindUser(email)
+	user, err := orm.FindUser(ctx, email)
 
 	if err != nil {
 		return sessions.User{}, err
@@ -862,14 +911,14 @@ func NewFileAPIInitializer(file string) APIInitializer {
 	return fileAPIInitializer{file: file}
 }
 
-func (f fileAPIInitializer) Initialize(orm sessions.BasicAdminUsersORM, lggr logger.Logger) (sessions.User, error) {
+func (f fileAPIInitializer) Initialize(ctx context.Context, orm sessions.BasicAdminUsersORM, lggr logger.Logger) (sessions.User, error) {
 	request, err := credentialsFromFile(f.file, lggr)
 	if err != nil {
 		return sessions.User{}, err
 	}
 
 	// Load list of users to determine which to assume, or if a user needs to be created
-	dbUsers, err := orm.ListUsers()
+	dbUsers, err := orm.ListUsers(ctx)
 	if err != nil {
 		return sessions.User{}, errors.Wrap(err, "Unable to List users for initialization")
 	}
@@ -880,7 +929,7 @@ func (f fileAPIInitializer) Initialize(orm sessions.BasicAdminUsersORM, lggr log
 		if err2 != nil {
 			return user, errors.Wrap(err2, "failed to instantiate new user")
 		}
-		return user, orm.CreateUser(&user)
+		return user, orm.CreateUser(ctx, &user)
 	}
 
 	// Attempt to contextually return the correct admin user, CLI access here implies admin
@@ -889,7 +938,7 @@ func (f fileAPIInitializer) Initialize(orm sessions.BasicAdminUsersORM, lggr log
 	}
 
 	// Otherwise, multiple admin users exist, attempt to load email specified in session request
-	user, err := orm.FindUser(request.Email)
+	user, err := orm.FindUser(ctx, request.Email)
 	if err != nil {
 		return sessions.User{}, err
 	}

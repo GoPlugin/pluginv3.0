@@ -17,7 +17,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/rs/zerolog/log"
 
-	"github.com/goplugin/plugin-testing-framework/networks"
+	"github.com/goplugin/plugin-testing-framework/lib/networks"
 )
 
 func waitForWorkflowRun(branch, ghUser string) (string, error) {
