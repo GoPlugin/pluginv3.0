@@ -1,0 +1,9 @@
+exec plugin admin logout --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin admin logout - Delete any local sessions
+
+USAGE:
+   plugin admin logout [arguments...]

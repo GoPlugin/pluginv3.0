@@ -1,0 +1,13 @@
+exec plugin health --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin health - Prints a health report
+
+USAGE:
+   plugin health [command options] [arguments...]
+
+OPTIONS:
+   --json, -j  json output
+   

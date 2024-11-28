@@ -1,0 +1,9 @@
+exec plugin admin users list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin admin users list - Lists all API users and their roles
+
+USAGE:
+   plugin admin users list [arguments...]

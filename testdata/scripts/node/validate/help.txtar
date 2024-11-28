@@ -1,0 +1,9 @@
+exec plugin node validate --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin node validate - Validate the TOML configuration and secrets that are passed as flags to the `node` command. Prints the full effective configuration, with defaults included
+
+USAGE:
+   plugin node validate [arguments...]

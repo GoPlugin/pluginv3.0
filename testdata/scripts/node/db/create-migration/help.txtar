@@ -1,0 +1,14 @@
+exec plugin node db create-migration --help
+cmp stdout out.txt
+! stderr .
+
+-- out.txt --
+NAME:
+   plugin node db create-migration - Create a new migration.
+
+USAGE:
+   plugin node db create-migration [command options] [arguments...]
+
+OPTIONS:
+   --type go  set to go to generate a .go migration (instead of .sql)
+   

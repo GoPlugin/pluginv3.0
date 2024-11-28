@@ -1,0 +1,18 @@
+exec plugin initiators --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin initiators - Commands for managing External Initiators
+
+USAGE:
+   plugin initiators command [command options] [arguments...]
+
+COMMANDS:
+   create   Create an authentication key for a user of External Initiators
+   destroy  Remove an external initiator by name
+   list     List all external initiators
+
+OPTIONS:
+   --help, -h  show help
+   

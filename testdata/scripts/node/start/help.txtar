@@ -1,0 +1,16 @@
+exec plugin node start --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin node start - Run the Plugin node
+
+USAGE:
+   plugin node start [command options] [arguments...]
+
+OPTIONS:
+   --api value, -a value            text file holding the API email and password, each on a line
+   --debug, -d                      set logger level to debug
+   --password value, -p value       text file holding the password for the node's account
+   --vrfpassword value, --vp value  text file holding the password for the vrf keys; enables Plugin VRF oracle
+   

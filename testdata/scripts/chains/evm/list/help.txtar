@@ -1,0 +1,9 @@
+exec plugin chains evm list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin chains evm list - List all existing EVM chains
+
+USAGE:
+   plugin chains evm list [arguments...]

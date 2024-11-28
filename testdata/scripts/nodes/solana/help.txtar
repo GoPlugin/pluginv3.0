@@ -1,0 +1,16 @@
+exec plugin nodes solana --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin nodes solana - Commands for handling Solana node configuration
+
+USAGE:
+   plugin nodes solana command [command options] [arguments...]
+
+COMMANDS:
+   list  List all existing Solana nodes
+
+OPTIONS:
+   --help, -h  show help
+   

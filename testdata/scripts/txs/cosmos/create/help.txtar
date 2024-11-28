@@ -1,0 +1,14 @@
+exec plugin txs cosmos create --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin txs cosmos create - Send <amount> of <token> from node Cosmos account <fromAddress> to destination <toAddress>.
+
+USAGE:
+   plugin txs cosmos create [command options] [arguments...]
+
+OPTIONS:
+   --force     allows to send a higher amount than the account's balance
+   --id value  chain ID
+   

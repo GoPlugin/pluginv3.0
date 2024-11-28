@@ -1,0 +1,9 @@
+exec plugin jobs create --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin jobs create - Create a job
+
+USAGE:
+   plugin jobs create [arguments...]

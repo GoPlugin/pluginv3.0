@@ -1,0 +1,13 @@
+exec plugin config show --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin config show - Show the application configuration
+
+USAGE:
+   plugin config show [command options] [arguments...]
+
+OPTIONS:
+   --user-only  If set, show only the user-provided TOML configuration, omitting application defaults
+   

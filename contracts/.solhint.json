@@ -1,0 +1,44 @@
+{
+	"extends": "solhint:recommended",
+	"plugins": ["prettier", "plugin-solidity"],
+	"rules": {
+		"compiler-version": ["off", "^0.8.0"],
+		"const-name-snakecase": "off",
+		"constructor-syntax": "error",
+		"var-name-mixedcase": "off",
+		"func-named-parameters": "off",
+		"immutable-vars-naming": "off",
+		"no-inline-assembly": "off",
+		"contract-name-camelcase": "off",
+		"no-unused-import": "error",
+		"func-visibility": [
+			"error",
+			{
+				"ignoreConstructors": true
+			}
+		],
+		"not-rely-on-time": "off",
+		"prettier/prettier": [
+			"off",
+			{
+				"endOfLine": "auto"
+			}
+		],
+		"no-empty-blocks": "off",
+		"quotes": ["error", "double"],
+		"reason-string": [
+			"warn",
+			{
+				"maxLength": 64
+			}
+		],
+		"plugin-solidity/prefix-internal-functions-with-underscore": "warn",
+		"plugin-solidity/prefix-private-functions-with-underscore": "warn",
+		"plugin-solidity/prefix-storage-variables-with-s-underscore": "warn",
+		"plugin-solidity/prefix-immutable-variables-with-i": "warn",
+		"plugin-solidity/all-caps-constant-storage-variables": "warn",
+		"plugin-solidity/no-hardhat-imports": "warn",
+		"plugin-solidity/inherited-constructor-args-not-in-contract-definition": "warn",
+		"plugin-solidity/explicit-returns": "warn"
+	}
+}

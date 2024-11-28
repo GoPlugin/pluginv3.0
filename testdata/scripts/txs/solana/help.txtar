@@ -1,0 +1,16 @@
+exec plugin txs solana --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin txs solana - Commands for handling Solana transactions
+
+USAGE:
+   plugin txs solana command [command options] [arguments...]
+
+COMMANDS:
+   create  Send <amount> lamports from node Solana account <fromAddress> to destination <toAddress>.
+
+OPTIONS:
+   --help, -h  show help
+   

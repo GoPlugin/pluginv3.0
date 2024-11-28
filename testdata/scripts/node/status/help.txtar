@@ -1,0 +1,9 @@
+exec plugin node status --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin node status - Displays the health of various services running inside the node.
+
+USAGE:
+   plugin node status [arguments...]

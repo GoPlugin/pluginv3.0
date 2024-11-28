@@ -1,0 +1,16 @@
+exec plugin blocks --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin blocks - Commands for managing blocks
+
+USAGE:
+   plugin blocks command [command options] [arguments...]
+
+COMMANDS:
+   replay  Replays block data from the given number
+
+OPTIONS:
+   --help, -h  show help
+   

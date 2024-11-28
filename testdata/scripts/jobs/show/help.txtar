@@ -1,0 +1,9 @@
+exec plugin jobs show --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin jobs show - Show a job
+
+USAGE:
+   plugin jobs show [arguments...]

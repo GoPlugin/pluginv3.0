@@ -1,0 +1,16 @@
+exec plugin nodes cosmos --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin nodes cosmos - Commands for handling Cosmos node configuration
+
+USAGE:
+   plugin nodes cosmos command [command options] [arguments...]
+
+COMMANDS:
+   list  List all existing Cosmos nodes
+
+OPTIONS:
+   --help, -h  show help
+   

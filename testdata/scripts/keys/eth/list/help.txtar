@@ -1,0 +1,9 @@
+exec plugin keys eth list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin keys eth list - List available Ethereum accounts with their ETH & PLI balances and other metadata
+
+USAGE:
+   plugin keys eth list [arguments...]

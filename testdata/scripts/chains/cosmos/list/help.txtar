@@ -1,0 +1,9 @@
+exec plugin chains cosmos list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin chains cosmos list - List all existing Cosmos chains
+
+USAGE:
+   plugin chains cosmos list [arguments...]

@@ -1,0 +1,13 @@
+exec plugin attempts list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin attempts list - List the Transaction Attempts in descending order
+
+USAGE:
+   plugin attempts list [command options] [arguments...]
+
+OPTIONS:
+   --page value  page of results to display (default: 0)
+   

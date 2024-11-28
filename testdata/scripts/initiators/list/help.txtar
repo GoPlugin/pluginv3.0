@@ -1,0 +1,9 @@
+exec plugin initiators list --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin initiators list - List all external initiators
+
+USAGE:
+   plugin initiators list [arguments...]

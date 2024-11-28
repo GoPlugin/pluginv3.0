@@ -1,0 +1,9 @@
+exec plugin jobs run --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin jobs run - Trigger a job run
+
+USAGE:
+   plugin jobs run [arguments...]

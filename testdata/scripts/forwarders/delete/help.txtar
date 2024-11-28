@@ -1,0 +1,9 @@
+exec plugin forwarders delete --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin forwarders delete - Delete a forwarder address
+
+USAGE:
+   plugin forwarders delete [arguments...]

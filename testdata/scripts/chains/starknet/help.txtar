@@ -1,0 +1,16 @@
+exec plugin chains starknet --help
+cmp stdout out.txt
+
+-- out.txt --
+NAME:
+   plugin chains starknet - Commands for handling StarkNet chains
+
+USAGE:
+   plugin chains starknet command [command options] [arguments...]
+
+COMMANDS:
+   list  List all existing StarkNet chains
+
+OPTIONS:
+   --help, -h  show help
+   
