@@ -33,6 +33,20 @@ require (
 	github.com/go-webauthn/webauthn v0.9.4
 	github.com/google/pprof v0.0.0-20240711041743-f6c9dda6c6da
 	github.com/google/uuid v1.6.0
+	github.com/goplugin/chain-selectors v0.1.1
+	github.com/goplugin/plugin-automation v0.0.2
+	github.com/goplugin/plugin-ccip v0.0.2
+	github.com/goplugin/plugin-common v0.3.1
+	github.com/goplugin/plugin-cosmos v0.0.3
+	github.com/goplugin/plugin-data-streams v0.1.1
+	github.com/goplugin/plugin-feeds v0.1.1
+	github.com/goplugin/plugin-libocr v0.1.1
+	github.com/goplugin/plugin-protos/orchestrator v0.0.1
+	github.com/goplugin/plugin-solana v0.0.2
+	github.com/goplugin/plugin-starknet/relayer v0.4.4
+	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1
+	github.com/goplugin/tdh2/go/tdh2 v0.3.1
+	github.com/goplugin/wsrpc v0.1.1
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.2.2
 	github.com/gorilla/websocket v1.5.1
@@ -73,20 +87,6 @@ require (
 	github.com/scylladb/go-reflectx v1.0.1
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/shopspring/decimal v1.4.0
-	github.com/goplugin/chain-selectors v0.1.1
-	github.com/goplugin/plugin-automation v0.0.2
-	github.com/goplugin/plugin-ccip v0.0.2
-	github.com/goplugin/plugin-common v0.3.1
-	github.com/goplugin/plugin-cosmos v0.0.3
-	github.com/goplugin/plugin-data-streams v0.1.1
-	github.com/goplugin/plugin-feeds v0.1.1
-	github.com/goplugin/plugin-protos/orchestrator v0.0.1
-	github.com/goplugin/plugin-solana v0.0.2
-	github.com/goplugin/plugin-starknet/relayer v0.4.4
-	github.com/goplugin/plugin-libocr v0.1.1
-	github.com/goplugin/tdh2/go/ocr2/decryptionplugin v0.3.1
-	github.com/goplugin/tdh2/go/tdh2 v0.3.1
-	github.com/goplugin/wsrpc v0.1.1
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.9.0
 	github.com/test-go/testify v1.1.4
@@ -124,6 +124,11 @@ require (
 )
 
 require (
+	github.com/chenzhuoyu/iasm v0.9.0 // indirect
+	github.com/cloudwego/iasm v0.2.0 // indirect
+)
+
+require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.5 // indirect
 	cosmossdk.io/api v0.3.1 // indirect
 	cosmossdk.io/core v0.5.1 // indirect
@@ -157,7 +162,8 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
-	github.com/chenzhuoyu/iasm v0.9.0 // indirect
+	//github.com/cloudwego/iasm v0.0.9
+	//github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/cockroachdb/errors v1.10.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593 // indirect
@@ -226,6 +232,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/goplugin/grpc-proxy v0.1.1 // indirect; plugin update changes
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.8 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
@@ -304,7 +311,6 @@ require (
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/sethvargo/go-retry v0.2.4 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
-	github.com/goplugin/grpc-proxy v0.1.1 // plugin update changes
 	//github.com/goplugin/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
@@ -366,8 +372,12 @@ require (
 )
 
 replace (
+	github.com/chenzhuoyu/iasm => github.com/cloudwego/iasm v0.0.9
 	// replicating the replace directive on cosmos SDK
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	github.com/sourcegraph/sourcegraph/lib => github.com/sourcegraph/sourcegraph-public-snapshot/lib v0.0.0-20240822153003-c864f15af264
+	//	github.com/goplugin/pluginv3.0/integration-tests => github.com/goplugin/pluginv3.0/integration-tests/v2 v2.2.1
+	//nhooyr.io/websocket  => github.com/coder/websocket v1.8.12
+	nhooyr.io/websocket => nhooyr.io/websocket v1.8.17
 )

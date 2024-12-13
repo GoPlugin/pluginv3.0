@@ -17,9 +17,10 @@ import (
 
 func main() {
 	const (
-		owner                  = "goplugin"
+		owner                  = "plugin"
 		repo                   = "operator-ui"
-		fullRepo               = owner + "/" + repo
+		fullRepo               = "goplugin/plugin-operator-ui"
+		//fullRepo               = owner + "/" + repo
 		tagPath                = "operator_ui/TAG"
 		unpackDir              = "core/web/assets"
 		downloadTimeoutSeconds = 30
@@ -32,8 +33,11 @@ func main() {
 
 	tag := mustReadTagFile(path.Join(rootDir, tagPath))
 	strippedTag := stripVersionFromTag(tag)
-	assetName := fmt.Sprintf("%s-%s-%s.tgz", owner, repo, strippedTag)
-	downloadUrl := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", fullRepo, tag, assetName)
+	strippedSuffixTag := stripVersionSuffixTag(strippedTag)
+	assetName := fmt.Sprintf("%s-%s-%s.tgz", "goplugin", "plugin-operator-ui", strippedSuffixTag)
+	//assetName := fmt.Sprintf("%s-%s-%s.tgz", owner, repo, strippedTag)
+	downloadUrl := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", fullRepo, "v0.0.1", assetName)
+	//downloadUrl := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", fullRepo, tag, assetName)
 
 	// Assuming that we're in "root/operator_ui/"
 	unpackPath := filepath.Join(rootDir, unpackDir)
@@ -57,6 +61,10 @@ func mustReadTagFile(file string) string {
 
 func stripVersionFromTag(tag string) string {
 	return strings.TrimPrefix(tag, "v")
+}
+
+func stripVersionSuffixTag(tag string) string {
+	return strings.TrimSuffix(tag, "-bd81f66")
 }
 
 func rmrf(path string) error {

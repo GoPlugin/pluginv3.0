@@ -1,4 +1,4 @@
-module github.com/goplugin/pluginv3.0/integration-tests
+module github.com/goplugin/pluginv3.0/integration-tests/v2 
 
 go 1.22.8
 
@@ -41,7 +41,7 @@ require (
 	github.com/goplugin/plugin-ccip v0.0.2
 	github.com/goplugin/plugin-common v0.3.1
 	github.com/goplugin/plugin-protos/job-distributor v0.0.2
-	github.com/goplugin/plugin-testing-framework/havoc v.0.0.1
+	github.com/goplugin/plugin-testing-framework/havoc v0.0.1
 	github.com/goplugin/plugin-testing-framework/lib v0.4.1
 	github.com/goplugin/plugin-testing-framework/lib/grafana v0.1.1
 	github.com/goplugin/plugin-testing-framework/seth v0.1.1
@@ -156,7 +156,8 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
-	github.com/chenzhuoyu/iasm v0.9.0 // indirect
+	//github.com/cloudwego/iasm v0.0.9
+	//github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cli/safeexec v1.0.0 // indirect
 	github.com/cockroachdb/errors v1.10.0 // indirect
@@ -535,7 +536,8 @@ require (
 	k8s.io/kube-openapi v0.0.0-20240709000822-3c01b740850f // indirect
 	k8s.io/kubectl v0.31.0 // indirect
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
-	nhooyr.io/websocket v1.8.10 // indirect
+	//github.com/coder/websocket v1.8.10 // indirect
+	//nhooyr.io/websocket v1.8.17 // indirect
 	pgregory.net/rapid v1.1.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 	sigs.k8s.io/controller-runtime v0.19.0 // indirect
@@ -551,4 +553,6 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	github.com/sourcegraph/sourcegraph/lib => github.com/sourcegraph/sourcegraph-public-snapshot/lib v0.0.0-20240822153003-c864f15af264
+	nhooyr.io/websocket => github.com/coder/websocket v1.8.12
+	github.com/chenzhuoyu/iasm => github.com/cloudwego/iasm v0.2.0
 )

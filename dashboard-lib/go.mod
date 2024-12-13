@@ -26,4 +26,5 @@ require (
 replace (
 	github.com/grafana/grafana-foundation-sdk/go => github.com/grafana/grafana-foundation-sdk/go v0.0.0-20240314112857-a7c9c6d0044c
 	github.com/sourcegraph/sourcegraph/lib => github.com/sourcegraph/sourcegraph-public-snapshot/lib v0.0.0-20240822153003-c864f15af264
+	//nhooyr.io/websocket => github.com/coder/websocket v1.8.12
 )
