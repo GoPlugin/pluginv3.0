@@ -102,7 +102,7 @@ func TestResolver_ETHKeys(t *testing.T) {
 				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
 				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
 				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
-				f.Mocks.ethClient.On("PLIBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), nil)
+				f.Mocks.ethClient.On("LINKBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), nil)
 				f.Mocks.chain.On("Client").Return(f.Mocks.ethClient)
 				f.Mocks.balM.On("GetEthBalance", address).Return(assets.NewEth(1))
 				f.Mocks.chain.On("BalanceMonitor").Return(f.Mocks.balM)
@@ -329,7 +329,7 @@ func TestResolver_ETHKeys(t *testing.T) {
 				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
 				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
 				f.Mocks.keystore.On("Eth").Return(f.Mocks.ethKs)
-				f.Mocks.ethClient.On("PLIBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), gError)
+				f.Mocks.ethClient.On("LINKBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), gError)
 				f.Mocks.legacyEVMChains.On("Get", states[0].EVMChainID.String()).Return(f.Mocks.chain, nil)
 				f.Mocks.relayerChainInterops.EVMChains = f.Mocks.legacyEVMChains
 				f.Mocks.relayerChainInterops.Relayers = map[types.RelayID]loop.Relayer{
@@ -393,7 +393,7 @@ func TestResolver_ETHKeys(t *testing.T) {
 				f.Mocks.ethKs.On("GetStatesForKeys", mock.Anything, keys).Return(states, nil)
 				f.Mocks.ethKs.On("Get", mock.Anything, keys[0].Address.Hex()).Return(keys[0], nil)
 				f.Mocks.ethKs.On("GetAll", mock.Anything).Return(keys, nil)
-				f.Mocks.ethClient.On("PLIBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), nil)
+				f.Mocks.ethClient.On("LINKBalance", mock.Anything, address, linkAddr).Return(commonassets.NewLinkFromJuels(12), nil)
 				f.Mocks.chain.On("Client").Return(f.Mocks.ethClient)
 				f.Mocks.chain.On("BalanceMonitor").Return(nil)
 				f.Mocks.chain.On("Config").Return(f.Mocks.scfg)

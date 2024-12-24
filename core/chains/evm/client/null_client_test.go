@@ -47,10 +47,10 @@ func TestNullClient(t *testing.T) {
 		require.Zero(t, b.Int64())
 		require.Equal(t, 1, logs.FilterMessage("TokenBalance").Len())
 
-		l, err := nc.PLIBalance(ctx, common.Address{}, common.Address{})
+		l, err := nc.LINKBalance(ctx, common.Address{}, common.Address{})
 		require.NoError(t, err)
 		require.True(t, l.IsZero())
-		require.Equal(t, 1, logs.FilterMessage("PLIBalance").Len())
+		require.Equal(t, 1, logs.FilterMessage("LINKBalance").Len())
 
 		err = nc.CallContext(ctx, nil, "")
 		require.NoError(t, err)

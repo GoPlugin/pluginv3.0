@@ -846,7 +846,7 @@ func TestEthClient_ErroringClient(t *testing.T) {
 	_, err = erroringClient.HeadByNumber(ctx, nil)
 	require.Equal(t, err, commonclient.ErroringNodeError)
 
-	_, err = erroringClient.PLIBalance(ctx, common.Address{}, common.Address{})
+	_, err = erroringClient.LINKBalance(ctx, common.Address{}, common.Address{})
 	require.Equal(t, err, commonclient.ErroringNodeError)
 
 	_, err = erroringClient.LatestBlockHeight(ctx)

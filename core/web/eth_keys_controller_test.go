@@ -52,9 +52,9 @@ func TestETHKeysController_Index_Success(t *testing.T) {
 	ethClient.On("BalanceAt", mock.Anything, addr0, mock.Anything).Return(big.NewInt(256), nil).Once()
 	ethClient.On("BalanceAt", mock.Anything, addr1, mock.Anything).Return(big.NewInt(1), nil).Once()
 	ethClient.On("BalanceAt", mock.Anything, addr2, mock.Anything).Return(big.NewInt(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr0, mock.Anything).Return(assets.NewLinkFromJuels(256), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr1, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr2, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr0, mock.Anything).Return(assets.NewLinkFromJuels(256), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr1, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr2, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
 
 	require.NoError(t, app.Start(ctx))
 
@@ -97,7 +97,7 @@ func TestETHKeysController_Index_Errors(t *testing.T) {
 	_, addr := cltest.MustInsertRandomKey(t, app.KeyStore.Eth())
 
 	ethClient.On("BalanceAt", mock.Anything, addr, mock.Anything).Return(nil, errors.New("fake error")).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr, mock.Anything).Return(nil, errors.New("fake error")).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr, mock.Anything).Return(nil, errors.New("fake error")).Once()
 
 	require.NoError(t, app.Start(ctx))
 
@@ -166,7 +166,7 @@ func TestETHKeysController_Index_NotDev(t *testing.T) {
 	})
 
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(big.NewInt(256), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(assets.NewLinkFromJuels(256), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(assets.NewLinkFromJuels(256), nil).Once()
 
 	app := cltest.NewApplicationWithConfigAndKey(t, cfg, ethClient)
 	ctx := testutils.Context(t)
@@ -226,7 +226,7 @@ func TestETHKeysController_CreateSuccess(t *testing.T) {
 	ethBalanceInt := big.NewInt(100)
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(ethBalanceInt, nil)
 	linkBalance := assets.NewLinkFromJuels(42)
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(linkBalance, nil)
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(linkBalance, nil)
 
 	client := app.NewHTTPClient(nil)
 
@@ -269,7 +269,7 @@ func TestETHKeysController_ChainSuccess_UpdateNonce(t *testing.T) {
 	key, addr := cltest.MustInsertRandomKey(t, app.KeyStore.Eth())
 
 	ethClient.On("BalanceAt", mock.Anything, addr, mock.Anything).Return(big.NewInt(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
 
 	require.NoError(t, app.Start(ctx))
 
@@ -313,7 +313,7 @@ func TestETHKeysController_ChainSuccess_Disable(t *testing.T) {
 	key, addr := cltest.MustInsertRandomKey(t, app.KeyStore.Eth())
 
 	ethClient.On("BalanceAt", mock.Anything, addr, mock.Anything).Return(big.NewInt(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
 
 	require.NoError(t, app.Start(ctx))
 
@@ -358,7 +358,7 @@ func TestETHKeysController_ChainSuccess_Enable(t *testing.T) {
 	key, addr := cltest.RandomKey{Disabled: true}.MustInsert(t, app.KeyStore.Eth())
 
 	ethClient.On("BalanceAt", mock.Anything, addr, mock.Anything).Return(big.NewInt(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
 
 	require.NoError(t, app.Start(ctx))
 
@@ -404,7 +404,7 @@ func TestETHKeysController_ChainSuccess_ResetWithAbandon(t *testing.T) {
 	key, addr := cltest.MustInsertRandomKey(t, app.KeyStore.Eth())
 
 	ethClient.On("BalanceAt", mock.Anything, addr, mock.Anything).Return(big.NewInt(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
 
 	require.NoError(t, app.Start(ctx))
 
@@ -665,8 +665,8 @@ func TestETHKeysController_DeleteSuccess(t *testing.T) {
 
 	ethClient.On("BalanceAt", mock.Anything, addr0, mock.Anything).Return(big.NewInt(1), nil).Once()
 	ethClient.On("BalanceAt", mock.Anything, addr1, mock.Anything).Return(big.NewInt(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr0, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
-	ethClient.On("PLIBalance", mock.Anything, addr1, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr0, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
+	ethClient.On("LINKBalance", mock.Anything, addr1, mock.Anything).Return(assets.NewLinkFromJuels(1), nil).Once()
 
 	require.NoError(t, app.Start(ctx))
 

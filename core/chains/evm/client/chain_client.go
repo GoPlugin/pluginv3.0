@@ -36,7 +36,7 @@ type Client interface {
 
 	TokenBalance(ctx context.Context, address common.Address, contractAddress common.Address) (*big.Int, error)
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
-	PLIBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*commonassets.Link, error)
+	LINKBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*commonassets.Link, error)
 
 	// Wrapped RPC methods
 	CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
@@ -341,12 +341,12 @@ func (c *chainClient) IsL2() bool {
 	return c.chainType.IsL2()
 }
 
-func (c *chainClient) PLIBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*commonassets.Link, error) {
+func (c *chainClient) LINKBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*commonassets.Link, error) {
 	r, err := c.multiNode.SelectRPC()
 	if err != nil {
 		return nil, err
 	}
-	return r.PLIBalance(ctx, address, linkAddress)
+	return r.LINKBalance(ctx, address, linkAddress)
 }
 
 func (c *chainClient) LatestBlockHeight(ctx context.Context) (*big.Int, error) {

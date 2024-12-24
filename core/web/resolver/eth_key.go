@@ -75,14 +75,14 @@ func (r *ETHKeyResolver) ETHBalance(ctx context.Context) *string {
 	return nil
 }
 
-func (r *ETHKeyResolver) PLIBalance(ctx context.Context) *string {
+func (r *ETHKeyResolver) LINKBalance(ctx context.Context) *string {
 	if r.key.chain == nil {
 		return nil
 	}
 
 	client := r.key.chain.Client()
 	linkAddr := common.HexToAddress(r.key.chain.Config().EVM().LinkContractAddress())
-	balance, err := client.PLIBalance(ctx, r.key.state.Address.Address(), linkAddr)
+	balance, err := client.LINKBalance(ctx, r.key.state.Address.Address(), linkAddr)
 	if err != nil {
 		return nil
 	}

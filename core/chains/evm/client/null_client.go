@@ -48,8 +48,8 @@ func (nc *NullClient) TokenBalance(ctx context.Context, address common.Address, 
 	return big.NewInt(0), nil
 }
 
-func (nc *NullClient) PLIBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*assets.Link, error) {
-	nc.lggr.Debug("PLIBalance")
+func (nc *NullClient) LINKBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*assets.Link, error) {
+	nc.lggr.Debug("LINKBalance")
 	return assets.NewLinkFromJuels(0), nil
 }
 

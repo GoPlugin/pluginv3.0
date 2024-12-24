@@ -92,7 +92,7 @@ func TestShell_ListETHKeys(t *testing.T) {
 
 	ethClient := newEthMock(t)
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(big.NewInt(42), nil)
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(13), nil)
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(13), nil)
 	ethClient.On("PendingNonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)
 	app := startNewApplicationV2(t, func(c *plugin.Config, s *plugin.Secrets) {
 		c.EVM[0].Enabled = ptr(true)
@@ -117,7 +117,7 @@ func TestShell_ListETHKeys_Error(t *testing.T) {
 
 	ethClient := newEthMock(t)
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("fake error"))
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("fake error"))
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("fake error"))
 	ethClient.On("PendingNonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)
 	app := startNewApplicationV2(t, func(c *plugin.Config, s *plugin.Secrets) {
 		c.EVM[0].Enabled = ptr(true)
@@ -171,7 +171,7 @@ func TestShell_CreateETHKey(t *testing.T) {
 
 	ethClient := newEthMock(t)
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(big.NewInt(42), nil)
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(42), nil)
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(42), nil)
 	ethClient.On("PendingNonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)
 
 	app := startNewApplicationV2(t, func(c *plugin.Config, s *plugin.Secrets) {
@@ -246,7 +246,7 @@ func TestShell_ImportExportETHKey_NoChains(t *testing.T) {
 
 	ethClient := newEthMock(t)
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(big.NewInt(42), nil)
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(42), nil)
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(42), nil)
 	ethClient.On("PendingNonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)
 	app := startNewApplicationV2(t, func(c *plugin.Config, s *plugin.Secrets) {
 		c.EVM[0].Enabled = ptr(true)
@@ -364,7 +364,7 @@ func TestShell_ImportExportETHKey_WithChains(t *testing.T) {
 
 	ethClient.On("Dial", mock.Anything).Maybe()
 	ethClient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).Return(big.NewInt(42), nil)
-	ethClient.On("PLIBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(42), nil)
+	ethClient.On("LINKBalance", mock.Anything, mock.Anything, mock.Anything).Return(commonassets.NewLinkFromJuels(42), nil)
 
 	set := flag.NewFlagSet("test", 0)
 	flagSetApplyFromAction(client.RemoteLogin, set, "")

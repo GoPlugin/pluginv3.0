@@ -1123,12 +1123,12 @@ func (_c *Client_IsL2_Call) RunAndReturn(run func() bool) *Client_IsL2_Call {
 	return _c
 }
 
-// PLIBalance provides a mock function with given fields: ctx, address, linkAddress
-func (_m *Client) PLIBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*assets.Link, error) {
+// LINKBalance provides a mock function with given fields: ctx, address, linkAddress
+func (_m *Client) LINKBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*assets.Link, error) {
 	ret := _m.Called(ctx, address, linkAddress)
 
 	if len(ret) == 0 {
-		panic("no return value specified for PLIBalance")
+		panic("no return value specified for LINKBalance")
 	}
 
 	var r0 *assets.Link
@@ -1153,17 +1153,17 @@ func (_m *Client) PLIBalance(ctx context.Context, address common.Address, linkAd
 	return r0, r1
 }
 
-// Client_PLIBalance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PLIBalance'
+// Client_PLIBalance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LINKBalance'
 type Client_PLIBalance_Call struct {
 	*mock.Call
 }
 
-// PLIBalance is a helper method to define mock.On call
+// LINKBalance is a helper method to define mock.On call
 //   - ctx context.Context
 //   - address common.Address
 //   - linkAddress common.Address
-func (_e *Client_Expecter) PLIBalance(ctx interface{}, address interface{}, linkAddress interface{}) *Client_PLIBalance_Call {
-	return &Client_PLIBalance_Call{Call: _e.mock.On("PLIBalance", ctx, address, linkAddress)}
+func (_e *Client_Expecter) LINKBalance(ctx interface{}, address interface{}, linkAddress interface{}) *Client_PLIBalance_Call {
+	return &Client_PLIBalance_Call{Call: _e.mock.On("LINKBalance", ctx, address, linkAddress)}
 }
 
 func (_c *Client_PLIBalance_Call) Run(run func(ctx context.Context, address common.Address, linkAddress common.Address)) *Client_PLIBalance_Call {

@@ -152,7 +152,7 @@ func (c *SimulatedBackendClient) TokenBalance(ctx context.Context, address commo
 }
 
 // GetPLIBalance get link balance.
-func (c *SimulatedBackendClient) PLIBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*assets.Link, error) {
+func (c *SimulatedBackendClient) LINKBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*assets.Link, error) {
 	panic("not implemented")
 }
 

@@ -1133,8 +1133,8 @@ func (r *RPCClient) TokenBalance(ctx context.Context, address common.Address, co
 	return numLinkBigInt, nil
 }
 
-// PLIBalance returns the balance of PLI at the given address
-func (r *RPCClient) PLIBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*commonassets.Link, error) {
+// LINKBalance returns the balance of PLI at the given address
+func (r *RPCClient) LINKBalance(ctx context.Context, address common.Address, linkAddress common.Address) (*commonassets.Link, error) {
 	balance, err := r.TokenBalance(ctx, address, linkAddress)
 	if err != nil {
 		return commonassets.NewLinkFromJuels(0), err

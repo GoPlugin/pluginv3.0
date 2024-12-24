@@ -1,0 +1,28 @@
+[Log]
+Level = 'debug'
+
+[WebServer]
+AllowOrigins = 'http://localhost:3000,http://localhost:6688' # Default
+SecureCookies = false
+SessionTimeout = '15m' # Default
+
+[WebServer.TLS]
+HTTPSPort = 6689 # Defaut
+ForceRedirect = false # Default
+
+[[EVM]]
+ChainID = '51'
+Enabled = true #Default
+LinkContractAddress = "0x33f4212b027E22aF7e6BA21Fc572843C0D701CD1"
+
+[EVM.GasEstimator]
+PriceMin = '12.5 gwei'
+
+[[EVM.Nodes]]
+name = "GoPluginApothem"
+wsUrl = "wss://ws.apothem.network/ws"
+httpUrl = 'https://erpc.apothem.network'
+
+
+[Feature]
+FeedsManager = false # Default
