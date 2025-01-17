@@ -48,7 +48,7 @@ contract MultiVerifierBillingTests is MultipleVerifierWithMultipleFeeManagers {
         observationsTimestamp: OBSERVATIONS_TIMESTAMP,
         validFromTimestamp: uint32(timestamp),
         nativeFee: uint192(DEFAULT_REPORT_NATIVE_FEE),
-        linkFee: uint192(DEFAULT_REPORT_PLI_FEE),
+        pliFee: uint192(DEFAULT_REPORT_PLI_FEE),
         // ask michael about this expires at, is it usually set at what blocks
         expiresAt: uint32(timestamp) + 500,
         benchmarkPrice: MEDIAN,
@@ -103,39 +103,39 @@ contract MultiVerifierBillingTests is MultipleVerifierWithMultipleFeeManagers {
     bytes32 expectedDonConfigID2 = _donConfigIdFromConfigData(signerAddrs, MINIMAL_FAULT_TOLERANCE);
     bytes32 expectedDonConfigID3 = _donConfigIdFromConfigData(signerAddrs, MINIMAL_FAULT_TOLERANCE + 1);
 
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-    _verify(s_verifierProxy, signedReport, address(link), 0, USER);
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _verify(s_verifierProxy, signedReport, address(pli), 0, USER);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
 
     // internal state checks
-    assertEq(feeManager.s_linkDeficit(expectedDonConfigID), 0);
+    assertEq(feeManager.s_pliDeficit(expectedDonConfigID), 0);
     assertEq(rewardManager.s_totalRewardRecipientFees(expectedDonConfigID), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
     // check the recipients are paid according to weights
     // These rewards happened through verifier1 and feeManager1
     address[] memory recipients = new address[](1);
     recipients[0] = DEFAULT_RECIPIENT_1;
     payRecipients(expectedDonConfigID, recipients, ADMIN);
-    assertEq(link.balanceOf(recipients[0]), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), 0);
+    assertEq(pli.balanceOf(recipients[0]), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), 0);
 
     // these rewards happaned through verifier2 and feeManager1
     address[] memory recipients2 = new address[](1);
     recipients2[0] = DEFAULT_RECIPIENT_2;
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-    _verify(s_verifierProxy2, signedReport, address(link), 0, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _verify(s_verifierProxy2, signedReport, address(pli), 0, USER);
     payRecipients(expectedDonConfigID2, recipients2, ADMIN);
-    assertEq(link.balanceOf(recipients2[0]), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), 0);
+    assertEq(pli.balanceOf(recipients2[0]), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), 0);
 
     // these rewards happened through verifier3 and feeManager2
     address[] memory recipients3 = new address[](1);
     recipients3[0] = DEFAULT_RECIPIENT_3;
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-    _verify(s_verifierProxy3, signedReport, address(link), 0, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _verify(s_verifierProxy3, signedReport, address(pli), 0, USER);
     payRecipients(expectedDonConfigID3, recipients3, ADMIN);
-    assertEq(link.balanceOf(recipients3[0]), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), 0);
+    assertEq(pli.balanceOf(recipients3[0]), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), 0);
   }
 }

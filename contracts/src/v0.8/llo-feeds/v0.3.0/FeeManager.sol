@@ -25,14 +25,14 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
   /// @notice list of subscribers and their discounts subscriberDiscounts[subscriber][feedId][token]
   mapping(address => mapping(bytes32 => mapping(address => uint256))) public s_subscriberDiscounts;
 
-  /// @notice keep track of any subsidised link that is owed to the reward manager.
-  mapping(bytes32 => uint256) public s_linkDeficit;
+  /// @notice keep track of any subsidised pli that is owed to the reward manager.
+  mapping(bytes32 => uint256) public s_pliDeficit;
 
   /// @notice the total discount that can be applied to a fee, 1e18 = 100% discount
   uint64 private constant PERCENTAGE_SCALAR = 1e18;
 
   /// @notice the PLI token address
-  address public immutable i_linkAddress;
+  address public immutable i_pliAddress;
 
   /// @notice the native token address
   address public immutable i_nativeAddress;
@@ -91,8 +91,8 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
   event NativeSurchargeUpdated(uint64 newSurcharge);
 
   /// @notice Emits when this contract does not have enough PLI to send to the reward manager when paying in native
-  /// @param rewards Config digest and link fees which could not be subsidised
-  event InsufficientLink(IRewardManager.FeePayment[] rewards);
+  /// @param rewards Config digest and pli fees which could not be subsidised
+  event InsufficientPli(IRewardManager.FeePayment[] rewards);
 
   /// @notice Emitted when funds are withdrawn
   /// @param adminAddress Address of the admin
@@ -103,8 +103,8 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
 
   /// @notice Emits when a deficit has been cleared for a particular config digest
   /// @param configDigest Config digest of the deficit cleared
-  /// @param linkQuantity Amount of PLI required to pay the deficit
-  event LinkDeficitCleared(bytes32 indexed configDigest, uint256 linkQuantity);
+  /// @param pliQuantity Amount of PLI required to pay the deficit
+  event PliDeficitCleared(bytes32 indexed configDigest, uint256 pliQuantity);
 
   /// @notice Emits when a fee has been processed
   /// @param configDigest Config digest of the fee processed
@@ -122,30 +122,30 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
 
   /**
    * @notice Construct the FeeManager contract
-   * @param _linkAddress The address of the PLI token
+   * @param _pliAddress The address of the PLI token
    * @param _nativeAddress The address of the wrapped ERC-20 version of the native token (represents fee in native or wrapped)
    * @param _proxyAddress The address of the proxy contract
    * @param _rewardManagerAddress The address of the reward manager contract
    */
   constructor(
-    address _linkAddress,
+    address _pliAddress,
     address _nativeAddress,
     address _proxyAddress,
     address _rewardManagerAddress
   ) ConfirmedOwner(msg.sender) {
     if (
-      _linkAddress == address(0) ||
+      _pliAddress == address(0) ||
       _nativeAddress == address(0) ||
       _proxyAddress == address(0) ||
       _rewardManagerAddress == address(0)
     ) revert InvalidAddress();
 
-    i_linkAddress = _linkAddress;
+    i_pliAddress = _pliAddress;
     i_nativeAddress = _nativeAddress;
     i_proxyAddress = _proxyAddress;
     i_rewardManager = IRewardManager(_rewardManagerAddress);
 
-    IERC20(i_linkAddress).approve(address(i_rewardManager), type(uint256).max);
+    IERC20(i_pliAddress).approve(address(i_rewardManager), type(uint256).max);
   }
 
   modifier onlyOwnerOrProxy() {
@@ -188,7 +188,7 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
     IFeeManager.FeeAndReward[] memory feeAndReward = new IFeeManager.FeeAndReward[](1);
     feeAndReward[0] = IFeeManager.FeeAndReward(bytes32(payload), fee, reward, appliedDiscount);
 
-    if (fee.assetAddress == i_linkAddress) {
+    if (fee.assetAddress == i_pliAddress) {
       _handleFeesAndRewards(subscriber, feeAndReward, 1, 0);
     } else {
       _handleFeesAndRewards(subscriber, feeAndReward, 0, 1);
@@ -203,8 +203,8 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
   ) external payable override onlyProxy {
     FeeAndReward[] memory feesAndRewards = new IFeeManager.FeeAndReward[](payloads.length);
 
-    //keep track of the number of fees to prevent over initialising the FeePayment array within _convertToLinkAndNativeFees
-    uint256 numberOfLinkFees;
+    //keep track of the number of fees to prevent over initialising the FeePayment array within _convertToPliAndNativeFees
+    uint256 numberOfPliFees;
     uint256 numberOfNativeFees;
 
     uint256 feesAndRewardsIndex;
@@ -225,8 +225,8 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
 
         unchecked {
           //keep track of some tallys to make downstream calculations more efficient
-          if (fee.assetAddress == i_linkAddress) {
-            ++numberOfLinkFees;
+          if (fee.assetAddress == i_pliAddress) {
+            ++numberOfPliFees;
           } else {
             ++numberOfNativeFees;
           }
@@ -234,8 +234,8 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
       }
     }
 
-    if (numberOfLinkFees != 0 || numberOfNativeFees != 0) {
-      _handleFeesAndRewards(subscriber, feesAndRewards, numberOfLinkFees, numberOfNativeFees);
+    if (numberOfPliFees != 0 || numberOfNativeFees != 0) {
+      _handleFeesAndRewards(subscriber, feesAndRewards, numberOfPliFees, numberOfNativeFees);
     } else {
       _tryReturnChange(subscriber, msg.value);
     }
@@ -259,20 +259,20 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
     //version 1 of the reports don't require quotes, so the fee will be 0
     if (reportVersion == REPORT_V1) {
       fee.assetAddress = i_nativeAddress;
-      reward.assetAddress = i_linkAddress;
+      reward.assetAddress = i_pliAddress;
       return (fee, reward, 0);
     }
 
     //verify the quote payload is a supported token
-    if (quoteAddress != i_nativeAddress && quoteAddress != i_linkAddress) {
+    if (quoteAddress != i_nativeAddress && quoteAddress != i_pliAddress) {
       revert InvalidQuote();
     }
 
     //decode the report depending on the version
-    uint256 linkQuantity;
+    uint256 pliQuantity;
     uint256 nativeQuantity;
     uint256 expiresAt;
-    (, , , nativeQuantity, linkQuantity, expiresAt) = abi.decode(
+    (, , , nativeQuantity, pliQuantity, expiresAt) = abi.decode(
       report,
       (bytes32, uint32, uint32, uint192, uint192, uint32)
     );
@@ -286,12 +286,12 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
     uint256 discount = s_subscriberDiscounts[subscriber][feedId][quoteAddress];
 
     //the reward is always set in PLI
-    reward.assetAddress = i_linkAddress;
-    reward.amount = Math.ceilDiv(linkQuantity * (PERCENTAGE_SCALAR - discount), PERCENTAGE_SCALAR);
+    reward.assetAddress = i_pliAddress;
+    reward.amount = Math.ceilDiv(pliQuantity * (PERCENTAGE_SCALAR - discount), PERCENTAGE_SCALAR);
 
     //calculate either the PLI fee or native fee if it's within the report
-    if (quoteAddress == i_linkAddress) {
-      fee.assetAddress = i_linkAddress;
+    if (quoteAddress == i_pliAddress) {
+      fee.assetAddress = i_pliAddress;
       fee.amount = reward.amount;
     } else {
       uint256 surchargedFee = Math.ceilDiv(nativeQuantity * (PERCENTAGE_SCALAR + s_nativeSurcharge), PERCENTAGE_SCALAR);
@@ -331,7 +331,7 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
     //make sure the discount is not greater than the total discount that can be applied
     if (discount > PERCENTAGE_SCALAR) revert InvalidDiscount();
     //make sure the token is either PLI or native
-    if (token != i_linkAddress && token != i_nativeAddress) revert InvalidAddress();
+    if (token != i_pliAddress && token != i_nativeAddress) revert InvalidAddress();
 
     s_subscriberDiscounts[subscriber][feedId][token] = discount;
 
@@ -356,9 +356,9 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
   }
 
   /// @inheritdoc IFeeManager
-  function linkAvailableForPayment() external view returns (uint256) {
+  function pliAvailableForPayment() external view returns (uint256) {
     //return the amount of PLI this contact has available to pay rewards
-    return IERC20(i_linkAddress).balanceOf(address(this));
+    return IERC20(i_pliAddress).balanceOf(address(this));
   }
 
   /**
@@ -396,32 +396,32 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
   function _handleFeesAndRewards(
     address subscriber,
     FeeAndReward[] memory feesAndRewards,
-    uint256 numberOfLinkFees,
+    uint256 numberOfPliFees,
     uint256 numberOfNativeFees
   ) internal {
-    IRewardManager.FeePayment[] memory linkRewards = new IRewardManager.FeePayment[](numberOfLinkFees);
-    IRewardManager.FeePayment[] memory nativeFeeLinkRewards = new IRewardManager.FeePayment[](numberOfNativeFees);
+    IRewardManager.FeePayment[] memory pliRewards = new IRewardManager.FeePayment[](numberOfPliFees);
+    IRewardManager.FeePayment[] memory nativeFeePliRewards = new IRewardManager.FeePayment[](numberOfNativeFees);
 
     uint256 totalNativeFee;
-    uint256 totalNativeFeeLinkValue;
+    uint256 totalNativeFeePliValue;
 
-    uint256 linkRewardsIndex;
-    uint256 nativeFeeLinkRewardsIndex;
+    uint256 pliRewardsIndex;
+    uint256 nativeFeePliRewardsIndex;
 
-    uint256 totalNumberOfFees = numberOfLinkFees + numberOfNativeFees;
+    uint256 totalNumberOfFees = numberOfPliFees + numberOfNativeFees;
     for (uint256 i; i < totalNumberOfFees; ++i) {
-      if (feesAndRewards[i].fee.assetAddress == i_linkAddress) {
-        linkRewards[linkRewardsIndex++] = IRewardManager.FeePayment(
+      if (feesAndRewards[i].fee.assetAddress == i_pliAddress) {
+        pliRewards[pliRewardsIndex++] = IRewardManager.FeePayment(
           feesAndRewards[i].configDigest,
           uint192(feesAndRewards[i].reward.amount)
         );
       } else {
-        nativeFeeLinkRewards[nativeFeeLinkRewardsIndex++] = IRewardManager.FeePayment(
+        nativeFeePliRewards[nativeFeePliRewardsIndex++] = IRewardManager.FeePayment(
           feesAndRewards[i].configDigest,
           uint192(feesAndRewards[i].reward.amount)
         );
         totalNativeFee += feesAndRewards[i].fee.amount;
-        totalNativeFeeLinkValue += feesAndRewards[i].reward.amount;
+        totalNativeFeePliValue += feesAndRewards[i].reward.amount;
       }
 
       if (feesAndRewards[i].appliedDiscount != 0) {
@@ -456,25 +456,25 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
       }
     }
 
-    if (linkRewards.length != 0) {
-      i_rewardManager.onFeePaid(linkRewards, subscriber);
+    if (pliRewards.length != 0) {
+      i_rewardManager.onFeePaid(pliRewards, subscriber);
     }
 
-    if (nativeFeeLinkRewards.length != 0) {
+    if (nativeFeePliRewards.length != 0) {
       //distribute subsidised fees paid in Native
-      if (totalNativeFeeLinkValue > IERC20(i_linkAddress).balanceOf(address(this))) {
+      if (totalNativeFeePliValue > IERC20(i_pliAddress).balanceOf(address(this))) {
         // If not enough PLI on this contract to forward for rewards, tally the deficit to be paid by out-of-band PLI
-        for (uint256 i; i < nativeFeeLinkRewards.length; ++i) {
+        for (uint256 i; i < nativeFeePliRewards.length; ++i) {
           unchecked {
             //we have previously tallied the fees, any overflows would have already reverted
-            s_linkDeficit[nativeFeeLinkRewards[i].poolId] += nativeFeeLinkRewards[i].amount;
+            s_pliDeficit[nativeFeePliRewards[i].poolId] += nativeFeePliRewards[i].amount;
           }
         }
 
-        emit InsufficientLink(nativeFeeLinkRewards);
+        emit InsufficientPli(nativeFeePliRewards);
       } else {
         //distribute the fees
-        i_rewardManager.onFeePaid(nativeFeeLinkRewards, address(this));
+        i_rewardManager.onFeePaid(nativeFeePliRewards, address(this));
       }
     }
 
@@ -489,12 +489,12 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
   }
 
   /// @inheritdoc IFeeManager
-  function payLinkDeficit(bytes32 configDigest) external onlyOwner {
-    uint256 deficit = s_linkDeficit[configDigest];
+  function payPliDeficit(bytes32 configDigest) external onlyOwner {
+    uint256 deficit = s_pliDeficit[configDigest];
 
     if (deficit == 0) revert ZeroDeficit();
 
-    delete s_linkDeficit[configDigest];
+    delete s_pliDeficit[configDigest];
 
     IRewardManager.FeePayment[] memory deficitFeePayment = new IRewardManager.FeePayment[](1);
 
@@ -502,6 +502,6 @@ contract FeeManager is IFeeManager, ConfirmedOwner, TypeAndVersionInterface {
 
     i_rewardManager.onFeePaid(deficitFeePayment, address(this));
 
-    emit LinkDeficitCleared(configDigest, deficit);
+    emit PliDeficitCleared(configDigest, deficit);
   }
 }

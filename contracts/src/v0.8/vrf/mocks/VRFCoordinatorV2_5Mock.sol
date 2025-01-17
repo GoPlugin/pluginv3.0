@@ -11,7 +11,7 @@ import {VRFConsumerBaseV2Plus} from "../dev/VRFConsumerBaseV2Plus.sol";
 contract VRFCoordinatorV2_5Mock is SubscriptionAPI, IVRFCoordinatorV2Plus {
   uint96 public immutable i_base_fee;
   uint96 public immutable i_gas_price;
-  int256 public immutable i_wei_per_unit_link;
+  int256 public immutable i_wei_per_unit_pli;
 
   error InvalidRequest();
   error InvalidRandomWords();
@@ -52,10 +52,10 @@ contract VRFCoordinatorV2_5Mock is SubscriptionAPI, IVRFCoordinatorV2Plus {
   }
   mapping(uint256 => Request) internal s_requests; /* requestId */ /* request */
 
-  constructor(uint96 _baseFee, uint96 _gasPrice, int256 _weiPerUnitLink) SubscriptionAPI() {
+  constructor(uint96 _baseFee, uint96 _gasPrice, int256 _weiPerUnitPli) SubscriptionAPI() {
     i_base_fee = _baseFee;
     i_gas_price = _gasPrice;
-    i_wei_per_unit_link = _weiPerUnitLink;
+    i_wei_per_unit_pli = _weiPerUnitPli;
     setConfig();
   }
 
@@ -70,9 +70,9 @@ contract VRFCoordinatorV2_5Mock is SubscriptionAPI, IVRFCoordinatorV2Plus {
       gasAfterPaymentCalculation: 0,
       reentrancyLock: false,
       fulfillmentFlatFeeNativePPM: 0,
-      fulfillmentFlatFeeLinkDiscountPPM: 0,
+      fulfillmentFlatFeePliDiscountPPM: 0,
       nativePremiumPercentage: 0,
-      linkPremiumPercentage: 0
+      pliPremiumPercentage: 0
     });
     emit ConfigSet();
   }
@@ -137,7 +137,7 @@ contract VRFCoordinatorV2_5Mock is SubscriptionAPI, IVRFCoordinatorV2Plus {
 
     uint256 rawPayment = i_base_fee + ((startGas - gasleft()) * i_gas_price);
     if (!nativePayment) {
-      rawPayment = (1e18 * rawPayment) / uint256(i_wei_per_unit_link);
+      rawPayment = (1e18 * rawPayment) / uint256(i_wei_per_unit_pli);
     }
     uint96 payment = uint96(rawPayment);
 

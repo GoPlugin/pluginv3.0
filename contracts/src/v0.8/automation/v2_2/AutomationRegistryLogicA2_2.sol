@@ -26,8 +26,8 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
     AutomationRegistryLogicB2_2 logicB
   )
     AutomationRegistryBase2_2(
-      logicB.getLinkAddress(),
-      logicB.getLinkNativeFeedAddress(),
+      logicB.getPliAddress(),
+      logicB.getPliNativeFeedAddress(),
       logicB.getFastGasFeedAddress(),
       logicB.getAutomationForwarderLogic(),
       logicB.getAllowedReadOnlyAddress()
@@ -56,7 +56,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
       uint256 gasUsed,
       uint256 gasLimit,
       uint256 fastGasWei,
-      uint256 linkNative
+      uint256 pliNative
     )
   {
     _preventExecution();
@@ -70,9 +70,9 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
       return (false, bytes(""), UpkeepFailureReason.UPKEEP_CANCELLED, 0, upkeep.performGas, 0, 0);
     if (upkeep.paused) return (false, bytes(""), UpkeepFailureReason.UPKEEP_PAUSED, 0, upkeep.performGas, 0, 0);
 
-    (fastGasWei, linkNative) = _getFeedData(hotVars);
-    uint96 maxLinkPayment = _getMaxLinkPayment(hotVars, triggerType, upkeep.performGas, fastGasWei, linkNative);
-    if (upkeep.balance < maxLinkPayment) {
+    (fastGasWei, pliNative) = _getFeedData(hotVars);
+    uint96 maxPliPayment = _getMaxPliPayment(hotVars, triggerType, upkeep.performGas, fastGasWei, pliNative);
+    if (upkeep.balance < maxPliPayment) {
       return (false, bytes(""), UpkeepFailureReason.INSUFFICIENT_BALANCE, 0, upkeep.performGas, 0, 0);
     }
 
@@ -93,7 +93,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
           gasUsed,
           upkeep.performGas,
           fastGasWei,
-          linkNative
+          pliNative
         );
       }
       return (
@@ -103,7 +103,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
         gasUsed,
         upkeep.performGas,
         fastGasWei,
-        linkNative
+        pliNative
       );
     }
 
@@ -116,7 +116,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
         gasUsed,
         upkeep.performGas,
         fastGasWei,
-        linkNative
+        pliNative
       );
 
     if (performData.length > s_storage.maxPerformDataSize)
@@ -127,10 +127,10 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
         gasUsed,
         upkeep.performGas,
         fastGasWei,
-        linkNative
+        pliNative
       );
 
-    return (upkeepNeeded, performData, upkeepFailureReason, gasUsed, upkeep.performGas, fastGasWei, linkNative);
+    return (upkeepNeeded, performData, upkeepFailureReason, gasUsed, upkeep.performGas, fastGasWei, pliNative);
   }
 
   /**
@@ -148,7 +148,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
       uint256 gasUsed,
       uint256 gasLimit,
       uint256 fastGasWei,
-      uint256 linkNative
+      uint256 pliNative
     )
   {
     return checkUpkeep(id, bytes(""));
@@ -301,7 +301,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
       }
     }
     s_upkeep[id].balance = upkeep.balance - cancellationFee;
-    s_storage.ownerLinkBalance = s_storage.ownerLinkBalance + cancellationFee;
+    s_storage.ownerPliBalance = s_storage.ownerPliBalance + cancellationFee;
 
     emit UpkeepCanceled(id, uint64(height));
   }
@@ -315,8 +315,8 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
     Upkeep memory upkeep = s_upkeep[id];
     if (upkeep.maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
     s_upkeep[id].balance = upkeep.balance + amount;
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
-    i_link.transferFrom(msg.sender, address(this), amount);
+    s_expectedPliBalance = s_expectedPliBalance + amount;
+    i_pli.transferFrom(msg.sender, address(this), amount);
     emit FundsAdded(id, msg.sender, amount);
   }
 
@@ -363,7 +363,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
       s_upkeepIDs.remove(id);
       emit UpkeepMigrated(id, upkeep.balance, destination);
     }
-    s_expectedLinkBalance = s_expectedLinkBalance - totalBalanceRemaining;
+    s_expectedPliBalance = s_expectedPliBalance - totalBalanceRemaining;
     bytes memory encodedUpkeeps = abi.encode(
       ids,
       upkeeps,
@@ -380,7 +380,7 @@ contract AutomationRegistryLogicA2_2 is AutomationRegistryBase2_2, Chainable {
         encodedUpkeeps
       )
     );
-    i_link.transfer(destination, totalBalanceRemaining);
+    i_pli.transfer(destination, totalBalanceRemaining);
   }
 
   /**

@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../../shared/interfaces/PliTokenInterface.sol";
 import {VRFConsumerBaseV2Plus} from "../VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "../libraries/VRFV2PlusClient.sol";
 
 /// @notice This contract is used for testing only and should not be used for production.
 contract VRFV2PlusExternalSubOwnerExample is VRFConsumerBaseV2Plus {
   // solhint-disable-next-line plugin-solidity/prefix-storage-variables-with-s-underscore
-  LinkTokenInterface internal PLITOKEN;
+  PliTokenInterface internal PLITOKEN;
 
   uint256[] public s_randomWords;
   uint256 public s_requestId;
   address internal s_owner;
 
-  constructor(address vrfCoordinator, address link) VRFConsumerBaseV2Plus(vrfCoordinator) {
-    PLITOKEN = LinkTokenInterface(link);
+  constructor(address vrfCoordinator, address pli) VRFConsumerBaseV2Plus(vrfCoordinator) {
+    PLITOKEN = PliTokenInterface(pli);
     s_owner = msg.sender;
   }
 

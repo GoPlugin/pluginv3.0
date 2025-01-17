@@ -19,11 +19,11 @@ contract RewardManagerSetupTest is BaseRewardManagerTest {
     super.setUp();
   }
 
-  function test_rejectsZeroLinkAddressOnConstruction() public {
+  function test_rejectsZeroPliAddressOnConstruction() public {
     //should revert if the contract is a zero address
     vm.expectRevert(INVALID_ADDRESS_ERROR_SELECTOR);
 
-    //create a rewardManager with a zero link address
+    //create a rewardManager with a zero pli address
     new RewardManager(address(0));
   }
 

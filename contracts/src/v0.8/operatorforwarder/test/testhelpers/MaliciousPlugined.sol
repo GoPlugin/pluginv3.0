@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import {MaliciousPlugin} from "./MaliciousPlugin.sol";
 import {Plugined, Plugin} from "./Plugined.sol";
-import {LinkTokenInterface} from "../../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../../shared/interfaces/PliTokenInterface.sol";
 
 // solhint-disable
 contract MaliciousPlugined is Plugined {
@@ -31,9 +31,9 @@ contract MaliciousPlugined is Plugined {
     _req.nonce = s_maliciousRequests;
     s_maliciousPendingRequests[requestId] = oracleAddress();
     emit PluginRequested(requestId);
-    LinkTokenInterface link = LinkTokenInterface(pluginToken());
+    PliTokenInterface pli = PliTokenInterface(pluginToken());
     require(
-      link.transferAndCall(oracleAddress(), _amount, encodeTargetRequest(_req)),
+      pli.transferAndCall(oracleAddress(), _amount, encodeTargetRequest(_req)),
       "Unable to transferAndCall to oracle"
     );
     s_maliciousRequests += 1;
@@ -46,9 +46,9 @@ contract MaliciousPlugined is Plugined {
     _req.nonce = s_maliciousRequests;
     s_maliciousPendingRequests[requestId] = oracleAddress();
     emit PluginRequested(requestId);
-    LinkTokenInterface link = LinkTokenInterface(pluginToken());
+    PliTokenInterface pli = PliTokenInterface(pluginToken());
     require(
-      link.transferAndCall(oracleAddress(), _amount, encodePriceRequest(_req)),
+      pli.transferAndCall(oracleAddress(), _amount, encodePriceRequest(_req)),
       "Unable to transferAndCall to oracle"
     );
     s_maliciousRequests += 1;
@@ -64,9 +64,9 @@ contract MaliciousPlugined is Plugined {
     _req.nonce = s_maliciousRequests;
     s_maliciousPendingRequests[requestId] = oracleAddress();
     emit PluginRequested(requestId);
-    LinkTokenInterface link = LinkTokenInterface(pluginToken());
+    PliTokenInterface pli = PliTokenInterface(pluginToken());
     require(
-      link.transferAndCall(oracleAddress(), _wei, encodeWithdrawRequest(_req)),
+      pli.transferAndCall(oracleAddress(), _wei, encodeWithdrawRequest(_req)),
       "Unable to transferAndCall to oracle"
     );
     s_maliciousRequests += 1;

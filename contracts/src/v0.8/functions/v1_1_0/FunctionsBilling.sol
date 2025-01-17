@@ -43,13 +43,13 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
 
   struct Config {
     uint32 fulfillmentGasPriceOverEstimationBP; // ══╗ Percentage of gas price overestimation to account for changes in gas price between request and response. Held as basis points (one hundredth of 1 percentage point)
-    uint32 feedStalenessSeconds; //                  ║ How long before we consider the feed price to be stale and fallback to fallbackNativePerUnitLink.
+    uint32 feedStalenessSeconds; //                  ║ How long before we consider the feed price to be stale and fallback to fallbackNativePerUnitPli.
     uint32 gasOverheadBeforeCallback; //             ║ Represents the average gas execution cost before the fulfillment callback. This amount is always billed for every request.
     uint32 gasOverheadAfterCallback; //              ║ Represents the average gas execution cost after the fulfillment callback. This amount is always billed for every request.
     uint72 donFee; //                                ║ Additional flat fee (in Juels of PLI) that will be split between Node Operators. Max value is 2^80 - 1 == 1.2m PLI.
     uint40 minimumEstimateGasPriceWei; //            ║ The lowest amount of wei that will be used as the tx.gasprice when estimating the cost to fulfill the request
     uint16 maxSupportedRequestDataVersion; // ═══════╝ The highest support request data version supported by the node. All lower versions should also be supported.
-    uint224 fallbackNativePerUnitLink; // ═══════════╗ Fallback NATIVE CURRENCY / PLI conversion rate if the data feed is stale
+    uint224 fallbackNativePerUnitPli; // ═══════════╗ Fallback NATIVE CURRENCY / PLI conversion rate if the data feed is stale
     uint32 requestTimeoutSeconds; // ════════════════╝ How many seconds it takes before we consider a request to be timed out
   }
 
@@ -62,7 +62,7 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   error InvalidSubscription();
   error UnauthorizedSender();
   error MustBeSubOwner(address owner);
-  error InvalidLinkWeiPrice(int256 linkWei);
+  error InvalidPliWeiPrice(int256 pliWei);
   error PaymentTooLarge();
   error NoTransmittersSet();
   error InvalidCalldata();
@@ -71,18 +71,18 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   // |                        Balance state                         |
   // ================================================================
 
-  mapping(address transmitter => uint96 balanceJuelsLink) private s_withdrawableTokens;
+  mapping(address transmitter => uint96 balanceJuelsPli) private s_withdrawableTokens;
   // Pool together collected DON fees
   // Disperse them on withdrawal or change in OCR configuration
   uint96 internal s_feePool;
 
-  AggregatorV3Interface private s_linkToNativeFeed;
+  AggregatorV3Interface private s_pliToNativeFeed;
 
   // ================================================================
   // |                       Initialization                         |
   // ================================================================
-  constructor(address router, Config memory config, address linkToNativeFeed) Routable(router) {
-    s_linkToNativeFeed = AggregatorV3Interface(linkToNativeFeed);
+  constructor(address router, Config memory config, address pliToNativeFeed) Routable(router) {
+    s_pliToNativeFeed = AggregatorV3Interface(pliToNativeFeed);
 
     updateConfig(config);
   }
@@ -121,23 +121,23 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   }
 
   /// @inheritdoc IFunctionsBilling
-  function getWeiPerUnitLink() public view returns (uint256) {
+  function getWeiPerUnitPli() public view returns (uint256) {
     Config memory config = s_config;
-    (, int256 weiPerUnitLink, , uint256 timestamp, ) = s_linkToNativeFeed.latestRoundData();
+    (, int256 weiPerUnitPli, , uint256 timestamp, ) = s_pliToNativeFeed.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     if (config.feedStalenessSeconds < block.timestamp - timestamp && config.feedStalenessSeconds > 0) {
-      return config.fallbackNativePerUnitLink;
+      return config.fallbackNativePerUnitPli;
     }
-    if (weiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(weiPerUnitLink);
+    if (weiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(weiPerUnitPli);
     }
-    return uint256(weiPerUnitLink);
+    return uint256(weiPerUnitPli);
   }
 
   function _getJuelsFromWei(uint256 amountWei) private view returns (uint96) {
-    // (1e18 juels/link) * wei / (wei/link) = juels
+    // (1e18 juels/pli) * wei / (wei/pli) = juels
     // There are only 1e9*1e18 = 1e27 juels in existence, should not exceed uint96 (2^96 ~ 7e28)
-    return SafeCast.toUint96((1e18 * amountWei) / getWeiPerUnitLink());
+    return SafeCast.toUint96((1e18 * amountWei) / getWeiPerUnitPli());
   }
 
   // ================================================================

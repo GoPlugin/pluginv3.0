@@ -74,7 +74,7 @@ contract FeeQuoter is AuthorizedCallers, IFeeQuoter, ITypeAndVersion, IReceiver,
   // solhint-disable-next-line gas-struct-packing
   struct StaticConfig {
     uint96 maxFeeJuelsPerMsg; // ─╮ Maximum fee that can be charged for a message
-    address linkToken; // ────────╯ PLI token address
+    address pliToken; // ────────╯ PLI token address
     // The amount of time a token price can be stale before it is considered invalid (gas price staleness is configured per dest chain)
     uint32 tokenPriceStalenessThreshold;
   }
@@ -198,8 +198,8 @@ contract FeeQuoter is AuthorizedCallers, IFeeQuoter, ITypeAndVersion, IReceiver,
 
   /// @dev Maximum fee that can be charged for a message. This is a guard to prevent massively overcharging due to misconfiguation.
   uint96 internal immutable i_maxFeeJuelsPerMsg;
-  /// @dev The link token address
-  address internal immutable i_linkToken;
+  /// @dev The pli token address
+  address internal immutable i_pliToken;
 
   /// @dev Subset of tokens which prices tracked by this registry which are fee tokens.
   EnumerableSet.AddressSet private s_feeTokens;
@@ -216,13 +216,13 @@ contract FeeQuoter is AuthorizedCallers, IFeeQuoter, ITypeAndVersion, IReceiver,
     DestChainConfigArgs[] memory destChainConfigArgs
   ) AuthorizedCallers(priceUpdaters) {
     if (
-      staticConfig.linkToken == address(0) || staticConfig.maxFeeJuelsPerMsg == 0
+      staticConfig.pliToken == address(0) || staticConfig.maxFeeJuelsPerMsg == 0
         || staticConfig.tokenPriceStalenessThreshold == 0
     ) {
       revert InvalidStaticConfig();
     }
 
-    i_linkToken = staticConfig.linkToken;
+    i_pliToken = staticConfig.pliToken;
     i_maxFeeJuelsPerMsg = staticConfig.maxFeeJuelsPerMsg;
     i_tokenPriceStalenessThreshold = staticConfig.tokenPriceStalenessThreshold;
 
@@ -919,11 +919,11 @@ contract FeeQuoter is AuthorizedCallers, IFeeQuoter, ITypeAndVersion, IReceiver,
       bytes[] memory destExecDataPerToken
     )
   {
-    // Convert feeToken to link if not already in link
-    if (feeToken == i_linkToken) {
+    // Convert feeToken to pli if not already in pli
+    if (feeToken == i_pliToken) {
       msgFeeJuels = feeTokenAmount;
     } else {
-      msgFeeJuels = convertTokenAmount(feeToken, feeTokenAmount, i_linkToken);
+      msgFeeJuels = convertTokenAmount(feeToken, feeTokenAmount, i_pliToken);
     }
 
     if (msgFeeJuels > i_maxFeeJuelsPerMsg) revert MessageFeeTooHigh(msgFeeJuels, i_maxFeeJuelsPerMsg);
@@ -1034,7 +1034,7 @@ contract FeeQuoter is AuthorizedCallers, IFeeQuoter, ITypeAndVersion, IReceiver,
   function getStaticConfig() external view returns (StaticConfig memory) {
     return StaticConfig({
       maxFeeJuelsPerMsg: i_maxFeeJuelsPerMsg,
-      linkToken: i_linkToken,
+      pliToken: i_pliToken,
       tokenPriceStalenessThreshold: i_tokenPriceStalenessThreshold
     });
   }

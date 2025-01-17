@@ -127,9 +127,9 @@ contract FunctionsRouter is IFunctionsRouter, FunctionsSubscriptions, Pausable, 
   // ================================================================
 
   constructor(
-    address linkToken,
+    address pliToken,
     Config memory config
-  ) FunctionsSubscriptions(linkToken) ConfirmedOwner(msg.sender) Pausable() {
+  ) FunctionsSubscriptions(pliToken) ConfirmedOwner(msg.sender) Pausable() {
     // Set the intial configuration
     updateConfig(config);
   }

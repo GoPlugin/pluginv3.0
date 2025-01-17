@@ -2,14 +2,14 @@ pragma solidity 0.8.6;
 
 import "./BaseTest.t.sol";
 import {VRF} from "../VRF.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {VRFCoordinatorV2Mock} from "../mocks/VRFCoordinatorV2Mock.sol";
 import {VRFConsumerV2} from "../testhelpers/VRFConsumerV2.sol";
 
 contract VRFCoordinatorV2MockTest is BaseTest {
-  MockLinkToken internal s_linkToken;
-  MockV3Aggregator internal s_linkEthFeed;
+  MockPliToken internal s_pliToken;
+  MockV3Aggregator internal s_pliEthFeed;
   VRFCoordinatorV2Mock internal s_vrfCoordinatorV2Mock;
   VRFConsumerV2 internal s_vrfConsumerV2;
   address internal s_subOwner = address(1234);
@@ -27,8 +27,8 @@ contract VRFCoordinatorV2MockTest is BaseTest {
   uint16 internal constant DEFAULT_REQUEST_CONFIRMATIONS = 3;
   uint32 internal constant DEFAULT_NUM_WORDS = 1;
 
-  uint96 pointOneLink = 0.1 ether;
-  uint96 oneLink = 1 ether;
+  uint96 pointOnePli = 0.1 ether;
+  uint96 onePli = 1 ether;
 
   event SubscriptionCreated(uint64 indexed subId, address owner);
   event SubscriptionFunded(uint64 indexed subId, uint256 oldBalance, uint256 newBalance);
@@ -55,17 +55,17 @@ contract VRFCoordinatorV2MockTest is BaseTest {
     vm.deal(OWNER, 10_000 ether);
     vm.deal(s_subOwner, 20 ether);
 
-    // Deploy link token and link/eth feed.
-    s_linkToken = new MockLinkToken();
-    s_linkEthFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    // Deploy pli token and pli/eth feed.
+    s_pliToken = new MockPliToken();
+    s_pliEthFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Deploy coordinator and consumer.
     s_vrfCoordinatorV2Mock = new VRFCoordinatorV2Mock(
-      pointOneLink,
+      pointOnePli,
       1_000_000_000 // 0.000000001 PLI per gas
     );
     address coordinatorAddr = address(s_vrfCoordinatorV2Mock);
-    s_vrfConsumerV2 = new VRFConsumerV2(coordinatorAddr, address(s_linkToken));
+    s_vrfConsumerV2 = new VRFConsumerV2(coordinatorAddr, address(s_pliToken));
 
     s_vrfCoordinatorV2Mock.setConfig();
   }
@@ -194,11 +194,11 @@ contract VRFCoordinatorV2MockTest is BaseTest {
     uint64 subId = s_vrfCoordinatorV2Mock.createSubscription();
 
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionFunded(subId, 0, oneLink);
-    s_vrfCoordinatorV2Mock.fundSubscription(subId, oneLink);
+    emit SubscriptionFunded(subId, 0, onePli);
+    s_vrfCoordinatorV2Mock.fundSubscription(subId, onePli);
 
     (uint96 balance, , , address[] memory consumers) = s_vrfCoordinatorV2Mock.getSubscription(subId);
-    assertEq(balance, oneLink);
+    assertEq(balance, onePli);
     assertEq(consumers.length, 0);
     vm.stopPrank();
   }
@@ -220,10 +220,10 @@ contract VRFCoordinatorV2MockTest is BaseTest {
     vm.startPrank(s_subOwner);
     uint64 subId = s_vrfCoordinatorV2Mock.createSubscription();
 
-    s_vrfCoordinatorV2Mock.fundSubscription(subId, oneLink);
+    s_vrfCoordinatorV2Mock.fundSubscription(subId, onePli);
 
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionCanceled(subId, s_subOwner, oneLink);
+    emit SubscriptionCanceled(subId, s_subOwner, onePli);
     s_vrfCoordinatorV2Mock.cancelSubscription(subId, s_subOwner);
 
     bytes4 reason = bytes4(keccak256("InvalidSubscription()"));
@@ -238,7 +238,7 @@ contract VRFCoordinatorV2MockTest is BaseTest {
     vm.startPrank(s_subOwner);
     uint64 subId = s_vrfCoordinatorV2Mock.createSubscription();
 
-    s_vrfCoordinatorV2Mock.fundSubscription(subId, oneLink);
+    s_vrfCoordinatorV2Mock.fundSubscription(subId, onePli);
 
     bytes4 reason = bytes4(keccak256("InvalidConsumer()"));
     vm.expectRevert(toBytes(reason));
@@ -295,7 +295,7 @@ contract VRFCoordinatorV2MockTest is BaseTest {
     vm.startPrank(s_subOwner);
     uint64 subId = s_vrfCoordinatorV2Mock.createSubscription();
 
-    s_vrfCoordinatorV2Mock.fundSubscription(subId, oneLink);
+    s_vrfCoordinatorV2Mock.fundSubscription(subId, onePli);
 
     address consumerAddr = address(s_vrfConsumerV2);
     s_vrfCoordinatorV2Mock.addConsumer(subId, consumerAddr);
@@ -331,7 +331,7 @@ contract VRFCoordinatorV2MockTest is BaseTest {
     vm.startPrank(s_subOwner);
     uint64 subId = s_vrfCoordinatorV2Mock.createSubscription();
 
-    s_vrfCoordinatorV2Mock.fundSubscription(subId, oneLink);
+    s_vrfCoordinatorV2Mock.fundSubscription(subId, onePli);
 
     address consumerAddr = address(s_vrfConsumerV2);
     s_vrfCoordinatorV2Mock.addConsumer(subId, consumerAddr);

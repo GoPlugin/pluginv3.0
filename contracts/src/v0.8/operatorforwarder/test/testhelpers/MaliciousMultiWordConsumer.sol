@@ -8,8 +8,8 @@ contract MaliciousMultiWordConsumer is PluginClient {
   uint256 private constant ORACLE_PAYMENT = 1 ether;
   uint256 private s_expiration;
 
-  constructor(address _link, address _oracle) payable {
-    _setPluginToken(_link);
+  constructor(address _pli, address _oracle) payable {
+    _setPluginToken(_pli);
     _setPluginOracle(_oracle);
   }
 

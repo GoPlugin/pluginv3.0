@@ -40,7 +40,7 @@ contract ZKSyncAutomationRegistry2_3 is ZKSyncAutomationRegistryBase2_3, OCR2Abs
    *                           add function to let admin change upkeep gas limit
    *                           add minUpkeepSpend requirement
    *                           upgrade to solidity v0.8
-   * KeeperRegistry 1.1.0:     added flatFeeMicroLink
+   * KeeperRegistry 1.1.0:     added flatFeeMicroPli
    * KeeperRegistry 1.0.0:     initial release
    */
   string public constant override typeAndVersion = "AutomationRegistry 2.3.0";
@@ -53,8 +53,8 @@ contract ZKSyncAutomationRegistry2_3 is ZKSyncAutomationRegistryBase2_3, OCR2Abs
     ZKSyncAutomationRegistryLogicA2_3 logicA
   )
     ZKSyncAutomationRegistryBase2_3(
-      ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getLinkAddress(),
-      ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getLinkUSDFeedAddress(),
+      ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getPliAddress(),
+      ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getPliUSDFeedAddress(),
       ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getNativeUSDFeedAddress(),
       ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getFastGasFeedAddress(),
       ZKSyncAutomationRegistryLogicC2_3(address(logicA)).getAutomationForwarderLogic(),
@@ -197,7 +197,7 @@ contract ZKSyncAutomationRegistry2_3 is ZKSyncAutomationRegistryBase2_3, OCR2Abs
               gasOverhead: gasOverhead,
               l1CostWei: 0,
               fastGasWei: report.fastGasWei,
-              linkUSD: report.linkUSD,
+              pliUSD: report.pliUSD,
               nativeUSD: nativeUSD,
               billingToken: upkeepTransmitInfo[i].upkeep.billingToken,
               billingTokenParams: billingTokenParams,
@@ -223,7 +223,7 @@ contract ZKSyncAutomationRegistry2_3 is ZKSyncAutomationRegistryBase2_3, OCR2Abs
     // record payments to NOPs, all in PLI
     s_transmitters[msg.sender].balance += transmitVars.totalReimbursement;
     s_hotVars.totalPremium += transmitVars.totalPremium;
-    s_reserveAmounts[IERC20(address(i_link))] += transmitVars.totalReimbursement + transmitVars.totalPremium;
+    s_reserveAmounts[IERC20(address(i_pli))] += transmitVars.totalReimbursement + transmitVars.totalPremium;
   }
 
   // ================================================================
@@ -320,7 +320,7 @@ contract ZKSyncAutomationRegistry2_3 is ZKSyncAutomationRegistryBase2_3, OCR2Abs
       latestConfigBlockNumber: newLatestConfigBlockNumber
     });
     s_fallbackGasPrice = onchainConfig.fallbackGasPrice;
-    s_fallbackLinkPrice = onchainConfig.fallbackLinkPrice;
+    s_fallbackPliPrice = onchainConfig.fallbackPliPrice;
     s_fallbackNativePrice = onchainConfig.fallbackNativePrice;
 
     bytes memory onchainConfigBytes = abi.encode(onchainConfig);

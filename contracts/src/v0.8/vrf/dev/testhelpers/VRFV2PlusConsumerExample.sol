@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../../shared/interfaces/PliTokenInterface.sol";
 import {IVRFCoordinatorV2Plus} from "../interfaces/IVRFCoordinatorV2Plus.sol";
 import {VRFConsumerBaseV2Plus} from "../VRFConsumerBaseV2Plus.sol";
 import {ConfirmedOwner} from "../../../shared/access/ConfirmedOwner.sol";
@@ -9,7 +9,7 @@ import {VRFV2PlusClient} from "../libraries/VRFV2PlusClient.sol";
 
 /// @notice This contract is used for testing only and should not be used for production.
 contract VRFV2PlusConsumerExample is ConfirmedOwner, VRFConsumerBaseV2Plus {
-  LinkTokenInterface public s_linkToken;
+  PliTokenInterface public s_pliToken;
   uint256 public s_recentRequestId;
   IVRFCoordinatorV2Plus public s_vrfCoordinatorApiV1;
   uint256 public s_subId;
@@ -22,9 +22,9 @@ contract VRFV2PlusConsumerExample is ConfirmedOwner, VRFConsumerBaseV2Plus {
   }
   mapping(uint256 /* request id */ => Response /* response */) public s_requests;
 
-  constructor(address vrfCoordinator, address link) VRFConsumerBaseV2Plus(vrfCoordinator) {
+  constructor(address vrfCoordinator, address pli) VRFConsumerBaseV2Plus(vrfCoordinator) {
     s_vrfCoordinatorApiV1 = IVRFCoordinatorV2Plus(vrfCoordinator);
-    s_linkToken = LinkTokenInterface(link);
+    s_pliToken = PliTokenInterface(pli);
   }
 
   function getRandomness(uint256 requestId, uint256 idx) public view returns (uint256 randomWord) {
@@ -49,14 +49,14 @@ contract VRFV2PlusConsumerExample is ConfirmedOwner, VRFConsumerBaseV2Plus {
 
   function createSubscriptionAndFund(uint96 amount) external {
     _subscribe();
-    // Approve the link transfer.
-    s_linkToken.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_subId));
+    // Approve the pli transfer.
+    s_pliToken.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_subId));
   }
 
   function topUpSubscription(uint96 amount) external {
     // solhint-disable-next-line gas-custom-errors
     require(s_subId != 0, "sub not set");
-    s_linkToken.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_subId));
+    s_pliToken.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_subId));
   }
 
   function topUpSubscriptionNative() external payable {

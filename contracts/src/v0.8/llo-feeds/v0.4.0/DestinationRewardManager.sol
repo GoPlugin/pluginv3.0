@@ -33,7 +33,7 @@ contract DestinationRewardManager is IDestinationRewardManager, ConfirmedOwner, 
   bytes32[] public s_registeredPoolIds;
 
   // @dev The address for the PLI contract
-  address public immutable i_linkAddress;
+  address public immutable i_pliAddress;
 
   // The total weight of all RewardRecipients. 1e18 = 100% of the pool fees
   uint64 private constant PERCENTAGE_SCALAR = 1e18;
@@ -64,13 +64,13 @@ contract DestinationRewardManager is IDestinationRewardManager, ConfirmedOwner, 
 
   /**
    * @notice Constructor
-   * @param linkAddress address of the wrapped PLI token
+   * @param pliAddress address of the wrapped PLI token
    */
-  constructor(address linkAddress) ConfirmedOwner(msg.sender) {
+  constructor(address pliAddress) ConfirmedOwner(msg.sender) {
     //ensure that the address ia not zero
-    if (linkAddress == address(0)) revert InvalidAddress();
+    if (pliAddress == address(0)) revert InvalidAddress();
 
-    i_linkAddress = linkAddress;
+    i_pliAddress = pliAddress;
   }
 
   // @inheritdoc TypeAndVersionInterface
@@ -114,7 +114,7 @@ contract DestinationRewardManager is IDestinationRewardManager, ConfirmedOwner, 
     }
 
     //transfer the fees to this contract
-    IERC20(i_linkAddress).safeTransferFrom(payer, address(this), totalFeeAmount);
+    IERC20(i_pliAddress).safeTransferFrom(payer, address(this), totalFeeAmount);
 
     emit FeePaid(payments, payer);
   }
@@ -164,7 +164,7 @@ contract DestinationRewardManager is IDestinationRewardManager, ConfirmedOwner, 
     //check if there's any rewards to claim in the given poolId
     if (claimAmount != 0) {
       //transfer the reward to the recipient
-      IERC20(i_linkAddress).safeTransfer(recipient, claimAmount);
+      IERC20(i_pliAddress).safeTransfer(recipient, claimAmount);
     }
 
     return claimAmount;

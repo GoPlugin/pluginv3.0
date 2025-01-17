@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "../VRFConsumerBaseV2.sol";
 
@@ -10,13 +10,13 @@ contract VRFV2RevertingExample is VRFConsumerBaseV2 {
   uint256[] public s_randomWords;
   uint256 public s_requestId;
   VRFCoordinatorV2Interface internal COORDINATOR;
-  LinkTokenInterface internal PLITOKEN;
+  PliTokenInterface internal PLITOKEN;
   uint64 public s_subId;
   uint256 public s_gasAvailable;
 
-  constructor(address vrfCoordinator, address link) VRFConsumerBaseV2(vrfCoordinator) {
+  constructor(address vrfCoordinator, address pli) VRFConsumerBaseV2(vrfCoordinator) {
     COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
-    PLITOKEN = LinkTokenInterface(link);
+    PLITOKEN = PliTokenInterface(pli);
   }
 
   function fulfillRandomWords(uint256, uint256[] memory) internal pure override {
@@ -29,14 +29,14 @@ contract VRFV2RevertingExample is VRFConsumerBaseV2 {
       s_subId = COORDINATOR.createSubscription();
       COORDINATOR.addConsumer(s_subId, address(this));
     }
-    // Approve the link transfer.
+    // Approve the pli transfer.
     PLITOKEN.transferAndCall(address(COORDINATOR), amount, abi.encode(s_subId));
   }
 
   function topUpSubscription(uint96 amount) external {
     // solhint-disable-next-line gas-custom-errors
     require(s_subId != 0, "sub not set");
-    // Approve the link transfer.
+    // Approve the pli transfer.
     PLITOKEN.transferAndCall(address(COORDINATOR), amount, abi.encode(s_subId));
   }
 

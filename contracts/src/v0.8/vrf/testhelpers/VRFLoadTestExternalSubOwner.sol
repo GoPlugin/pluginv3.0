@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "../VRFConsumerBaseV2.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
@@ -12,13 +12,13 @@ import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
  */
 contract VRFLoadTestExternalSubOwner is VRFConsumerBaseV2, ConfirmedOwner {
   VRFCoordinatorV2Interface public immutable COORDINATOR;
-  LinkTokenInterface public immutable PLI;
+  PliTokenInterface public immutable PLI;
 
   uint256 public s_responseCount;
 
-  constructor(address _vrfCoordinator, address _link) VRFConsumerBaseV2(_vrfCoordinator) ConfirmedOwner(msg.sender) {
+  constructor(address _vrfCoordinator, address _pli) VRFConsumerBaseV2(_vrfCoordinator) ConfirmedOwner(msg.sender) {
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
-    PLI = LinkTokenInterface(_link);
+    PLI = PliTokenInterface(_pli);
   }
 
   function fulfillRandomWords(uint256, uint256[] memory) internal override {

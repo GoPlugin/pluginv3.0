@@ -114,8 +114,8 @@ contract BatchVRFCoordinatorV2PlusTest is FixtureVRFCoordinatorV2_5 {
     vm.roll(requestBlock);
 
     vm.startPrank(SUBSCRIPTION_OWNER);
-    s_linkToken.setBalance(address(SUBSCRIPTION_OWNER), 10 ether);
-    s_linkToken.transferAndCall(address(s_coordinator), 10 ether, abi.encode(s_subId));
+    s_pliToken.setBalance(address(SUBSCRIPTION_OWNER), 10 ether);
+    s_pliToken.transferAndCall(address(s_coordinator), 10 ether, abi.encode(s_subId));
 
     // Request random words.
     s_consumer1.requestRandomWords(CALLBACK_GAS_LIMIT, MIN_CONFIRMATIONS, NUM_WORDS, VRF_KEY_HASH, false);

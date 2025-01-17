@@ -8,8 +8,8 @@ contract MaliciousRequester is MaliciousPlugined {
   uint256 private constant ORACLE_PAYMENT = 1 ether;
   uint256 private s_expiration;
 
-  constructor(address _link, address _oracle) {
-    setLinkToken(_link);
+  constructor(address _pli, address _oracle) {
+    setPliToken(_pli);
     setOracle(_oracle);
   }
 

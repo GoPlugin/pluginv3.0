@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 
 /**
  * @title Chainable - the contract size limit nullifier
- * @notice Chainable is designed to link together a "chain" of contracts through fallback functions
+ * @notice Chainable is designed to links together a "chain" of contracts through fallback functions
  * and delegatecalls. All code is executed in the context of the head of the chain, the "master" contract.
  */
 contract Chainable {

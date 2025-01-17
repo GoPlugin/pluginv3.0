@@ -60,15 +60,15 @@ interface IFunctionsSubscriptions {
   /// @param amount amount to withdraw
   function oracleWithdraw(address recipient, uint96 amount) external;
 
-  /// @notice Owner cancel subscription, sends remaining link directly to the subscription owner.
+  /// @notice Owner cancel subscription, sends remaining pli directly to the subscription owner.
   /// @dev Only callable by the Router Owner
   /// @param subscriptionId subscription id
   /// @dev notably can be called even if there are pending requests, outstanding ones may fail onchain
   function ownerCancelSubscription(uint64 subscriptionId) external;
 
-  /// @notice Recover link sent with transfer instead of transferAndCall.
+  /// @notice Recover pli sent with transfer instead of transferAndCall.
   /// @dev Only callable by the Router Owner
-  /// @param to address to send link to
+  /// @param to address to send pli to
   function recoverFunds(address to) external;
 
   /// @notice Create a new subscription.

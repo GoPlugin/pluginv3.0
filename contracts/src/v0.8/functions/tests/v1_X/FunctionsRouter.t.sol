@@ -518,8 +518,8 @@ contract FunctionsRouter_SendRequestToProposed is FunctionsSubscriptionSetup {
     s_functionsCoordinator2 = new FunctionsCoordinatorTestHelper(
       address(s_functionsRouter),
       getCoordinatorConfig(),
-      address(s_linkEthFeed),
-      address(s_linkUsdFeed)
+      address(s_pliEthFeed),
+      address(s_pliUsdFeed)
     );
 
     // Propose new Coordinator contract
@@ -1285,8 +1285,8 @@ contract FunctionsRouter_GetProposedContractById is FunctionsRoutesSetup {
     s_functionsCoordinator2 = new FunctionsCoordinatorTestHelper(
       address(s_functionsRouter),
       getCoordinatorConfig(),
-      address(s_linkEthFeed),
-      address(s_linkUsdFeed)
+      address(s_pliEthFeed),
+      address(s_pliUsdFeed)
     );
 
     // Propose new Coordinator contract
@@ -1332,8 +1332,8 @@ contract FunctionsRouter_GetProposedContractSet is FunctionsRoutesSetup {
     s_functionsCoordinator2 = new FunctionsCoordinatorTestHelper(
       address(s_functionsRouter),
       getCoordinatorConfig(),
-      address(s_linkEthFeed),
-      address(s_linkUsdFeed)
+      address(s_pliEthFeed),
+      address(s_pliUsdFeed)
     );
 
     // Propose new Coordinator contract
@@ -1373,8 +1373,8 @@ contract FunctionsRouter_ProposeContractsUpdate is FunctionsRoutesSetup {
     s_functionsCoordinator2 = new FunctionsCoordinatorTestHelper(
       address(s_functionsRouter),
       getCoordinatorConfig(),
-      address(s_linkEthFeed),
-      address(s_linkUsdFeed)
+      address(s_pliEthFeed),
+      address(s_pliUsdFeed)
     );
 
     // Propose new Coordinator contract
@@ -1476,8 +1476,8 @@ contract FunctionsRouter_UpdateContracts is FunctionsRoutesSetup {
     s_functionsCoordinator2 = new FunctionsCoordinatorTestHelper(
       address(s_functionsRouter),
       getCoordinatorConfig(),
-      address(s_linkEthFeed),
-      address(s_linkUsdFeed)
+      address(s_pliEthFeed),
+      address(s_pliUsdFeed)
     );
 
     // Propose new Coordinator contract

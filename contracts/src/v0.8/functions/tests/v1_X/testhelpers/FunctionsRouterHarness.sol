@@ -6,7 +6,7 @@ import {FunctionsRouter} from "../../../dev/v1_X/FunctionsRouter.sol";
 /// @title Functions Router Test Harness
 /// @notice Contract to expose internal functions for testing purposes
 contract FunctionsRouterHarness is FunctionsRouter {
-  constructor(address linkToken, Config memory config) FunctionsRouter(linkToken, config) {}
+  constructor(address pliToken, Config memory config) FunctionsRouter(pliToken, config) {}
 
   function getMaxConsumers_HARNESS() external view returns (uint16) {
     return super._getMaxConsumers();

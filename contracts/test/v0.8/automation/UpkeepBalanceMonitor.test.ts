@@ -6,7 +6,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { IKeeperRegistryMaster__factory as RegistryFactory } from '../../../typechain/factories/IKeeperRegistryMaster__factory'
 import { IAutomationForwarder__factory as ForwarderFactory } from '../../../typechain/factories/IAutomationForwarder__factory'
 import { UpkeepBalanceMonitor } from '../../../typechain/UpkeepBalanceMonitor'
-import { LinkToken } from '../../../typechain/LinkToken'
+import { PliToken } from '../../../typechain/PliToken'
 import { BigNumber } from 'ethers'
 import {
   deployMockContract,
@@ -18,7 +18,7 @@ let stranger: SignerWithAddress
 let registry: MockContract
 let registry2: MockContract
 let forwarder: MockContract
-let linkToken: LinkToken
+let pliToken: PliToken
 let upkeepBalanceMonitor: UpkeepBalanceMonitor
 
 const setup = async () => {
@@ -27,15 +27,15 @@ const setup = async () => {
   stranger = accounts[1]
 
   const ltFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
     owner,
   )
-  linkToken = (await ltFactory.deploy()) as LinkToken
+  pliToken = (await ltFactory.deploy()) as PliToken
   const bmFactory = await ethers.getContractFactory(
     'UpkeepBalanceMonitor',
     owner,
   )
-  upkeepBalanceMonitor = await bmFactory.deploy(linkToken.address, {
+  upkeepBalanceMonitor = await bmFactory.deploy(pliToken.address, {
     maxBatchSize: 10,
     minPercentage: 120,
     targetPercentage: 300,
@@ -46,7 +46,7 @@ const setup = async () => {
   forwarder = await deployMockContract(owner, ForwarderFactory.abi)
   await forwarder.mock.getRegistry.returns(registry.address)
   await upkeepBalanceMonitor.setForwarder(forwarder.address)
-  await linkToken
+  await pliToken
     .connect(owner)
     .transfer(upkeepBalanceMonitor.address, ethers.utils.parseEther('10000'))
   await upkeepBalanceMonitor
@@ -173,14 +173,14 @@ describe('UpkeepBalanceMonitor', () => {
     const withdrawAmount = 100
 
     it('should withdraw funds to a payee', async () => {
-      const initialBalance = await linkToken.balanceOf(
+      const initialBalance = await pliToken.balanceOf(
         upkeepBalanceMonitor.address,
       )
       await upkeepBalanceMonitor.connect(owner).withdraw(withdrawAmount, payee)
-      const finalBalance = await linkToken.balanceOf(
+      const finalBalance = await pliToken.balanceOf(
         upkeepBalanceMonitor.address,
       )
-      const payeeBalance = await linkToken.balanceOf(payee)
+      const payeeBalance = await pliToken.balanceOf(payee)
       expect(finalBalance).to.equal(initialBalance.sub(withdrawAmount))
       expect(payeeBalance).to.equal(withdrawAmount)
     })
@@ -335,11 +335,11 @@ describe('UpkeepBalanceMonitor', () => {
     })
 
     it('tops up the upkeeps by the amounts provided', async () => {
-      const initialBalance = await linkToken.balanceOf(registry.address)
+      const initialBalance = await pliToken.balanceOf(registry.address)
       const tx = await upkeepBalanceMonitor
         .connect(owner)
         .topUp([1, 7], [registry.address, registry.address], [100, 50])
-      const finalBalance = await linkToken.balanceOf(registry.address)
+      const finalBalance = await pliToken.balanceOf(registry.address)
       expect(finalBalance).to.equal(initialBalance.add(150))
       await expect(tx)
         .to.emit(upkeepBalanceMonitor, 'TopUpSucceeded')
@@ -350,7 +350,7 @@ describe('UpkeepBalanceMonitor', () => {
     })
 
     it('does not abort if one top-up fails', async () => {
-      const initialBalance = await linkToken.balanceOf(registry.address)
+      const initialBalance = await pliToken.balanceOf(registry.address)
       const tx = await upkeepBalanceMonitor
         .connect(owner)
         .topUp(
@@ -358,7 +358,7 @@ describe('UpkeepBalanceMonitor', () => {
           [registry.address, registry.address, registry.address],
           [100, 50, 100],
         )
-      const finalBalance = await linkToken.balanceOf(registry.address)
+      const finalBalance = await pliToken.balanceOf(registry.address)
       expect(finalBalance).to.equal(initialBalance.add(150))
       await expect(tx)
         .to.emit(upkeepBalanceMonitor, 'TopUpSucceeded')
@@ -393,9 +393,9 @@ describe('UpkeepBalanceMonitor', () => {
       const [upkeepNeeded, performData] =
         await upkeepBalanceMonitor.checkUpkeep('0x')
       expect(upkeepNeeded).to.be.true
-      const initialBalance = await linkToken.balanceOf(registry.address)
+      const initialBalance = await pliToken.balanceOf(registry.address)
       await upkeepBalanceMonitor.connect(owner).performUpkeep(performData)
-      const finalBalance = await linkToken.balanceOf(registry.address)
+      const finalBalance = await pliToken.balanceOf(registry.address)
       expect(finalBalance).to.equal(initialBalance.add(500))
     })
   })

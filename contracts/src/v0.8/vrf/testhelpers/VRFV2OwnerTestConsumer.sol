@@ -5,11 +5,11 @@ import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface
 import {VRFConsumerBaseV2} from "../VRFConsumerBaseV2.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {ChainSpecificUtil} from "../../ChainSpecificUtil_v0_8_6.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 
 contract VRFV2OwnerTestConsumer is VRFConsumerBaseV2, ConfirmedOwner {
   VRFCoordinatorV2Interface public COORDINATOR;
-  LinkTokenInterface public PLITOKEN;
+  PliTokenInterface public PLITOKEN;
   uint64 public subId;
   uint256 public s_responseCount;
   uint256 public s_requestCount;
@@ -32,9 +32,9 @@ contract VRFV2OwnerTestConsumer is VRFConsumerBaseV2, ConfirmedOwner {
 
   mapping(uint256 => RequestStatus) /* requestId */ /* requestStatus */ public s_requests;
 
-  constructor(address _vrfCoordinator, address _link) VRFConsumerBaseV2(_vrfCoordinator) ConfirmedOwner(msg.sender) {
+  constructor(address _vrfCoordinator, address _pli) VRFConsumerBaseV2(_vrfCoordinator) ConfirmedOwner(msg.sender) {
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
-    PLITOKEN = LinkTokenInterface(_link);
+    PLITOKEN = PliTokenInterface(_pli);
   }
 
   function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {

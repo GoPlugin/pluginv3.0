@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import {BaseTest} from "./BaseTest.t.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {ExposedVRFCoordinatorV2_5} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5.sol";
 import {VRFCoordinatorV2Plus_V2Example} from "../dev/testhelpers/VRFCoordinatorV2Plus_V2Example.sol";
@@ -17,12 +17,12 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
   bytes32 private vrfKeyHash = hex"9f2353bde94264dbc3d554a94cceba2d7d2b4fdce4304d3e09a1fea9fbeb1528";
   uint32 private wrapperGasOverhead = 10_000;
   uint32 private coordinatorGasOverheadNative = 20_000;
-  uint32 private coordinatorGasOverheadLink = 40_000;
+  uint32 private coordinatorGasOverheadPli = 40_000;
   uint256 private s_wrapperSubscriptionId;
 
   ExposedVRFCoordinatorV2_5 private s_testCoordinator;
-  MockLinkToken private s_linkToken;
-  MockV3Aggregator private s_linkNativeFeed;
+  MockPliToken private s_pliToken;
+  MockV3Aggregator private s_pliNativeFeed;
   VRFV2PlusWrapper private s_wrapper;
   VRFV2PlusWrapperConsumerExample private s_consumer;
 
@@ -40,9 +40,9 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     vm.deal(PLI_WHALE, 10_000 ether);
     changePrank(PLI_WHALE);
 
-    // Deploy link token and link/native feed.
-    s_linkToken = new MockLinkToken();
-    s_linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    // Deploy pli token and pli/native feed.
+    s_pliToken = new MockPliToken();
+    s_pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Deploy coordinator.
     s_testCoordinator = new ExposedVRFCoordinatorV2_5(address(0));
@@ -52,8 +52,8 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
 
     // Deploy wrapper.
     s_wrapper = new VRFV2PlusWrapper(
-      address(s_linkToken),
-      address(s_linkNativeFeed),
+      address(s_pliToken),
+      address(s_pliNativeFeed),
       address(s_testCoordinator),
       uint256(s_wrapperSubscriptionId)
     );
@@ -65,7 +65,7 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     s_consumer = new VRFV2PlusWrapperConsumerExample(address(s_wrapper));
 
     // Configure the coordinator.
-    s_testCoordinator.setPLIAndPLINativeFeed(address(s_linkToken), address(s_linkNativeFeed));
+    s_testCoordinator.setPLIAndPLINativeFeed(address(s_pliToken), address(s_pliNativeFeed));
     setConfigCoordinator();
     setConfigWrapper();
 
@@ -91,11 +91,11 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
       2_500_000, // maxGasLimit
       1, // stalenessSeconds
       50_000, // gasAfterPaymentCalculation
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
   }
 
@@ -103,16 +103,16 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     s_wrapper.setConfig(
       wrapperGasOverhead, // wrapper gas overhead
       coordinatorGasOverheadNative, // coordinator gas overhead native
-      coordinatorGasOverheadLink, // coordinator gas overhead link
+      coordinatorGasOverheadPli, // coordinator gas overhead pli
       0, // coordinator gas overhead per word
       0, // native premium percentage,
-      0, // link premium percentage
+      0, // pli premium percentage
       vrfKeyHash, // keyHash
       10, // max number of words,
       1, // stalenessSeconds
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       0, // fulfillmentFlatFeeNativePPM
-      0 // fulfillmentFlatFeeLinkDiscountPPM
+      0 // fulfillmentFlatFeePliDiscountPPM
     );
     (
       ,
@@ -121,19 +121,19 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
       ,
       uint32 _wrapperGasOverhead,
       uint32 _coordinatorGasOverheadNative,
-      uint32 _coordinatorGasOverheadLink,
+      uint32 _coordinatorGasOverheadPli,
       uint16 _coordinatorGasOverheadPerWord,
       uint8 _coordinatorNativePremiumPercentage,
-      uint8 _coordinatorLinkPremiumPercentage,
+      uint8 _coordinatorPliPremiumPercentage,
       bytes32 _keyHash,
       uint8 _maxNumWords
     ) = s_wrapper.getConfig();
     assertEq(_wrapperGasOverhead, wrapperGasOverhead);
     assertEq(_coordinatorGasOverheadNative, coordinatorGasOverheadNative);
-    assertEq(_coordinatorGasOverheadLink, coordinatorGasOverheadLink);
+    assertEq(_coordinatorGasOverheadPli, coordinatorGasOverheadPli);
     assertEq(0, _coordinatorGasOverheadPerWord);
     assertEq(0, _coordinatorNativePremiumPercentage);
-    assertEq(0, _coordinatorLinkPremiumPercentage);
+    assertEq(0, _coordinatorPliPremiumPercentage);
     assertEq(vrfKeyHash, _keyHash);
     assertEq(10, _maxNumWords);
   }
@@ -158,7 +158,7 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
   event CoordinatorSet(address vrfCoordinator);
 
   function testMigrateWrapperPLIPayment() public {
-    s_linkToken.transfer(address(s_consumer), DEFAULT_PLI_FUNDING);
+    s_pliToken.transfer(address(s_consumer), DEFAULT_PLI_FUNDING);
 
     assertEq(uint256(s_wrapperSubscriptionId), uint256(s_wrapper.SUBSCRIPTION_ID()));
     address oldCoordinatorAddr = address(s_testCoordinator);
@@ -167,7 +167,7 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     // Fund subscription with native and PLI payment to check
     // if funds are transferred to new subscription after call
     // migration to new coordinator
-    s_linkToken.transferAndCall(oldCoordinatorAddr, DEFAULT_PLI_FUNDING, abi.encode(s_wrapperSubscriptionId));
+    s_pliToken.transferAndCall(oldCoordinatorAddr, DEFAULT_PLI_FUNDING, abi.encode(s_wrapperSubscriptionId));
     s_testCoordinator.fundSubscriptionWithNative{value: DEFAULT_NATIVE_FUNDING}(s_wrapperSubscriptionId);
 
     // subscription exists in V1 coordinator before migration
@@ -204,7 +204,7 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     s_testCoordinator.getSubscription(s_wrapperSubscriptionId);
     assertEq(s_testCoordinator.s_totalBalance(), 0);
     assertEq(s_testCoordinator.s_totalNativeBalance(), 0);
-    assertEq(s_linkToken.balanceOf(oldCoordinatorAddr), 0);
+    assertEq(s_pliToken.balanceOf(oldCoordinatorAddr), 0);
     assertEq(oldCoordinatorAddr.balance, 0);
 
     // subscription exists in v2 coordinator
@@ -215,9 +215,9 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     assertEq(reqCount, 0);
     assertEq(balance, DEFAULT_PLI_FUNDING);
     assertEq(nativeBalance, DEFAULT_NATIVE_FUNDING);
-    assertEq(s_newCoordinator.s_totalLinkBalance(), DEFAULT_PLI_FUNDING);
+    assertEq(s_newCoordinator.s_totalPliBalance(), DEFAULT_PLI_FUNDING);
     assertEq(s_newCoordinator.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
-    assertEq(s_linkToken.balanceOf(newCoordinatorAddr), DEFAULT_PLI_FUNDING);
+    assertEq(s_pliToken.balanceOf(newCoordinatorAddr), DEFAULT_PLI_FUNDING);
     assertEq(newCoordinatorAddr.balance, DEFAULT_NATIVE_FUNDING);
 
     // calling migrate again on V1 coordinator should fail
@@ -233,15 +233,15 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     assertEq(requestId, 1);
 
     (uint256 paid, bool fulfilled, bool native) = s_consumer.s_requests(requestId);
-    uint32 expectedPaid = (callbackGasLimit + wrapperGasOverhead + coordinatorGasOverheadLink) * 2;
+    uint32 expectedPaid = (callbackGasLimit + wrapperGasOverhead + coordinatorGasOverheadPli) * 2;
     uint256 wrapperCostEstimate = s_wrapper.estimateRequestPrice(callbackGasLimit, 0, tx.gasprice);
     uint256 wrapperCostCalculation = s_wrapper.calculateRequestPrice(callbackGasLimit, 0);
-    assertEq(paid, expectedPaid); // 1_030_000 * 2 for link/native ratio
+    assertEq(paid, expectedPaid); // 1_030_000 * 2 for pli/native ratio
     assertEq(uint256(paid), wrapperCostEstimate);
     assertEq(wrapperCostEstimate, wrapperCostCalculation);
     assertEq(fulfilled, false);
     assertEq(native, false);
-    assertEq(s_linkToken.balanceOf(address(s_consumer)), DEFAULT_PLI_FUNDING - expectedPaid);
+    assertEq(s_pliToken.balanceOf(address(s_consumer)), DEFAULT_PLI_FUNDING - expectedPaid);
 
     (, uint256 gasLimit, ) = s_wrapper.s_callbacks(requestId);
     assertEq(gasLimit, callbackGasLimit);
@@ -261,12 +261,12 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
 
     /// Withdraw funds from wrapper.
     vm.startPrank(PLI_WHALE);
-    uint256 priorWhaleBalance = s_linkToken.balanceOf(PLI_WHALE);
+    uint256 priorWhaleBalance = s_pliToken.balanceOf(PLI_WHALE);
     vm.expectEmit(true, false, false, true, address(s_wrapper));
     emit Withdrawn(PLI_WHALE, paid);
     s_wrapper.withdraw(PLI_WHALE);
-    assertEq(s_linkToken.balanceOf(PLI_WHALE), priorWhaleBalance + paid);
-    assertEq(s_linkToken.balanceOf(address(s_wrapper)), 0);
+    assertEq(s_pliToken.balanceOf(PLI_WHALE), priorWhaleBalance + paid);
+    assertEq(s_pliToken.balanceOf(address(s_wrapper)), 0);
 
     vm.stopPrank();
   }
@@ -281,7 +281,7 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     // Fund subscription with native and PLI payment to check
     // if funds are transferred to new subscription after call
     // migration to new coordinator
-    s_linkToken.transferAndCall(oldCoordinatorAddr, DEFAULT_PLI_FUNDING, abi.encode(s_wrapperSubscriptionId));
+    s_pliToken.transferAndCall(oldCoordinatorAddr, DEFAULT_PLI_FUNDING, abi.encode(s_wrapperSubscriptionId));
     s_testCoordinator.fundSubscriptionWithNative{value: DEFAULT_NATIVE_FUNDING}(s_wrapperSubscriptionId);
 
     // subscription exists in V1 coordinator before migration
@@ -318,7 +318,7 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     s_testCoordinator.getSubscription(s_wrapperSubscriptionId);
     assertEq(s_testCoordinator.s_totalBalance(), 0);
     assertEq(s_testCoordinator.s_totalNativeBalance(), 0);
-    assertEq(s_linkToken.balanceOf(oldCoordinatorAddr), 0);
+    assertEq(s_pliToken.balanceOf(oldCoordinatorAddr), 0);
     assertEq(oldCoordinatorAddr.balance, 0);
 
     // subscription exists in v2 coordinator
@@ -329,9 +329,9 @@ contract VRFV2PlusWrapper_MigrationTest is BaseTest {
     assertEq(reqCount, 0);
     assertEq(balance, DEFAULT_PLI_FUNDING);
     assertEq(nativeBalance, DEFAULT_NATIVE_FUNDING);
-    assertEq(s_newCoordinator.s_totalLinkBalance(), DEFAULT_PLI_FUNDING);
+    assertEq(s_newCoordinator.s_totalPliBalance(), DEFAULT_PLI_FUNDING);
     assertEq(s_newCoordinator.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
-    assertEq(s_linkToken.balanceOf(newCoordinatorAddr), DEFAULT_PLI_FUNDING);
+    assertEq(s_pliToken.balanceOf(newCoordinatorAddr), DEFAULT_PLI_FUNDING);
     assertEq(newCoordinatorAddr.balance, DEFAULT_NATIVE_FUNDING);
 
     // calling migrate again on V1 coordinator should fail

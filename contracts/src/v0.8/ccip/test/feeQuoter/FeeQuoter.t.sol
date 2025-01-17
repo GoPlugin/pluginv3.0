@@ -31,7 +31,7 @@ contract FeeQuoter_constructor is FeeQuoterSetup {
     FeeQuoter.DestChainConfigArgs[] memory destChainConfigArgs = _generateFeeQuoterDestChainConfigArgs();
 
     FeeQuoter.StaticConfig memory staticConfig = FeeQuoter.StaticConfig({
-      linkToken: s_sourceTokens[0],
+      pliToken: s_sourceTokens[0],
       maxFeeJuelsPerMsg: MAX_MSG_FEES_JUELS,
       tokenPriceStalenessThreshold: uint32(TWELVE_HOURS)
     });
@@ -89,7 +89,7 @@ contract FeeQuoter_constructor is FeeQuoterSetup {
 
   function test_InvalidStalenessThreshold_Revert() public {
     FeeQuoter.StaticConfig memory staticConfig = FeeQuoter.StaticConfig({
-      linkToken: s_sourceTokens[0],
+      pliToken: s_sourceTokens[0],
       maxFeeJuelsPerMsg: MAX_MSG_FEES_JUELS,
       tokenPriceStalenessThreshold: 0
     });
@@ -107,9 +107,9 @@ contract FeeQuoter_constructor is FeeQuoterSetup {
     );
   }
 
-  function test_InvalidLinkTokenEqZeroAddress_Revert() public {
+  function test_InvalidPliTokenEqZeroAddress_Revert() public {
     FeeQuoter.StaticConfig memory staticConfig = FeeQuoter.StaticConfig({
-      linkToken: address(0),
+      pliToken: address(0),
       maxFeeJuelsPerMsg: MAX_MSG_FEES_JUELS,
       tokenPriceStalenessThreshold: uint32(TWELVE_HOURS)
     });
@@ -129,7 +129,7 @@ contract FeeQuoter_constructor is FeeQuoterSetup {
 
   function test_InvalidMaxFeeJuelsPerMsg_Revert() public {
     FeeQuoter.StaticConfig memory staticConfig = FeeQuoter.StaticConfig({
-      linkToken: s_sourceTokens[0],
+      pliToken: s_sourceTokens[0],
       maxFeeJuelsPerMsg: 0,
       tokenPriceStalenessThreshold: uint32(TWELVE_HOURS)
     });
@@ -573,23 +573,23 @@ contract FeeQuoter_convertTokenAmount is FeeQuoterSetup {
   function test_Fuzz_ConvertTokenAmount_Success(
     uint256 feeTokenAmount,
     uint224 usdPerFeeToken,
-    uint160 usdPerLinkToken,
+    uint160 usdPerPliToken,
     uint224 usdPerUnitGas
   ) public {
     vm.assume(usdPerFeeToken > 0);
-    vm.assume(usdPerLinkToken > 0);
-    // We bound the max fees to be at most uint96.max link.
-    feeTokenAmount = bound(feeTokenAmount, 0, (uint256(type(uint96).max) * usdPerLinkToken) / usdPerFeeToken);
+    vm.assume(usdPerPliToken > 0);
+    // We bound the max fees to be at most uint96.max pli.
+    feeTokenAmount = bound(feeTokenAmount, 0, (uint256(type(uint96).max) * usdPerPliToken) / usdPerFeeToken);
 
     address feeToken = address(1);
-    address linkToken = address(2);
+    address pliToken = address(2);
     address[] memory feeTokens = new address[](1);
     feeTokens[0] = feeToken;
     s_feeQuoter.applyFeeTokensUpdates(feeTokens, new address[](0));
 
     Internal.TokenPriceUpdate[] memory tokenPriceUpdates = new Internal.TokenPriceUpdate[](2);
     tokenPriceUpdates[0] = Internal.TokenPriceUpdate({sourceToken: feeToken, usdPerToken: usdPerFeeToken});
-    tokenPriceUpdates[1] = Internal.TokenPriceUpdate({sourceToken: linkToken, usdPerToken: usdPerLinkToken});
+    tokenPriceUpdates[1] = Internal.TokenPriceUpdate({sourceToken: pliToken, usdPerToken: usdPerPliToken});
 
     Internal.GasPriceUpdate[] memory gasPriceUpdates = new Internal.GasPriceUpdate[](1);
     gasPriceUpdates[0] = Internal.GasPriceUpdate({destChainSelector: DEST_CHAIN_SELECTOR, usdPerUnitGas: usdPerUnitGas});
@@ -599,13 +599,13 @@ contract FeeQuoter_convertTokenAmount is FeeQuoterSetup {
 
     s_feeQuoter.updatePrices(priceUpdates);
 
-    uint256 linkFee = s_feeQuoter.convertTokenAmount(feeToken, feeTokenAmount, linkToken);
-    assertEq(linkFee, (feeTokenAmount * usdPerFeeToken) / usdPerLinkToken);
+    uint256 pliFee = s_feeQuoter.convertTokenAmount(feeToken, feeTokenAmount, pliToken);
+    assertEq(pliFee, (feeTokenAmount * usdPerFeeToken) / usdPerPliToken);
   }
 
   // Reverts
 
-  function test_LinkTokenNotSupported_Revert() public {
+  function test_PliTokenNotSupported_Revert() public {
     vm.expectRevert(abi.encodeWithSelector(FeeQuoter.TokenNotSupported.selector, DUMMY_CONTRACT_ADDRESS));
     s_feeQuoter.convertTokenAmount(DUMMY_CONTRACT_ADDRESS, 3e16, s_sourceTokens[0]);
 
@@ -1790,7 +1790,7 @@ contract FeeQuoter_processMessageArgs is FeeQuoterFeeSetup {
     super.setUp();
   }
 
-  function test_processMessageArgs_WithLinkTokenAmount_Success() public view {
+  function test_processMessageArgs_WithPliTokenAmount_Success() public view {
     (
       uint256 msgFeeJuels,
       /* bool isOutOfOrderExecution */

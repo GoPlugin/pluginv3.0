@@ -9,13 +9,13 @@ import {VRFTypes} from "./VRFTypes.sol";
 // Taken from VRFCoordinatorV2.sol
 // Must be abi-compatible with what's there
 struct FeeConfig {
-  // Flat fee charged per fulfillment in millionths of link
+  // Flat fee charged per fulfillment in millionths of pli
   // So fee range is [0, 2^32/10^6].
-  uint32 fulfillmentFlatFeeLinkPPMTier1;
-  uint32 fulfillmentFlatFeeLinkPPMTier2;
-  uint32 fulfillmentFlatFeeLinkPPMTier3;
-  uint32 fulfillmentFlatFeeLinkPPMTier4;
-  uint32 fulfillmentFlatFeeLinkPPMTier5;
+  uint32 fulfillmentFlatFeePliPPMTier1;
+  uint32 fulfillmentFlatFeePliPPMTier2;
+  uint32 fulfillmentFlatFeePliPPMTier3;
+  uint32 fulfillmentFlatFeePliPPMTier4;
+  uint32 fulfillmentFlatFeePliPPMTier5;
   uint24 reqsForTier2;
   uint24 reqsForTier3;
   uint24 reqsForTier4;
@@ -28,12 +28,12 @@ struct Config {
   uint16 minimumRequestConfirmations;
   uint32 maxGasLimit;
   // stalenessSeconds is how long before we consider the feed price to be stale
-  // and fallback to fallbackWeiPerUnitLink.
+  // and fallback to fallbackWeiPerUnitPli.
   uint32 stalenessSeconds;
   // Gas to cover oracle payment after we calculate the payment.
   // We make it configurable in case those operations are repriced.
   uint32 gasAfterPaymentCalculation;
-  int256 fallbackWeiPerUnitLink;
+  int256 fallbackWeiPerUnitPli;
   FeeConfig feeConfig;
 }
 
@@ -53,7 +53,7 @@ interface IVRFCoordinatorV2 {
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     FeeConfig memory feeConfig
   ) external;
 
@@ -71,18 +71,18 @@ interface IVRFCoordinatorV2 {
     external
     view
     returns (
-      uint32 fulfillmentFlatFeeLinkPPMTier1,
-      uint32 fulfillmentFlatFeeLinkPPMTier2,
-      uint32 fulfillmentFlatFeeLinkPPMTier3,
-      uint32 fulfillmentFlatFeeLinkPPMTier4,
-      uint32 fulfillmentFlatFeeLinkPPMTier5,
+      uint32 fulfillmentFlatFeePliPPMTier1,
+      uint32 fulfillmentFlatFeePliPPMTier2,
+      uint32 fulfillmentFlatFeePliPPMTier3,
+      uint32 fulfillmentFlatFeePliPPMTier4,
+      uint32 fulfillmentFlatFeePliPPMTier5,
       uint24 reqsForTier2,
       uint24 reqsForTier3,
       uint24 reqsForTier4,
       uint24 reqsForTier5
     );
 
-  function getFallbackWeiPerUnitLink() external view returns (int256);
+  function getFallbackWeiPerUnitPli() external view returns (int256);
 
   function ownerCancelSubscription(uint64 subId) external;
 
@@ -159,9 +159,9 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
    * @notice Sets the configuration of the vrfv2 coordinator
    * @param minimumRequestConfirmations global min for request confirmations
    * @param maxGasLimit global max for request gas limit
-   * @param stalenessSeconds if the eth/link feed is more stale then this, use the fallback price
+   * @param stalenessSeconds if the eth/pli feed is more stale then this, use the fallback price
    * @param gasAfterPaymentCalculation gas used in doing accounting after completing the gas measurement
-   * @param fallbackWeiPerUnitLink fallback eth/link price in the case of a stale feed
+   * @param fallbackWeiPerUnitPli fallback eth/pli price in the case of a stale feed
    * @param feeConfig fee tier configuration
    */
   function setConfig(
@@ -169,7 +169,7 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     FeeConfig memory feeConfig
   ) public onlyOwner {
     s_vrfCoordinator.setConfig(
@@ -177,7 +177,7 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
       maxGasLimit,
       stalenessSeconds,
       gasAfterPaymentCalculation,
-      fallbackWeiPerUnitLink,
+      fallbackWeiPerUnitPli,
       feeConfig
     );
   }
@@ -189,9 +189,9 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
    * @dev always fail if the caller of fulfillRandomWords is not the owner, which is not what we want.
    * @param minimumRequestConfirmations global min for request confirmations
    * @param maxGasLimit global max for request gas limit
-   * @param stalenessSeconds if the eth/link feed is more stale then this, use the fallback price
+   * @param stalenessSeconds if the eth/pli feed is more stale then this, use the fallback price
    * @param gasAfterPaymentCalculation gas used in doing accounting after completing the gas measurement
-   * @param fallbackWeiPerUnitLink fallback eth/link price in the case of a stale feed
+   * @param fallbackWeiPerUnitPli fallback eth/pli price in the case of a stale feed
    * @param feeConfig fee tier configuration
    */
   function _setConfig(
@@ -199,7 +199,7 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     FeeConfig memory feeConfig
   ) private {
     s_vrfCoordinator.setConfig(
@@ -207,13 +207,13 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
       maxGasLimit,
       stalenessSeconds,
       gasAfterPaymentCalculation,
-      fallbackWeiPerUnitLink,
+      fallbackWeiPerUnitPli,
       feeConfig
     );
   }
 
   /**
-   * @notice Owner cancel subscription, sends remaining link directly to the subscription owner.
+   * @notice Owner cancel subscription, sends remaining pli directly to the subscription owner.
    * @param subId subscription id
    * @dev notably can be called even if there are pending requests, outstanding ones may fail onchain
    */
@@ -222,8 +222,8 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
   }
 
   /**
-   * @notice Recover link sent with transfer instead of transferAndCall.
-   * @param to address to send link to
+   * @notice Recover pli sent with transfer instead of transferAndCall.
+   * @param to address to send pli to
    */
   function recoverFunds(address to) external onlyOwner {
     s_vrfCoordinator.recoverFunds(to);
@@ -243,30 +243,30 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
       uint32 gasAfterPaymentCalculation
     ) = s_vrfCoordinator.getConfig();
     (
-      uint32 fulfillmentFlatFeeLinkPPMTier1,
-      uint32 fulfillmentFlatFeeLinkPPMTier2,
-      uint32 fulfillmentFlatFeeLinkPPMTier3,
-      uint32 fulfillmentFlatFeeLinkPPMTier4,
-      uint32 fulfillmentFlatFeeLinkPPMTier5,
+      uint32 fulfillmentFlatFeePliPPMTier1,
+      uint32 fulfillmentFlatFeePliPPMTier2,
+      uint32 fulfillmentFlatFeePliPPMTier3,
+      uint32 fulfillmentFlatFeePliPPMTier4,
+      uint32 fulfillmentFlatFeePliPPMTier5,
       uint24 reqsForTier2,
       uint24 reqsForTier3,
       uint24 reqsForTier4,
       uint24 reqsForTier5
     ) = s_vrfCoordinator.getFeeConfig();
-    int256 fallbackWeiPerUnitLink = s_vrfCoordinator.getFallbackWeiPerUnitLink();
+    int256 fallbackWeiPerUnitPli = s_vrfCoordinator.getFallbackWeiPerUnitPli();
     return
       Config({
         minimumRequestConfirmations: minimumRequestConfirmations,
         maxGasLimit: maxGasLimit,
         stalenessSeconds: stalenessSeconds,
         gasAfterPaymentCalculation: gasAfterPaymentCalculation,
-        fallbackWeiPerUnitLink: fallbackWeiPerUnitLink,
+        fallbackWeiPerUnitPli: fallbackWeiPerUnitPli,
         feeConfig: FeeConfig({
-          fulfillmentFlatFeeLinkPPMTier1: fulfillmentFlatFeeLinkPPMTier1,
-          fulfillmentFlatFeeLinkPPMTier2: fulfillmentFlatFeeLinkPPMTier2,
-          fulfillmentFlatFeeLinkPPMTier3: fulfillmentFlatFeeLinkPPMTier3,
-          fulfillmentFlatFeeLinkPPMTier4: fulfillmentFlatFeeLinkPPMTier4,
-          fulfillmentFlatFeeLinkPPMTier5: fulfillmentFlatFeeLinkPPMTier5,
+          fulfillmentFlatFeePliPPMTier1: fulfillmentFlatFeePliPPMTier1,
+          fulfillmentFlatFeePliPPMTier2: fulfillmentFlatFeePliPPMTier2,
+          fulfillmentFlatFeePliPPMTier3: fulfillmentFlatFeePliPPMTier3,
+          fulfillmentFlatFeePliPPMTier4: fulfillmentFlatFeePliPPMTier4,
+          fulfillmentFlatFeePliPPMTier5: fulfillmentFlatFeePliPPMTier5,
           reqsForTier2: reqsForTier2,
           reqsForTier3: reqsForTier3,
           reqsForTier4: reqsForTier4,
@@ -297,13 +297,13 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
       cfg.maxGasLimit,
       1, // stalenessSeconds
       0, // gasAfterPaymentCalculation
-      MAX_INT256, // fallbackWeiPerUnitLink
+      MAX_INT256, // fallbackWeiPerUnitPli
       FeeConfig({
-        fulfillmentFlatFeeLinkPPMTier1: 0,
-        fulfillmentFlatFeeLinkPPMTier2: 0,
-        fulfillmentFlatFeeLinkPPMTier3: 0,
-        fulfillmentFlatFeeLinkPPMTier4: 0,
-        fulfillmentFlatFeeLinkPPMTier5: 0,
+        fulfillmentFlatFeePliPPMTier1: 0,
+        fulfillmentFlatFeePliPPMTier2: 0,
+        fulfillmentFlatFeePliPPMTier3: 0,
+        fulfillmentFlatFeePliPPMTier4: 0,
+        fulfillmentFlatFeePliPPMTier5: 0,
         reqsForTier2: 0,
         reqsForTier3: 0,
         reqsForTier4: 0,
@@ -319,7 +319,7 @@ contract VRFOwner is ConfirmedOwner, AuthorizedReceiver {
       cfg.maxGasLimit,
       cfg.stalenessSeconds,
       cfg.gasAfterPaymentCalculation,
-      cfg.fallbackWeiPerUnitLink,
+      cfg.fallbackWeiPerUnitPli,
       cfg.feeConfig
     );
 

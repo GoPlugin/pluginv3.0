@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2Upgradeable} from "../dev/VRFConsumerBaseV2Upgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -10,14 +10,14 @@ contract VRFConsumerV2UpgradeableExample is Initializable, VRFConsumerBaseV2Upgr
   uint256[] public s_randomWords;
   uint256 public s_requestId;
   VRFCoordinatorV2Interface public COORDINATOR;
-  LinkTokenInterface public PLITOKEN;
+  PliTokenInterface public PLITOKEN;
   uint64 public s_subId;
   uint256 public s_gasAvailable;
 
-  function initialize(address _vrfCoordinator, address _link) public initializer {
+  function initialize(address _vrfCoordinator, address _pli) public initializer {
     __VRFConsumerBaseV2_init(_vrfCoordinator);
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
-    PLITOKEN = LinkTokenInterface(_link);
+    PLITOKEN = PliTokenInterface(_pli);
   }
 
   function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
@@ -32,13 +32,13 @@ contract VRFConsumerV2UpgradeableExample is Initializable, VRFConsumerBaseV2Upgr
       s_subId = COORDINATOR.createSubscription();
       COORDINATOR.addConsumer(s_subId, address(this));
     }
-    // Approve the link transfer.
+    // Approve the pli transfer.
     PLITOKEN.transferAndCall(address(COORDINATOR), amount, abi.encode(s_subId));
   }
 
   function topUpSubscription(uint96 amount) external {
     require(s_subId != 0, "sub not set");
-    // Approve the link transfer.
+    // Approve the pli transfer.
     PLITOKEN.transferAndCall(address(COORDINATOR), amount, abi.encode(s_subId));
   }
 

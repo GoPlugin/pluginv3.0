@@ -38,7 +38,7 @@ contract KeeperRegistry1_3 is
    *                       : add function to let admin change upkeep gas limit
    *                       : add minUpkeepSpend requirement
                            : upgrade to solidity v0.8
-   * - KeeperRegistry 1.1.0: added flatFeeMicroLink
+   * - KeeperRegistry 1.1.0: added flatFeeMicroPli
    * - KeeperRegistry 1.0.0: initial release
    */
   string public constant override typeAndVersion = "KeeperRegistry 1.3.0";
@@ -100,10 +100,10 @@ contract KeeperRegistry1_3 is
     cannotExecute
     returns (
       bytes memory performData,
-      uint256 maxLinkPayment,
+      uint256 maxPliPayment,
       uint256 gasLimit,
       uint256 adjustedGasWei,
-      uint256 linkEth
+      uint256 pliEth
     )
   {
     // Executed through logic contract
@@ -194,7 +194,7 @@ contract KeeperRegistry1_3 is
     if (s_upkeep[id].maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
 
     s_upkeep[id].balance = s_upkeep[id].balance + uint96(amount);
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
+    s_expectedPliBalance = s_expectedPliBalance + amount;
 
     emit FundsAdded(id, sender, uint96(amount));
   }
@@ -314,7 +314,7 @@ contract KeeperRegistry1_3 is
     if (config.maxPerformGas < s_storage.maxPerformGas) revert GasLimitCanOnlyIncrease();
     s_storage = Storage({
       paymentPremiumPPB: config.paymentPremiumPPB,
-      flatFeeMicroLink: config.flatFeeMicroLink,
+      flatFeeMicroPli: config.flatFeeMicroPli,
       blockCountPerTurn: config.blockCountPerTurn,
       checkGasLimit: config.checkGasLimit,
       stalenessSeconds: config.stalenessSeconds,
@@ -324,7 +324,7 @@ contract KeeperRegistry1_3 is
       nonce: s_storage.nonce
     });
     s_fallbackGasPrice = config.fallbackGasPrice;
-    s_fallbackLinkPrice = config.fallbackLinkPrice;
+    s_fallbackPliPrice = config.fallbackPliPrice;
     s_transcoder = config.transcoder;
     s_registrar = config.registrar;
     emit ConfigSet(config);
@@ -417,11 +417,11 @@ contract KeeperRegistry1_3 is
   {
     Storage memory store = s_storage;
     state.nonce = store.nonce;
-    state.ownerLinkBalance = s_ownerLinkBalance;
-    state.expectedLinkBalance = s_expectedLinkBalance;
+    state.ownerPliBalance = s_ownerPliBalance;
+    state.expectedPliBalance = s_expectedPliBalance;
     state.numUpkeeps = s_upkeepIDs.length();
     config.paymentPremiumPPB = store.paymentPremiumPPB;
-    config.flatFeeMicroLink = store.flatFeeMicroLink;
+    config.flatFeeMicroPli = store.flatFeeMicroPli;
     config.blockCountPerTurn = store.blockCountPerTurn;
     config.checkGasLimit = store.checkGasLimit;
     config.stalenessSeconds = store.stalenessSeconds;
@@ -429,7 +429,7 @@ contract KeeperRegistry1_3 is
     config.minUpkeepSpend = store.minUpkeepSpend;
     config.maxPerformGas = store.maxPerformGas;
     config.fallbackGasPrice = s_fallbackGasPrice;
-    config.fallbackLinkPrice = s_fallbackLinkPrice;
+    config.fallbackPliPrice = s_fallbackPliPrice;
     config.transcoder = s_transcoder;
     config.registrar = s_registrar;
     return (state, config, s_keeperList);
@@ -448,8 +448,8 @@ contract KeeperRegistry1_3 is
    * @param gasLimit the gas to calculate payment for
    */
   function getMaxPaymentForGas(uint256 gasLimit) public view returns (uint96 maxPayment) {
-    (uint256 fastGasWei, uint256 linkEth) = _getFeedData();
-    return _calculatePaymentAmount(gasLimit, fastGasWei, linkEth, false);
+    (uint256 fastGasWei, uint256 pliEth) = _getFeedData();
+    return _calculatePaymentAmount(gasLimit, fastGasWei, pliEth, false);
   }
 
   /**
@@ -529,13 +529,13 @@ contract KeeperRegistry1_3 is
   function _performUpkeepWithParams(PerformParams memory params) private nonReentrant returns (bool success) {
     Upkeep memory upkeep = s_upkeep[params.id];
     if (upkeep.maxValidBlocknumber <= block.number) revert UpkeepCancelled();
-    _prePerformUpkeep(upkeep, params.from, params.maxLinkPayment);
+    _prePerformUpkeep(upkeep, params.from, params.maxPliPayment);
 
     uint256 gasUsed = gasleft();
     bytes memory callData = abi.encodeWithSelector(PERFORM_SELECTOR, params.performData);
     success = _callWithExactGas(params.gasLimit, upkeep.target, callData);
     gasUsed = gasUsed - gasleft();
-    uint96 payment = _calculatePaymentAmount(gasUsed, params.fastGasWei, params.linkEth, true);
+    uint96 payment = _calculatePaymentAmount(gasUsed, params.fastGasWei, params.pliEth, true);
 
     s_upkeep[params.id].balance = s_upkeep[params.id].balance - payment;
     s_upkeep[params.id].amountSpent = s_upkeep[params.id].amountSpent + payment;

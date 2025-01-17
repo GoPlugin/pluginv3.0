@@ -17,17 +17,17 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
   /**
    * @param paymentModel one of Default, Arbitrum, Optimism
    * @param registryGasOverhead the gas overhead used by registry in performUpkeep
-   * @param link address of the PLI Token
-   * @param linkEthFeed address of the PLI/ETH price feed
+   * @param pli address of the PLI Token
+   * @param pliEthFeed address of the PLI/ETH price feed
    * @param fastGasFeed address of the Fast Gas price feed
    */
   constructor(
     PaymentModel paymentModel,
     uint256 registryGasOverhead,
-    address link,
-    address linkEthFeed,
+    address pli,
+    address pliEthFeed,
     address fastGasFeed
-  ) KeeperRegistryBase1_3(paymentModel, registryGasOverhead, link, linkEthFeed, fastGasFeed) {}
+  ) KeeperRegistryBase1_3(paymentModel, registryGasOverhead, pli, pliEthFeed, fastGasFeed) {}
 
   function checkUpkeep(
     uint256 id,
@@ -37,10 +37,10 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
     cannotExecute
     returns (
       bytes memory performData,
-      uint256 maxLinkPayment,
+      uint256 maxPliPayment,
       uint256 gasLimit,
       uint256 adjustedGasWei,
-      uint256 linkEth
+      uint256 pliEth
     )
   {
     Upkeep memory upkeep = s_upkeep[id];
@@ -54,15 +54,15 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
     if (!success) revert UpkeepNotNeeded();
 
     PerformParams memory params = _generatePerformParams(from, id, performData, false);
-    _prePerformUpkeep(upkeep, params.from, params.maxLinkPayment);
+    _prePerformUpkeep(upkeep, params.from, params.maxPliPayment);
 
     return (
       performData,
-      params.maxLinkPayment,
+      params.maxPliPayment,
       params.gasLimit,
       // adjustedGasWei equals fastGasWei multiplies gasCeilingMultiplier in non-execution cases
       params.fastGasWei * s_storage.gasCeilingMultiplier,
-      params.linkEth
+      params.pliEth
     );
   }
 
@@ -70,10 +70,10 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
    * @dev Called through KeeperRegistry main contract
    */
   function withdrawOwnerFunds() external onlyOwner {
-    uint96 amount = s_ownerLinkBalance;
+    uint96 amount = s_ownerPliBalance;
 
-    s_expectedLinkBalance = s_expectedLinkBalance - amount;
-    s_ownerLinkBalance = 0;
+    s_expectedPliBalance = s_expectedPliBalance - amount;
+    s_ownerPliBalance = 0;
 
     emit OwnerFundsWithdrawn(amount);
     PLI.transfer(msg.sender, amount);
@@ -84,7 +84,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
    */
   function recoverFunds() external onlyOwner {
     uint256 total = PLI.balanceOf(address(this));
-    PLI.transfer(msg.sender, total - s_expectedLinkBalance);
+    PLI.transfer(msg.sender, total - s_expectedPliBalance);
   }
 
   /**
@@ -182,7 +182,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
       }
     }
     s_upkeep[id].balance = upkeep.balance - cancellationFee;
-    s_ownerLinkBalance = s_ownerLinkBalance + cancellationFee;
+    s_ownerPliBalance = s_ownerPliBalance + cancellationFee;
 
     emit UpkeepCanceled(id, uint64(height));
   }
@@ -195,7 +195,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
     if (upkeep.maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
 
     s_upkeep[id].balance = upkeep.balance + amount;
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
+    s_expectedPliBalance = s_expectedPliBalance + amount;
     PLI.transferFrom(msg.sender, address(this), amount);
     emit FundsAdded(id, msg.sender, amount);
   }
@@ -210,7 +210,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
     if (upkeep.maxValidBlocknumber > block.number) revert UpkeepNotCanceled();
 
     uint96 amountToWithdraw = s_upkeep[id].balance;
-    s_expectedLinkBalance = s_expectedLinkBalance - amountToWithdraw;
+    s_expectedPliBalance = s_expectedPliBalance - amountToWithdraw;
     s_upkeep[id].balance = 0;
     emit FundsWithdrawn(id, amountToWithdraw, to);
 
@@ -240,7 +240,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
     if (keeper.payee != msg.sender) revert OnlyCallableByPayee();
 
     s_keeperInfo[from].balance = 0;
-    s_expectedLinkBalance = s_expectedLinkBalance - keeper.balance;
+    s_expectedPliBalance = s_expectedPliBalance - keeper.balance;
     emit PaymentWithdrawn(from, keeper.balance, to, msg.sender);
 
     PLI.transfer(to, keeper.balance);
@@ -329,7 +329,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
       s_upkeepIDs.remove(id);
       emit UpkeepMigrated(id, upkeep.balance, destination);
     }
-    s_expectedLinkBalance = s_expectedLinkBalance - totalBalanceRemaining;
+    s_expectedPliBalance = s_expectedPliBalance - totalBalanceRemaining;
     bytes memory encodedUpkeeps = abi.encode(ids, upkeeps, checkDatas);
     MigratableKeeperRegistryInterface(destination).receiveUpkeeps(
       UpkeepTranscoderInterface(s_transcoder).transcodeUpkeeps(
@@ -397,7 +397,7 @@ contract KeeperRegistryLogic1_3 is KeeperRegistryBase1_3 {
       amountSpent: 0,
       paused: paused
     });
-    s_expectedLinkBalance = s_expectedLinkBalance + balance;
+    s_expectedPliBalance = s_expectedPliBalance + balance;
     s_checkData[id] = checkData;
     s_upkeepIDs.add(id);
   }

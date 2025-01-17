@@ -32,8 +32,8 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
   error MsgDataTooBig(uint256 have, uint32 max);
   error ProvingKeyAlreadyRegistered(bytes32 keyHash);
   error NoSuchProvingKey(bytes32 keyHash);
-  error InvalidLinkWeiPrice(int256 linkWei);
-  error LinkDiscountTooHigh(uint32 flatFeeLinkDiscountPPM, uint32 flatFeeNativePPM);
+  error InvalidPliWeiPrice(int256 pliWei);
+  error PliDiscountTooHigh(uint32 flatFeePliDiscountPPM, uint32 flatFeeNativePPM);
   error InvalidPremiumPercentage(uint8 premiumPercentage, uint8 max);
   error NoCorrespondingRequest();
   error IncorrectCommitment();
@@ -77,21 +77,21 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
 
   event L1GasFee(uint256 fee);
 
-  int256 public s_fallbackWeiPerUnitLink;
+  int256 public s_fallbackWeiPerUnitPli;
 
   event ConfigSet(
     uint16 minimumRequestConfirmations,
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     uint32 fulfillmentFlatFeeNativePPM,
-    uint32 fulfillmentFlatFeeLinkDiscountPPM,
+    uint32 fulfillmentFlatFeePliDiscountPPM,
     uint8 nativePremiumPercentage,
-    uint8 linkPremiumPercentage
+    uint8 pliPremiumPercentage
   );
 
-  event FallbackWeiPerUnitLinkUsed(uint256 requestId, int256 fallbackWeiPerUnitLink);
+  event FallbackWeiPerUnitPliUsed(uint256 requestId, int256 fallbackWeiPerUnitPli);
 
   constructor(address blockhashStore) SubscriptionAPI() {
     BLOCKHASH_STORE = BlockhashStoreInterface(blockhashStore);
@@ -146,24 +146,24 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
    * @notice Sets the configuration of the vrfv2 coordinator
    * @param minimumRequestConfirmations global min for request confirmations
    * @param maxGasLimit global max for request gas limit
-   * @param stalenessSeconds if the native/link feed is more stale then this, use the fallback price
+   * @param stalenessSeconds if the native/pli feed is more stale then this, use the fallback price
    * @param gasAfterPaymentCalculation gas used in doing accounting after completing the gas measurement
-   * @param fallbackWeiPerUnitLink fallback native/link price in the case of a stale feed
+   * @param fallbackWeiPerUnitPli fallback native/pli price in the case of a stale feed
    * @param fulfillmentFlatFeeNativePPM flat fee in native for native payment
-   * @param fulfillmentFlatFeeLinkDiscountPPM flat fee discount for link payment in native
+   * @param fulfillmentFlatFeePliDiscountPPM flat fee discount for pli payment in native
    * @param nativePremiumPercentage native premium percentage
-   * @param linkPremiumPercentage link premium percentage
+   * @param pliPremiumPercentage pli premium percentage
    */
   function setConfig(
     uint16 minimumRequestConfirmations,
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     uint32 fulfillmentFlatFeeNativePPM,
-    uint32 fulfillmentFlatFeeLinkDiscountPPM,
+    uint32 fulfillmentFlatFeePliDiscountPPM,
     uint8 nativePremiumPercentage,
-    uint8 linkPremiumPercentage
+    uint8 pliPremiumPercentage
   ) external onlyOwner {
     if (minimumRequestConfirmations > MAX_REQUEST_CONFIRMATIONS) {
       revert InvalidRequestConfirmations(
@@ -172,17 +172,17 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
         MAX_REQUEST_CONFIRMATIONS
       );
     }
-    if (fallbackWeiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(fallbackWeiPerUnitLink);
+    if (fallbackWeiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(fallbackWeiPerUnitPli);
     }
-    if (fulfillmentFlatFeeLinkDiscountPPM > fulfillmentFlatFeeNativePPM) {
-      revert LinkDiscountTooHigh(fulfillmentFlatFeeLinkDiscountPPM, fulfillmentFlatFeeNativePPM);
+    if (fulfillmentFlatFeePliDiscountPPM > fulfillmentFlatFeeNativePPM) {
+      revert PliDiscountTooHigh(fulfillmentFlatFeePliDiscountPPM, fulfillmentFlatFeeNativePPM);
     }
     if (nativePremiumPercentage > PREMIUM_PERCENTAGE_MAX) {
       revert InvalidPremiumPercentage(nativePremiumPercentage, PREMIUM_PERCENTAGE_MAX);
     }
-    if (linkPremiumPercentage > PREMIUM_PERCENTAGE_MAX) {
-      revert InvalidPremiumPercentage(linkPremiumPercentage, PREMIUM_PERCENTAGE_MAX);
+    if (pliPremiumPercentage > PREMIUM_PERCENTAGE_MAX) {
+      revert InvalidPremiumPercentage(pliPremiumPercentage, PREMIUM_PERCENTAGE_MAX);
     }
     s_config = Config({
       minimumRequestConfirmations: minimumRequestConfirmations,
@@ -191,21 +191,21 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
       gasAfterPaymentCalculation: gasAfterPaymentCalculation,
       reentrancyLock: false,
       fulfillmentFlatFeeNativePPM: fulfillmentFlatFeeNativePPM,
-      fulfillmentFlatFeeLinkDiscountPPM: fulfillmentFlatFeeLinkDiscountPPM,
+      fulfillmentFlatFeePliDiscountPPM: fulfillmentFlatFeePliDiscountPPM,
       nativePremiumPercentage: nativePremiumPercentage,
-      linkPremiumPercentage: linkPremiumPercentage
+      pliPremiumPercentage: pliPremiumPercentage
     });
-    s_fallbackWeiPerUnitLink = fallbackWeiPerUnitLink;
+    s_fallbackWeiPerUnitPli = fallbackWeiPerUnitPli;
     emit ConfigSet(
       minimumRequestConfirmations,
       maxGasLimit,
       stalenessSeconds,
       gasAfterPaymentCalculation,
-      fallbackWeiPerUnitLink,
+      fallbackWeiPerUnitPli,
       fulfillmentFlatFeeNativePPM,
-      fulfillmentFlatFeeLinkDiscountPPM,
+      fulfillmentFlatFeePliDiscountPPM,
       nativePremiumPercentage,
-      linkPremiumPercentage
+      pliPremiumPercentage
     );
   }
 
@@ -499,7 +499,7 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
       bool isFeedStale;
       (payment, isFeedStale) = _calculatePaymentAmount(startGas, gasPrice, nativePayment, onlyPremium);
       if (isFeedStale) {
-        emit FallbackWeiPerUnitLinkUsed(output.requestId, s_fallbackWeiPerUnitLink);
+        emit FallbackWeiPerUnitPliUsed(output.requestId, s_fallbackWeiPerUnitPli);
       }
     }
 
@@ -535,7 +535,7 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
     if (nativePayment) {
       return (_calculatePaymentAmountNative(startGas, weiPerUnitGas, onlyPremium), false);
     }
-    return _calculatePaymentAmountLink(startGas, weiPerUnitGas, onlyPremium);
+    return _calculatePaymentAmountPli(startGas, weiPerUnitGas, onlyPremium);
   }
 
   function _calculatePaymentAmountNative(
@@ -561,51 +561,51 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
   }
 
   // Get the amount of gas used for fulfillment
-  function _calculatePaymentAmountLink(
+  function _calculatePaymentAmountPli(
     uint256 startGas,
     uint256 weiPerUnitGas,
     bool onlyPremium
   ) internal returns (uint96, bool) {
-    (int256 weiPerUnitLink, bool isFeedStale) = _getFeedData();
-    if (weiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(weiPerUnitLink);
+    (int256 weiPerUnitPli, bool isFeedStale) = _getFeedData();
+    if (weiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(weiPerUnitPli);
     }
     // Will return non-zero on chains that have this enabled
     uint256 l1CostWei = _getL1CostWei(msg.data);
-    // (1e18 juels/link) ((wei/gas * gas) + l1wei) / (wei/link) = juels
+    // (1e18 juels/pli) ((wei/gas * gas) + l1wei) / (wei/pli) = juels
     uint256 paymentNoFee = (1e18 *
       (weiPerUnitGas * (s_config.gasAfterPaymentCalculation + startGas - gasleft()) + l1CostWei)) /
-      uint256(weiPerUnitLink);
+      uint256(weiPerUnitPli);
     // calculate the flat fee in wei
     uint256 flatFeeWei = 1e12 *
-      uint256(s_config.fulfillmentFlatFeeNativePPM - s_config.fulfillmentFlatFeeLinkDiscountPPM);
-    uint256 flatFeeJuels = (1e18 * flatFeeWei) / uint256(weiPerUnitLink);
+      uint256(s_config.fulfillmentFlatFeeNativePPM - s_config.fulfillmentFlatFeePliDiscountPPM);
+    uint256 flatFeeJuels = (1e18 * flatFeeWei) / uint256(weiPerUnitPli);
     // emit this event only if this is an L2 chain that needs to cover for L1 gas fees
     if (l1CostWei > 0) {
       emit L1GasFee(l1CostWei);
     }
     uint256 payment;
     if (onlyPremium) {
-      payment = ((paymentNoFee * (s_config.linkPremiumPercentage)) / 100 + flatFeeJuels);
+      payment = ((paymentNoFee * (s_config.pliPremiumPercentage)) / 100 + flatFeeJuels);
     } else {
-      payment = ((paymentNoFee * (100 + s_config.linkPremiumPercentage)) / 100 + flatFeeJuels);
+      payment = ((paymentNoFee * (100 + s_config.pliPremiumPercentage)) / 100 + flatFeeJuels);
     }
     if (payment > 1e27) {
-      revert PaymentTooLarge(); // Payment + fee cannot be more than all of the link in existence.
+      revert PaymentTooLarge(); // Payment + fee cannot be more than all of the pli in existence.
     }
     return (uint96(payment), isFeedStale);
   }
 
-  function _getFeedData() private view returns (int256 weiPerUnitLink, bool isFeedStale) {
+  function _getFeedData() private view returns (int256 weiPerUnitPli, bool isFeedStale) {
     uint32 stalenessSeconds = s_config.stalenessSeconds;
     uint256 timestamp;
-    (, weiPerUnitLink, , timestamp, ) = PLI_NATIVE_FEED.latestRoundData();
+    (, weiPerUnitPli, , timestamp, ) = PLI_NATIVE_FEED.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     isFeedStale = stalenessSeconds > 0 && stalenessSeconds < block.timestamp - timestamp;
     if (isFeedStale) {
-      weiPerUnitLink = s_fallbackWeiPerUnitLink;
+      weiPerUnitPli = s_fallbackWeiPerUnitPli;
     }
-    return (weiPerUnitLink, isFeedStale);
+    return (weiPerUnitPli, isFeedStale);
   }
 
   /**
@@ -713,7 +713,7 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
     uint256 subId;
     address subOwner;
     address[] consumers;
-    uint96 linkBalance;
+    uint96 pliBalance;
     uint96 nativeBalance;
   }
 
@@ -765,7 +765,7 @@ contract VRFCoordinatorV2_5 is VRF, SubscriptionAPI, IVRFCoordinatorV2Plus {
       subId: subId,
       subOwner: subOwner,
       consumers: consumers,
-      linkBalance: balance,
+      pliBalance: balance,
       nativeBalance: nativeBalance
     });
     bytes memory encodedData = abi.encode(migrationData);

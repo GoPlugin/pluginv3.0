@@ -40,7 +40,7 @@ contract AutomationRegistry2_3 is AutomationRegistryBase2_3, OCR2Abstract, Chain
    *                           add function to let admin change upkeep gas limit
    *                           add minUpkeepSpend requirement
    *                           upgrade to solidity v0.8
-   * KeeperRegistry 1.1.0:     added flatFeeMicroLink
+   * KeeperRegistry 1.1.0:     added flatFeeMicroPli
    * KeeperRegistry 1.0.0:     initial release
    */
   string public constant override typeAndVersion = "AutomationRegistry 2.3.0";
@@ -53,8 +53,8 @@ contract AutomationRegistry2_3 is AutomationRegistryBase2_3, OCR2Abstract, Chain
     AutomationRegistryLogicA2_3 logicA
   )
     AutomationRegistryBase2_3(
-      AutomationRegistryLogicC2_3(address(logicA)).getLinkAddress(),
-      AutomationRegistryLogicC2_3(address(logicA)).getLinkUSDFeedAddress(),
+      AutomationRegistryLogicC2_3(address(logicA)).getPliAddress(),
+      AutomationRegistryLogicC2_3(address(logicA)).getPliUSDFeedAddress(),
       AutomationRegistryLogicC2_3(address(logicA)).getNativeUSDFeedAddress(),
       AutomationRegistryLogicC2_3(address(logicA)).getFastGasFeedAddress(),
       AutomationRegistryLogicC2_3(address(logicA)).getAutomationForwarderLogic(),
@@ -202,7 +202,7 @@ contract AutomationRegistry2_3 is AutomationRegistryBase2_3, OCR2Abstract, Chain
               gasOverhead: gasOverhead,
               l1CostWei: (l1Fee * upkeepTransmitInfo[i].calldataWeight) / transmitVars.totalCalldataWeight,
               fastGasWei: report.fastGasWei,
-              linkUSD: report.linkUSD,
+              pliUSD: report.pliUSD,
               nativeUSD: nativeUSD,
               billingToken: upkeepTransmitInfo[i].upkeep.billingToken,
               billingTokenParams: billingTokenParams,
@@ -228,7 +228,7 @@ contract AutomationRegistry2_3 is AutomationRegistryBase2_3, OCR2Abstract, Chain
     // record payments to NOPs, all in PLI
     s_transmitters[msg.sender].balance += transmitVars.totalReimbursement;
     s_hotVars.totalPremium += transmitVars.totalPremium;
-    s_reserveAmounts[IERC20(address(i_link))] += transmitVars.totalReimbursement + transmitVars.totalPremium;
+    s_reserveAmounts[IERC20(address(i_pli))] += transmitVars.totalReimbursement + transmitVars.totalPremium;
   }
 
   // ================================================================
@@ -325,7 +325,7 @@ contract AutomationRegistry2_3 is AutomationRegistryBase2_3, OCR2Abstract, Chain
       latestConfigBlockNumber: newLatestConfigBlockNumber
     });
     s_fallbackGasPrice = onchainConfig.fallbackGasPrice;
-    s_fallbackLinkPrice = onchainConfig.fallbackLinkPrice;
+    s_fallbackPliPrice = onchainConfig.fallbackPliPrice;
     s_fallbackNativePrice = onchainConfig.fallbackNativePrice;
 
     bytes memory onchainConfigBytes = abi.encode(onchainConfig);

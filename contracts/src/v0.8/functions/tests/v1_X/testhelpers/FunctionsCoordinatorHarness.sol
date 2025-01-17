@@ -9,18 +9,18 @@ import {FunctionsBillingConfig} from "../../../dev/v1_X/interfaces/IFunctionsBil
 /// @title Functions Coordinator Test Harness
 /// @notice Contract to expose internal functions for testing purposes
 contract FunctionsCoordinatorHarness is FunctionsCoordinator {
-  address s_linkToNativeFeed_HARNESS;
-  address s_linkToUsdFeed_HARNESS;
+  address s_pliToNativeFeed_HARNESS;
+  address s_pliToUsdFeed_HARNESS;
   address s_router_HARNESS;
 
   constructor(
     address router,
     FunctionsBillingConfig memory config,
-    address linkToNativeFeed,
-    address linkToUsdFeed
-  ) FunctionsCoordinator(router, config, linkToNativeFeed, linkToUsdFeed) {
-    s_linkToNativeFeed_HARNESS = linkToNativeFeed;
-    s_linkToUsdFeed_HARNESS = linkToUsdFeed;
+    address pliToNativeFeed,
+    address pliToUsdFeed
+  ) FunctionsCoordinator(router, config, pliToNativeFeed, pliToUsdFeed) {
+    s_pliToNativeFeed_HARNESS = pliToNativeFeed;
+    s_pliToUsdFeed_HARNESS = pliToUsdFeed;
     s_router_HARNESS = router;
   }
 
@@ -49,12 +49,12 @@ contract FunctionsCoordinatorHarness is FunctionsCoordinator {
   // |                        Functions Billing                     |
   // ================================================================
 
-  function getLinkToNativeFeed_HARNESS() external view returns (address) {
-    return s_linkToNativeFeed_HARNESS;
+  function getPliToNativeFeed_HARNESS() external view returns (address) {
+    return s_pliToNativeFeed_HARNESS;
   }
 
-  function getLinkToUsdFeed_HARNESS() external view returns (address) {
-    return s_linkToUsdFeed_HARNESS;
+  function getPliToUsdFeed_HARNESS() external view returns (address) {
+    return s_pliToUsdFeed_HARNESS;
   }
 
   function getRouter_HARNESS() external view returns (address) {

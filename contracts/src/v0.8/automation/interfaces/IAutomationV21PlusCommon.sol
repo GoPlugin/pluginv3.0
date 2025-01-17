@@ -70,7 +70,7 @@ interface IAutomationV21PlusCommon {
   /// @dev Report transmitted by OCR to transmit function
   struct Report {
     uint256 fastGasWei;
-    uint256 linkNative;
+    uint256 pliNative;
     uint256[] upkeepIds;
     uint256[] gasLimits;
     bytes[] triggers;
@@ -131,8 +131,8 @@ interface IAutomationV21PlusCommon {
    * @dev only used in params and return values
    * @dev this will likely be deprecated in a future version of the registry in favor of individual getters
    * @member nonce used for ID generation
-   * @member ownerLinkBalance withdrawable balance of PLI by contract owner
-   * @member expectedLinkBalance the expected balance of PLI of the registry
+   * @member ownerPliBalance withdrawable balance of PLI by contract owner
+   * @member expectedPliBalance the expected balance of PLI of the registry
    * @member totalPremium the total premium collected on registry so far
    * @member numUpkeeps total number of upkeeps on the registry
    * @member configCount ordinal number of current config, out of all configs applied to this contract so far
@@ -144,8 +144,8 @@ interface IAutomationV21PlusCommon {
   // solhint-disable-next-line gas-struct-packing
   struct StateLegacy {
     uint32 nonce;
-    uint96 ownerLinkBalance;
-    uint256 expectedLinkBalance;
+    uint96 ownerPliBalance;
+    uint256 expectedPliBalance;
     uint96 totalPremium;
     uint256 numUpkeeps;
     uint32 configCount;
@@ -160,8 +160,8 @@ interface IAutomationV21PlusCommon {
    * @dev only used in params and return values
    * @member paymentPremiumPPB payment premium rate oracles receive on top of
    * being reimbursed for gas, measured in parts per billion
-   * @member flatFeeMicroLink flat fee paid to oracles for performing upkeeps,
-   * priced in MicroLink; can be used in conjunction with or independently of
+   * @member flatFeeMicroPli flat fee paid to oracles for performing upkeeps,
+   * priced in MicroPli; can be used in conjunction with or independently of
    * paymentPremiumPPB
    * @member checkGasLimit gas limit when checking for upkeep
    * @member stalenessSeconds number of seconds that is allowed for feed data to
@@ -174,7 +174,7 @@ interface IAutomationV21PlusCommon {
    * @member maxPerformDataSize max length of performData bytes
    * @member maxRevertDataSize max length of revertData bytes
    * @member fallbackGasPrice gas price used if the gas price feed is stale
-   * @member fallbackLinkPrice PLI price used if the PLI price feed is stale
+   * @member fallbackPliPrice PLI price used if the PLI price feed is stale
    * @member transcoder address of the transcoder contract
    * @member registrars addresses of the registrar contracts
    * @member upkeepPrivilegeManager address which can set privilege for upkeeps
@@ -182,7 +182,7 @@ interface IAutomationV21PlusCommon {
   // solhint-disable-next-line gas-struct-packing
   struct OnchainConfigLegacy {
     uint32 paymentPremiumPPB;
-    uint32 flatFeeMicroLink; // min 0.000001 PLI, max 4294 PLI
+    uint32 flatFeeMicroPli; // min 0.000001 PLI, max 4294 PLI
     uint32 checkGasLimit;
     uint24 stalenessSeconds;
     uint16 gasCeilingMultiplier;
@@ -192,7 +192,7 @@ interface IAutomationV21PlusCommon {
     uint32 maxPerformDataSize;
     uint32 maxRevertDataSize;
     uint256 fallbackGasPrice;
-    uint256 fallbackLinkPrice;
+    uint256 fallbackPliPrice;
     address transcoder;
     address[] registrars;
     address upkeepPrivilegeManager;
@@ -211,7 +211,7 @@ interface IAutomationV21PlusCommon {
       uint256 gasUsed,
       uint256 gasLimit,
       uint256 fastGasWei,
-      uint256 linkNative
+      uint256 pliNative
     );
   function checkUpkeep(
     uint256 id
@@ -225,7 +225,7 @@ interface IAutomationV21PlusCommon {
       uint256 gasUsed,
       uint256 gasLimit,
       uint256 fastGasWei,
-      uint256 linkNative
+      uint256 pliNative
     );
   function simulatePerformUpkeep(
     uint256 id,

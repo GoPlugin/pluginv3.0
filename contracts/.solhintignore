@@ -9,7 +9,7 @@
 ./src/v0.8/automation/interfaces/v2_1/
 ./src/v0.8/automation/interfaces/MigratableKeeperRegistryInterface.sol
 ./src/v0.8/automation/upkeeps/UpkeepBalanceMonitor.sol
-./src/v0.8/automation/upkeeps/LinkAvailableBalanceMonitor.sol
+./src/v0.8/automation/upkeeps/PliAvailableBalanceMonitor.sol
 ./src/v0.8/automation/upkeeps/EthBalanceMonitor.sol
 ./src/v0.8/automation/upkeeps/ERC20BalanceMonitor.sol
 ./src/v0.8/automation/upkeeps/CronUpkeepFactory.sol

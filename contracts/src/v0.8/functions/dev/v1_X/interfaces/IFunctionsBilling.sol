@@ -4,13 +4,13 @@ pragma solidity ^0.8.19;
 /// @title Plugin Functions DON billing interface.
 interface IFunctionsBilling {
   /// @notice Return the current conversion from WEI of ETH to PLI from the configured Plugin data feed
-  /// @return weiPerUnitLink - The amount of WEI in one PLI
-  function getWeiPerUnitLink() external view returns (uint256);
+  /// @return weiPerUnitPli - The amount of WEI in one PLI
+  function getWeiPerUnitPli() external view returns (uint256);
 
   /// @notice Return the current conversion from PLI to USD from the configured Plugin data feed
-  /// @return weiPerUnitLink - The amount of USD that one PLI is worth
+  /// @return weiPerUnitPli - The amount of USD that one PLI is worth
   /// @return decimals - The number of decimals that should be represented in the price feed's response
-  function getUsdPerUnitLink() external view returns (uint256, uint8);
+  function getUsdPerUnitPli() external view returns (uint256, uint8);
 
   /// @notice Determine the fee that will be split between Node Operators for servicing a request
   /// @param requestCBOR - CBOR encoded Plugin Functions request data, use FunctionsRequest library to encode a request
@@ -59,14 +59,14 @@ interface IFunctionsBilling {
 
 struct FunctionsBillingConfig {
   uint32 fulfillmentGasPriceOverEstimationBP; // ══╗ Percentage of gas price overestimation to account for changes in gas price between request and response. Held as basis points (one hundredth of 1 percentage point)
-  uint32 feedStalenessSeconds; //                  ║ How long before we consider the feed price to be stale and fallback to fallbackNativePerUnitLink. Default of 0 means no fallback.
+  uint32 feedStalenessSeconds; //                  ║ How long before we consider the feed price to be stale and fallback to fallbackNativePerUnitPli. Default of 0 means no fallback.
   uint32 gasOverheadBeforeCallback; //             ║ Represents the average gas execution cost before the fulfillment callback. This amount is always billed for every request.
   uint32 gasOverheadAfterCallback; //              ║ Represents the average gas execution cost after the fulfillment callback. This amount is always billed for every request.
   uint40 minimumEstimateGasPriceWei; //            ║ The lowest amount of wei that will be used as the tx.gasprice when estimating the cost to fulfill the request
   uint16 maxSupportedRequestDataVersion; //        ║ The highest support request data version supported by the node. All lower versions should also be supported.
-  uint64 fallbackUsdPerUnitLink; //                ║ Fallback PLI / USD conversion rate if the data feed is stale
-  uint8 fallbackUsdPerUnitLinkDecimals; // ════════╝ Fallback PLI / USD conversion rate decimal places if the data feed is stale
-  uint224 fallbackNativePerUnitLink; // ═══════════╗ Fallback NATIVE CURRENCY / PLI conversion rate if the data feed is stale
+  uint64 fallbackUsdPerUnitPli; //                ║ Fallback PLI / USD conversion rate if the data feed is stale
+  uint8 fallbackUsdPerUnitPliDecimals; // ════════╝ Fallback PLI / USD conversion rate decimal places if the data feed is stale
+  uint224 fallbackNativePerUnitPli; // ═══════════╗ Fallback NATIVE CURRENCY / PLI conversion rate if the data feed is stale
   uint32 requestTimeoutSeconds; // ════════════════╝ How many seconds it takes before we consider a request to be timed out
   uint16 donFeeCentsUsd; // ═══════════════════════════════╗ Additional flat fee (denominated in cents of USD, paid as PLI) that will be split between Node Operators.
   uint16 operationFeeCentsUsd; //                          ║ Additional flat fee (denominated in cents of USD, paid as PLI) that will be paid to the owner of the Coordinator contract.

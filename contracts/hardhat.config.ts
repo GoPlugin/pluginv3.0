@@ -47,16 +47,10 @@ let config = {
     target: 'ethers-v5',
   },
   networks: {
-    env: {
-      url: process.env.NODE_HTTP_URL || '',
+    apothem: {
+      url: 'your_rpc',
+      accounts: ['privatekey'],
     },
-    hardhat: {
-      allowUnlimitedContractSize: Boolean(
-        process.env.ALLOW_UNLIMITED_CONTRACT_SIZE,
-      ),
-      hardfork: 'merge',
-    },
-  },
   solidity: {
     compilers: [
       {

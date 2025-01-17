@@ -16,7 +16,7 @@ import {FunctionsBillingConfig} from "../../dev/v1_X/interfaces/IFunctionsBillin
 contract FunctionsBilling_Constructor is FunctionsSubscriptionSetup {
   function test_Constructor_Success() public {
     assertEq(address(s_functionsRouter), s_functionsCoordinator.getRouter_HARNESS());
-    assertEq(address(s_linkEthFeed), s_functionsCoordinator.getLinkToNativeFeed_HARNESS());
+    assertEq(address(s_pliEthFeed), s_functionsCoordinator.getPliToNativeFeed_HARNESS());
   }
 }
 
@@ -35,7 +35,7 @@ contract FunctionsBilling_GetConfig is FunctionsRouterSetup {
     assertEq(config.donFeeCentsUsd, getCoordinatorConfig().donFeeCentsUsd);
     assertEq(config.maxSupportedRequestDataVersion, getCoordinatorConfig().maxSupportedRequestDataVersion);
     assertEq(config.fulfillmentGasPriceOverEstimationBP, getCoordinatorConfig().fulfillmentGasPriceOverEstimationBP);
-    assertEq(config.fallbackNativePerUnitLink, getCoordinatorConfig().fallbackNativePerUnitLink);
+    assertEq(config.fallbackNativePerUnitPli, getCoordinatorConfig().fallbackNativePerUnitPli);
   }
 }
 
@@ -56,9 +56,9 @@ contract FunctionsBilling_UpdateConfig is FunctionsRouterSetup {
       operationFeeCentsUsd: getCoordinatorConfig().operationFeeCentsUsd * 2,
       maxSupportedRequestDataVersion: getCoordinatorConfig().maxSupportedRequestDataVersion * 2,
       fulfillmentGasPriceOverEstimationBP: getCoordinatorConfig().fulfillmentGasPriceOverEstimationBP * 2,
-      fallbackNativePerUnitLink: getCoordinatorConfig().fallbackNativePerUnitLink * 2,
-      fallbackUsdPerUnitLink: getCoordinatorConfig().fallbackUsdPerUnitLink * 2,
-      fallbackUsdPerUnitLinkDecimals: getCoordinatorConfig().fallbackUsdPerUnitLinkDecimals * 2,
+      fallbackNativePerUnitPli: getCoordinatorConfig().fallbackNativePerUnitPli * 2,
+      fallbackUsdPerUnitPli: getCoordinatorConfig().fallbackUsdPerUnitPli * 2,
+      fallbackUsdPerUnitPliDecimals: getCoordinatorConfig().fallbackUsdPerUnitPliDecimals * 2,
       minimumEstimateGasPriceWei: getCoordinatorConfig().minimumEstimateGasPriceWei * 2,
       transmitTxSizeBytes: getCoordinatorConfig().transmitTxSizeBytes * 2
     });
@@ -95,10 +95,10 @@ contract FunctionsBilling_UpdateConfig is FunctionsRouterSetup {
     assertEq(config.operationFeeCentsUsd, configToSet.operationFeeCentsUsd);
     assertEq(config.maxSupportedRequestDataVersion, configToSet.maxSupportedRequestDataVersion);
     assertEq(config.fulfillmentGasPriceOverEstimationBP, configToSet.fulfillmentGasPriceOverEstimationBP);
-    assertEq(config.fallbackNativePerUnitLink, configToSet.fallbackNativePerUnitLink);
+    assertEq(config.fallbackNativePerUnitPli, configToSet.fallbackNativePerUnitPli);
     assertEq(config.minimumEstimateGasPriceWei, configToSet.minimumEstimateGasPriceWei);
-    assertEq(config.fallbackUsdPerUnitLink, configToSet.fallbackUsdPerUnitLink);
-    assertEq(config.fallbackUsdPerUnitLinkDecimals, configToSet.fallbackUsdPerUnitLinkDecimals);
+    assertEq(config.fallbackUsdPerUnitPli, configToSet.fallbackUsdPerUnitPli);
+    assertEq(config.fallbackUsdPerUnitPliDecimals, configToSet.fallbackUsdPerUnitPliDecimals);
   }
 }
 
@@ -142,15 +142,15 @@ contract FunctionsBilling_GetAdminFeeJuels is FunctionsRouterSetup {
   }
 }
 
-/// @notice #getWeiPerUnitLink
-contract FunctionsBilling_GetWeiPerUnitLink is FunctionsRouterSetup {
-  function test_GetWeiPerUnitLink_Success() public {
+/// @notice #getWeiPerUnitPli
+contract FunctionsBilling_GetWeiPerUnitPli is FunctionsRouterSetup {
+  function test_GetWeiPerUnitPli_Success() public {
     // Send as stranger
     vm.stopPrank();
     vm.startPrank(STRANGER_ADDRESS);
 
-    uint256 weiPerUnitLink = s_functionsCoordinator.getWeiPerUnitLink();
-    assertEq(weiPerUnitLink, uint256(PLI_ETH_RATE));
+    uint256 weiPerUnitPli = s_functionsCoordinator.getWeiPerUnitPli();
+    assertEq(weiPerUnitPli, uint256(PLI_ETH_RATE));
   }
 }
 
@@ -457,7 +457,7 @@ contract FunctionsBilling_OracleWithdraw is FunctionsMultipleFulfillmentsSetup {
     vm.stopPrank();
     vm.startPrank(coordinatorOwner);
 
-    uint256 coordinatorOwnerBalanceBefore = s_linkToken.balanceOf(coordinatorOwner);
+    uint256 coordinatorOwnerBalanceBefore = s_pliToken.balanceOf(coordinatorOwner);
 
     // Attempt to withdraw with no amount, which will withdraw the full balance
     s_functionsCoordinator.oracleWithdraw(coordinatorOwner, 0);
@@ -465,7 +465,7 @@ contract FunctionsBilling_OracleWithdraw is FunctionsMultipleFulfillmentsSetup {
     // 4 report transmissions have been made
     uint96 totalOperationFees = s_functionsCoordinator.getOperationFeeJuels() * s_requestsFulfilled;
 
-    uint256 coordinatorOwnerBalanceAfter = s_linkToken.balanceOf(coordinatorOwner);
+    uint256 coordinatorOwnerBalanceAfter = s_pliToken.balanceOf(coordinatorOwner);
     assertEq(coordinatorOwnerBalanceBefore + totalOperationFees, coordinatorOwnerBalanceAfter);
   }
 }

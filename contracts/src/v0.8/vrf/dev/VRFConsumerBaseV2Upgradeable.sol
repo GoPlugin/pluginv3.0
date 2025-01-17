@@ -116,7 +116,7 @@ abstract contract VRFConsumerBaseV2Upgradeable is Initializable {
 
   /**
    * @param _vrfCoordinator the VRFCoordinatorV2 address.
-   * @dev See https://docs.chain.link/docs/vrf/v2/supported-networks/ for coordinator
+   * @dev See https://docs.chain.pli/docs/vrf/v2/supported-networks/ for coordinator
    * @dev addresses on your preferred network.
    */
   // solhint-disable-next-line func-name-mixedcase

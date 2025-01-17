@@ -37,7 +37,7 @@ contract BaseTest is Test {
   DestinationVerifier internal s_verifier;
   DestinationFeeManager internal feeManager;
   DestinationRewardManager internal rewardManager;
-  ERC20Mock internal link;
+  ERC20Mock internal pli;
   WERC20Mock internal native;
 
   struct Signer {
@@ -56,8 +56,8 @@ contract BaseTest is Test {
     uint32 observationsTimestamp;
     // The timestamp the report is valid from
     uint32 validFromTimestamp;
-    // The link fee
-    uint192 linkFee;
+    // The pli fee
+    uint192 pliFee;
     // The native fee
     uint192 nativeFee;
     // The expiry of the report
@@ -98,7 +98,7 @@ contract BaseTest is Test {
         report.observationsTimestamp,
         report.validFromTimestamp,
         report.nativeFee,
-        report.linkFee,
+        report.pliFee,
         report.expiresAt,
         report.benchmarkPrice,
         report.bid,
@@ -156,7 +156,7 @@ contract BaseTest is Test {
         observationsTimestamp: OBSERVATIONS_TIMESTAMP,
         validFromTimestamp: uint32(block.timestamp),
         nativeFee: uint192(DEFAULT_REPORT_NATIVE_FEE),
-        linkFee: uint192(DEFAULT_REPORT_PLI_FEE),
+        pliFee: uint192(DEFAULT_REPORT_PLI_FEE),
         expiresAt: uint32(block.timestamp),
         benchmarkPrice: MEDIAN,
         bid: BID,
@@ -178,11 +178,11 @@ contract BaseTest is Test {
     changePrank(originalAddr);
   }
 
-  function _approveLink(address spender, uint256 quantity, address sender) internal {
+  function _approvePli(address spender, uint256 quantity, address sender) internal {
     address originalAddr = msg.sender;
     changePrank(sender);
 
-    link.approve(spender, quantity);
+    pli.approve(spender, quantity);
     changePrank(originalAddr);
   }
 
@@ -198,9 +198,9 @@ contract BaseTest is Test {
 
     // setting up FeeManager and RewardManager
     native = new WERC20Mock();
-    link = new ERC20Mock("PLI", "PLI", ADMIN, 0);
-    rewardManager = new DestinationRewardManager(address(link));
-    feeManager = new DestinationFeeManager(address(link), address(native), address(s_verifier), address(rewardManager));
+    pli = new ERC20Mock("PLI", "PLI", ADMIN, 0);
+    rewardManager = new DestinationRewardManager(address(pli));
+    feeManager = new DestinationFeeManager(address(pli), address(native), address(s_verifier), address(rewardManager));
 
     for (uint256 i; i < MAX_ORACLES; i++) {
       uint256 mockPK = i + 1;
@@ -241,7 +241,7 @@ contract BaseTest is Test {
       uint32 observationsTimestamp,
       uint32 validFromTimestamp,
       uint192 nativeFee,
-      uint192 linkFee,
+      uint192 pliFee,
       uint32 expiresAt,
       int192 benchmarkPrice,
       int192 bid,
@@ -254,7 +254,7 @@ contract BaseTest is Test {
     assertEq(benchmarkPrice, testReport.benchmarkPrice);
     assertEq(bid, testReport.bid);
     assertEq(ask, testReport.ask);
-    assertEq(linkFee, testReport.linkFee);
+    assertEq(pliFee, testReport.pliFee);
     assertEq(nativeFee, testReport.nativeFee);
   }
 
@@ -279,12 +279,12 @@ contract VerifierWithFeeManager is BaseTest {
     rewardManager.addFeeManager(address(feeManager));
 
     //mint some tokens to the user
-    link.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(USER, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(USER, DEFAULT_NATIVE_MINT_QUANTITY);
 
-    //mint some link tokens to the feeManager pool
-    link.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //mint some pli tokens to the feeManager pool
+    pli.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
   }
 }
 
@@ -318,7 +318,7 @@ contract MultipleVerifierWithMultipleFeeManagers is BaseTest {
     s_verifierProxy3.setVerifier(address(s_verifier3));
 
     feeManager2 = new DestinationFeeManager(
-      address(link),
+      address(pli),
       address(native),
       address(s_verifier),
       address(rewardManager)
@@ -337,11 +337,11 @@ contract MultipleVerifierWithMultipleFeeManagers is BaseTest {
     rewardManager.addFeeManager(address(feeManager2));
 
     //mint some tokens to the user
-    link.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(USER, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(USER, DEFAULT_NATIVE_MINT_QUANTITY);
 
-    //mint some link tokens to the feeManager pool
-    link.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //mint some pli tokens to the feeManager pool
+    pli.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
   }
 }

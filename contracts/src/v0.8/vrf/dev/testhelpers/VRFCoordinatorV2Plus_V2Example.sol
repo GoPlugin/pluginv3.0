@@ -12,7 +12,7 @@ contract VRFCoordinatorV2Plus_V2Example is IVRFCoordinatorV2PlusMigration {
   error SubscriptionIDCollisionFound();
 
   struct Subscription {
-    uint96 linkBalance;
+    uint96 pliBalance;
     uint96 nativeBalance;
     uint64 reqCount;
     address owner;
@@ -22,17 +22,17 @@ contract VRFCoordinatorV2Plus_V2Example is IVRFCoordinatorV2PlusMigration {
   mapping(uint256 => Subscription) public s_subscriptions; /* subId */ /* subscription */
   mapping(uint256 => address) public s_requestConsumerMapping; /* RequestId */ /* consumer address */
 
-  uint96 public s_totalLinkBalance;
+  uint96 public s_totalPliBalance;
   uint96 public s_totalNativeBalance;
   // request ID nonce
   uint256 public s_requestId = 0;
 
   // older version of coordinator, from which migration is supported
   address public s_prevCoordinator;
-  address public s_link;
+  address public s_pli;
 
-  constructor(address link, address prevCoordinator) {
-    s_link = link;
+  constructor(address pli, address prevCoordinator) {
+    s_pli = pli;
     s_prevCoordinator = prevCoordinator;
   }
 
@@ -48,13 +48,13 @@ contract VRFCoordinatorV2Plus_V2Example is IVRFCoordinatorV2PlusMigration {
   )
     public
     view
-    returns (uint96 linkBalance, uint96 nativeBalance, uint64 reqCount, address owner, address[] memory consumers)
+    returns (uint96 pliBalance, uint96 nativeBalance, uint64 reqCount, address owner, address[] memory consumers)
   {
     if (s_subscriptions[subId].owner == address(0)) {
       revert InvalidSubscription();
     }
     return (
-      s_subscriptions[subId].linkBalance,
+      s_subscriptions[subId].pliBalance,
       s_subscriptions[subId].nativeBalance,
       s_subscriptions[subId].reqCount,
       s_subscriptions[subId].owner,
@@ -84,7 +84,7 @@ contract VRFCoordinatorV2Plus_V2Example is IVRFCoordinatorV2PlusMigration {
     uint256 subId;
     address subOwner;
     address[] consumers;
-    uint96 linkBalance;
+    uint96 pliBalance;
     uint96 nativeBalance;
   }
 
@@ -120,13 +120,13 @@ contract VRFCoordinatorV2Plus_V2Example is IVRFCoordinatorV2PlusMigration {
 
     s_subscriptions[migrationData.subId] = Subscription({
       nativeBalance: migrationData.nativeBalance,
-      linkBalance: migrationData.linkBalance,
+      pliBalance: migrationData.pliBalance,
       reqCount: 0,
       owner: migrationData.subOwner,
       consumers: migrationData.consumers
     });
     s_totalNativeBalance += migrationData.nativeBalance;
-    s_totalLinkBalance += migrationData.linkBalance;
+    s_totalPliBalance += migrationData.pliBalance;
   }
 
   /***************************************************************************

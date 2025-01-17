@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../shared/interfaces/PliTokenInterface.sol";
 
 import {VRFRequestIDBase} from "./VRFRequestIDBase.sol";
 
@@ -33,8 +33,8 @@ import {VRFRequestIDBase} from "./VRFRequestIDBase.sol";
  * @dev shown:
  *
  * @dev   contract VRFConsumer {
- * @dev     constructor(<other arguments>, address _vrfCoordinator, address _link)
- * @dev       VRFConsumerBase(_vrfCoordinator, _link) public {
+ * @dev     constructor(<other arguments>, address _vrfCoordinator, address _pli)
+ * @dev       VRFConsumerBase(_vrfCoordinator, _pli) public {
  * @dev         <initialization with other arguments goes here>
  * @dev       }
  * @dev   }
@@ -168,7 +168,7 @@ abstract contract VRFConsumerBase is VRFRequestIDBase {
   }
 
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
-  LinkTokenInterface internal immutable PLI;
+  PliTokenInterface internal immutable PLI;
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
   address private immutable vrfCoordinator;
 
@@ -180,13 +180,13 @@ abstract contract VRFConsumerBase is VRFRequestIDBase {
 
   /**
    * @param _vrfCoordinator address of VRFCoordinator contract
-   * @param _link address of PLI token contract
+   * @param _pli address of PLI token contract
    *
-   * @dev https://docs.chain.link/docs/link-token-contracts
+   * @dev https://docs.chain.pli/docs/pli-token-contracts
    */
-  constructor(address _vrfCoordinator, address _link) {
+  constructor(address _vrfCoordinator, address _pli) {
     vrfCoordinator = _vrfCoordinator;
-    PLI = LinkTokenInterface(_link);
+    PLI = PliTokenInterface(_pli);
   }
 
   // rawFulfillRandomness is called by VRFCoordinator when it receives a valid VRF

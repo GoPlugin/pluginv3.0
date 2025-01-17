@@ -40,7 +40,7 @@ let maliciousConsumerFactory: ContractFactory
 let maliciousMultiWordConsumerFactory: ContractFactory
 let operatorFactory: ContractFactory
 let forwarderFactory: ContractFactory
-let linkTokenFactory: ContractFactory
+let pliTokenFactory: ContractFactory
 const zeroAddress = ethers.constants.AddressZero
 
 let roles: Roles
@@ -76,8 +76,8 @@ before(async () => {
   forwarderFactory = await ethers.getContractFactory(
     'src/v0.8/operatorforwarder/AuthorizedForwarder.sol:AuthorizedForwarder',
   )
-  linkTokenFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+  pliTokenFactory = await ethers.getContractFactory(
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
   )
 })
 
@@ -85,7 +85,7 @@ describe('Operator', () => {
   let fHash: string
   let specId: string
   let to: string
-  let link: Contract
+  let pli: Contract
   let operator: Contract
   let forwarder1: Contract
   let forwarder2: Contract
@@ -96,11 +96,11 @@ describe('Operator', () => {
     specId =
       '0x4c7b7ffb66b344fbaa64995af81e355a00000000000000000000000000000000'
     to = '0x80e29acb842498fe6591f020bd82766dce619d43'
-    link = await linkTokenFactory.connect(roles.defaultAccount).deploy()
+    pli = await pliTokenFactory.connect(roles.defaultAccount).deploy()
     owner = roles.defaultAccount
     operator = await operatorFactory
       .connect(owner)
-      .deploy(link.address, await owner.getAddress())
+      .deploy(pli.address, await owner.getAddress())
     await operator
       .connect(roles.defaultAccount)
       .setAuthorizedSenders([await roles.oracleNode.getAddress()])
@@ -147,10 +147,10 @@ describe('Operator', () => {
     beforeEach(async () => {
       forwarder1 = await forwarderFactory
         .connect(owner)
-        .deploy(link.address, operator.address, zeroAddress, '0x')
+        .deploy(pli.address, operator.address, zeroAddress, '0x')
       forwarder2 = await forwarderFactory
         .connect(owner)
-        .deploy(link.address, operator.address, zeroAddress, '0x')
+        .deploy(pli.address, operator.address, zeroAddress, '0x')
     })
 
     describe('being called by the owner', () => {
@@ -208,13 +208,13 @@ describe('Operator', () => {
       beforeEach(async () => {
         operator2 = await operatorFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, await roles.defaultAccount.getAddress())
+          .deploy(pli.address, await roles.defaultAccount.getAddress())
         forwarder1 = await forwarderFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address, zeroAddress, '0x')
+          .deploy(pli.address, operator.address, zeroAddress, '0x')
         forwarder2 = await forwarderFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address, zeroAddress, '0x')
+          .deploy(pli.address, operator.address, zeroAddress, '0x')
         await operator
           .connect(roles.defaultAccount)
           .transferOwnableContracts(
@@ -478,10 +478,10 @@ describe('Operator', () => {
 
       forwarder1 = await forwarderFactory
         .connect(owner)
-        .deploy(link.address, operator.address, zeroAddress, '0x')
+        .deploy(pli.address, operator.address, zeroAddress, '0x')
       forwarder2 = await forwarderFactory
         .connect(owner)
-        .deploy(link.address, operator.address, zeroAddress, '0x')
+        .deploy(pli.address, operator.address, zeroAddress, '0x')
     })
 
     describe('when called by a non-authorized sender', () => {
@@ -581,13 +581,13 @@ describe('Operator', () => {
       beforeEach(async () => {
         operator2 = await operatorFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, await roles.defaultAccount.getAddress())
+          .deploy(pli.address, await roles.defaultAccount.getAddress())
         forwarder1 = await forwarderFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address, zeroAddress, '0x')
+          .deploy(pli.address, operator.address, zeroAddress, '0x')
         forwarder2 = await forwarderFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address, zeroAddress, '0x')
+          .deploy(pli.address, operator.address, zeroAddress, '0x')
         await operator
           .connect(roles.defaultAccount)
           .transferOwnableContracts(
@@ -694,7 +694,7 @@ describe('Operator', () => {
           constants.HashZero,
         )
 
-        const tx = await link.transferAndCall(operator.address, 0, callData, {
+        const tx = await pli.transferAndCall(operator.address, 0, callData, {
           value: 0,
         })
         const receipt = await tx.wait()
@@ -705,7 +705,7 @@ describe('Operator', () => {
       describe('with no data', () => {
         it('reverts', async () => {
           await evmRevert(
-            link.transferAndCall(operator.address, 0, '0x', {
+            pli.transferAndCall(operator.address, 0, '0x', {
               value: 0,
             }),
           )
@@ -721,18 +721,18 @@ describe('Operator', () => {
       beforeEach(async () => {
         mock = await maliciousRequesterFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address)
-        await link.transfer(mock.address, paymentAmount)
+          .deploy(pli.address, operator.address)
+        await pli.transfer(mock.address, paymentAmount)
       })
 
       it('cannot withdraw from oracle', async () => {
-        const operatorOriginalBalance = await link.balanceOf(operator.address)
-        const mockOriginalBalance = await link.balanceOf(mock.address)
+        const operatorOriginalBalance = await pli.balanceOf(operator.address)
+        const mockOriginalBalance = await pli.balanceOf(mock.address)
 
         await evmRevert(mock.maliciousWithdraw())
 
-        const operatorNewBalance = await link.balanceOf(operator.address)
-        const mockNewBalance = await link.balanceOf(mock.address)
+        const operatorNewBalance = await pli.balanceOf(operator.address)
+        const mockNewBalance = await pli.balanceOf(mock.address)
 
         bigNumEquals(operatorOriginalBalance, operatorNewBalance)
         bigNumEquals(mockNewBalance, mockOriginalBalance)
@@ -751,8 +751,8 @@ describe('Operator', () => {
         it('the target requester can still create valid requests', async () => {
           requester = await basicConsumerFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, operator.address, specId)
-          await link.transfer(requester.address, paymentAmount)
+            .deploy(pli.address, operator.address, specId)
+          await pli.transfer(requester.address, paymentAmount)
           await mock.maliciousTargetConsumer(requester.address)
           await requester.requestEthereumPrice('USD', paymentAmount)
         })
@@ -779,7 +779,7 @@ describe('Operator', () => {
       const maliciousPayload = ottSelector + header + requestPayload.slice(2)
 
       await evmRevert(
-        link.transferAndCall(operator.address, 0, maliciousPayload, {
+        pli.transferAndCall(operator.address, 0, maliciousPayload, {
           value: 0,
         }),
       )
@@ -800,7 +800,7 @@ describe('Operator', () => {
           1,
           constants.HashZero,
         )
-        const tx = await link.transferAndCall(operator.address, paid, args)
+        const tx = await pli.transferAndCall(operator.address, paid, args)
         receipt = await tx.wait()
         assert.equal(3, receipt?.logs?.length)
 
@@ -832,7 +832,7 @@ describe('Operator', () => {
           1,
           constants.HashZero,
         )
-        await evmRevert(link.transferAndCall(operator.address, paid, args2))
+        await evmRevert(pli.transferAndCall(operator.address, paid, args2))
       })
 
       describe('when called with a payload between 3 and 9 EVM words', () => {
@@ -843,7 +843,7 @@ describe('Operator', () => {
             funcSelector +
             '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001'
           await evmRevert(
-            link.transferAndCall(operator.address, paid, maliciousData),
+            pli.transferAndCall(operator.address, paid, maliciousData),
           )
         })
       })
@@ -860,7 +860,7 @@ describe('Operator', () => {
           constants.HashZero,
           256,
         )
-        await evmRevert(link.transferAndCall(operator.address, paid, args))
+        await evmRevert(pli.transferAndCall(operator.address, paid, args))
       })
     })
 
@@ -897,7 +897,7 @@ describe('Operator', () => {
           1,
           constants.HashZero,
         )
-        const tx = await link.transferAndCall(operator.address, paid, args)
+        const tx = await pli.transferAndCall(operator.address, paid, args)
         receipt = await tx.wait()
         assert.equal(3, receipt?.logs?.length)
 
@@ -928,7 +928,7 @@ describe('Operator', () => {
           1,
           constants.HashZero,
         )
-        await evmRevert(link.transferAndCall(operator.address, paid, args2))
+        await evmRevert(pli.transferAndCall(operator.address, paid, args2))
       })
     })
 
@@ -942,7 +942,7 @@ describe('Operator', () => {
           constants.HashZero,
           256,
         )
-        await evmRevert(link.transferAndCall(operator.address, paid, args))
+        await evmRevert(pli.transferAndCall(operator.address, paid, args))
       })
     })
 
@@ -978,9 +978,9 @@ describe('Operator', () => {
       beforeEach(async () => {
         gasGuzzlingConsumer = await gasGuzzlingConsumerFactory
           .connect(roles.consumer)
-          .deploy(link.address, operator.address, specId)
+          .deploy(pli.address, operator.address, specId)
         const paymentAmount = toWei('1')
-        await link.transfer(gasGuzzlingConsumer.address, paymentAmount)
+        await pli.transfer(gasGuzzlingConsumer.address, paymentAmount)
         const tx =
           await gasGuzzlingConsumer.gassyRequestEthereumPrice(paymentAmount)
         const receipt = await tx.wait()
@@ -1004,9 +1004,9 @@ describe('Operator', () => {
       beforeEach(async () => {
         basicConsumer = await basicConsumerFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address, specId)
+          .deploy(pli.address, operator.address, specId)
         const paymentAmount = toWei('1')
-        await link.transfer(basicConsumer.address, paymentAmount)
+        await pli.transfer(basicConsumer.address, paymentAmount)
         const currency = 'USD'
         const tx = await basicConsumer.requestEthereumPrice(
           currency,
@@ -1040,9 +1040,9 @@ describe('Operator', () => {
         beforeEach(async () => {
           basicConsumer = await basicConsumerFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, operator.address, specId)
+            .deploy(pli.address, operator.address, specId)
           const paymentAmount = toWei('1')
-          await link.transfer(basicConsumer.address, paymentAmount)
+          await pli.transfer(basicConsumer.address, paymentAmount)
           const currency = 'USD'
           const tx = await basicConsumer.requestEthereumPrice(
             currency,
@@ -1148,8 +1148,8 @@ describe('Operator', () => {
         const paymentAmount = toWei('1')
         maliciousRequester = await maliciousRequesterFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address)
-        await link.transfer(maliciousRequester.address, paymentAmount)
+          .deploy(pli.address, operator.address)
+        await pli.transfer(maliciousRequester.address, paymentAmount)
       })
 
       it('cannot cancel before the expiration', async () => {
@@ -1166,7 +1166,7 @@ describe('Operator', () => {
       //   await evmRevert(
       //     maliciousRequester.request(
       //       specId,
-      //       link.address,
+      //       pli.address,
       //       ethers.utils.toUtf8Bytes('transfer(address,uint256)'),
       //     ),
       //   )
@@ -1189,8 +1189,8 @@ describe('Operator', () => {
       beforeEach(async () => {
         maliciousConsumer = await maliciousConsumerFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address)
-        await link.transfer(maliciousConsumer.address, paymentAmount)
+          .deploy(pli.address, operator.address)
+        await pli.transfer(maliciousConsumer.address, paymentAmount)
       })
 
       describe('fails during fulfillment', () => {
@@ -1208,7 +1208,7 @@ describe('Operator', () => {
             .connect(roles.oracleNode)
             .fulfillOracleRequest(...convertFufillParams(request, response))
 
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           bigNumEquals(balance, 0)
@@ -1217,7 +1217,7 @@ describe('Operator', () => {
             .connect(roles.defaultAccount)
             .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
 
-          const newBalance = await link.balanceOf(
+          const newBalance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           bigNumEquals(paymentAmount, newBalance)
@@ -1254,7 +1254,7 @@ describe('Operator', () => {
             .connect(roles.oracleNode)
             .fulfillOracleRequest(...convertFufillParams(request, response))
 
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           bigNumEquals(balance, 0)
@@ -1262,7 +1262,7 @@ describe('Operator', () => {
           await operator
             .connect(roles.defaultAccount)
             .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-          const newBalance = await link.balanceOf(
+          const newBalance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           bigNumEquals(paymentAmount, newBalance)
@@ -1278,7 +1278,7 @@ describe('Operator', () => {
           const receipt = await tx.wait()
           request = decodeRunRequest(receipt.logs?.[3])
 
-          bigNumEquals(0, await link.balanceOf(maliciousConsumer.address))
+          bigNumEquals(0, await pli.balanceOf(maliciousConsumer.address))
         })
 
         it('allows the oracle node to receive their payment', async () => {
@@ -1286,10 +1286,10 @@ describe('Operator', () => {
             .connect(roles.oracleNode)
             .fulfillOracleRequest(...convertFufillParams(request, response))
 
-          const mockBalance = await link.balanceOf(maliciousConsumer.address)
+          const mockBalance = await pli.balanceOf(maliciousConsumer.address)
           bigNumEquals(mockBalance, 0)
 
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           bigNumEquals(balance, 0)
@@ -1297,7 +1297,7 @@ describe('Operator', () => {
           await operator
             .connect(roles.defaultAccount)
             .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-          const newBalance = await link.balanceOf(
+          const newBalance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           bigNumEquals(paymentAmount, newBalance)
@@ -1376,7 +1376,7 @@ describe('Operator', () => {
         beforeEach(async () => {
           forwarder1 = await forwarderFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, link.address, operator.address, '0x')
+            .deploy(pli.address, pli.address, operator.address, '0x')
         })
 
         it('does not allow the contract to callback to owned contracts', async () => {
@@ -1405,7 +1405,7 @@ describe('Operator', () => {
 
           await operator
             .connect(roles.defaultAccount)
-            .transferOwnableContracts([forwarder1.address], link.address)
+            .transferOwnableContracts([forwarder1.address], pli.address)
           //reverts for a different reason after transferring ownership
           await evmRevert(
             operator
@@ -1434,9 +1434,9 @@ describe('Operator', () => {
         beforeEach(async () => {
           gasGuzzlingConsumer = await gasGuzzlingConsumerFactory
             .connect(roles.consumer)
-            .deploy(link.address, operator.address, specId)
+            .deploy(pli.address, operator.address, specId)
           const paymentAmount = toWei('1')
-          await link.transfer(gasGuzzlingConsumer.address, paymentAmount)
+          await pli.transfer(gasGuzzlingConsumer.address, paymentAmount)
           const tx =
             await gasGuzzlingConsumer.gassyRequestEthereumPrice(paymentAmount)
           const receipt = await tx.wait()
@@ -1464,9 +1464,9 @@ describe('Operator', () => {
         beforeEach(async () => {
           basicConsumer = await basicConsumerFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, operator.address, specId)
+            .deploy(pli.address, operator.address, specId)
           const paymentAmount = toWei('1')
-          await link.transfer(basicConsumer.address, paymentAmount)
+          await pli.transfer(basicConsumer.address, paymentAmount)
           const currency = 'USD'
           const tx = await basicConsumer.requestEthereumPrice(
             currency,
@@ -1627,9 +1627,9 @@ describe('Operator', () => {
           // Setup Request 1
           basicConsumer = await basicConsumerFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, operator.address, specId)
+            .deploy(pli.address, operator.address, specId)
           const paymentAmount = toWei('1')
-          await link.transfer(basicConsumer.address, paymentAmount)
+          await pli.transfer(basicConsumer.address, paymentAmount)
           const currency = 'USD'
           const tx = await basicConsumer.requestEthereumPrice(
             currency,
@@ -1638,7 +1638,7 @@ describe('Operator', () => {
           const receipt = await tx.wait()
           request = decodeRunRequest(receipt.logs?.[3])
           // Setup Request 2
-          await link.transfer(basicConsumer.address, paymentAmount)
+          await pli.transfer(basicConsumer.address, paymentAmount)
           const tx2 = await basicConsumer.requestEthereumPrice(
             currency,
             paymentAmount,
@@ -1691,8 +1691,8 @@ describe('Operator', () => {
           const paymentAmount = toWei('1')
           maliciousRequester = await maliciousRequesterFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, operator.address)
-          await link.transfer(maliciousRequester.address, paymentAmount)
+            .deploy(pli.address, operator.address)
+          await pli.transfer(maliciousRequester.address, paymentAmount)
         })
 
         it('cannot cancel before the expiration', async () => {
@@ -1709,7 +1709,7 @@ describe('Operator', () => {
         //   await evmRevert(
         //     maliciousRequester.request(
         //       specId,
-        //       link.address,
+        //       pli.address,
         //       ethers.utils.toUtf8Bytes('transfer(address,uint256)'),
         //     ),
         //   )
@@ -1732,8 +1732,8 @@ describe('Operator', () => {
         beforeEach(async () => {
           maliciousConsumer = await maliciousConsumerFactory
             .connect(roles.defaultAccount)
-            .deploy(link.address, operator.address)
-          await link.transfer(maliciousConsumer.address, paymentAmount)
+            .deploy(pli.address, operator.address)
+          await pli.transfer(maliciousConsumer.address, paymentAmount)
         })
 
         describe('fails during fulfillment', () => {
@@ -1757,7 +1757,7 @@ describe('Operator', () => {
                 ),
               )
 
-            const balance = await link.balanceOf(
+            const balance = await pli.balanceOf(
               await roles.oracleNode.getAddress(),
             )
             bigNumEquals(balance, 0)
@@ -1766,7 +1766,7 @@ describe('Operator', () => {
               .connect(roles.defaultAccount)
               .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
 
-            const newBalance = await link.balanceOf(
+            const newBalance = await pli.balanceOf(
               await roles.oracleNode.getAddress(),
             )
             bigNumEquals(paymentAmount, newBalance)
@@ -1821,7 +1821,7 @@ describe('Operator', () => {
                 ),
               )
 
-            const balance = await link.balanceOf(
+            const balance = await pli.balanceOf(
               await roles.oracleNode.getAddress(),
             )
             bigNumEquals(balance, 0)
@@ -1829,7 +1829,7 @@ describe('Operator', () => {
             await operator
               .connect(roles.defaultAccount)
               .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-            const newBalance = await link.balanceOf(
+            const newBalance = await pli.balanceOf(
               await roles.oracleNode.getAddress(),
             )
             bigNumEquals(paymentAmount, newBalance)
@@ -1847,7 +1847,7 @@ describe('Operator', () => {
             const receipt = await tx.wait()
             request = decodeRunRequest(receipt.logs?.[3])
 
-            bigNumEquals(0, await link.balanceOf(maliciousConsumer.address))
+            bigNumEquals(0, await pli.balanceOf(maliciousConsumer.address))
           })
 
           it('allows the oracle node to receive their payment', async () => {
@@ -1861,10 +1861,10 @@ describe('Operator', () => {
                 ),
               )
 
-            const mockBalance = await link.balanceOf(maliciousConsumer.address)
+            const mockBalance = await pli.balanceOf(maliciousConsumer.address)
             bigNumEquals(mockBalance, 0)
 
-            const balance = await link.balanceOf(
+            const balance = await pli.balanceOf(
               await roles.oracleNode.getAddress(),
             )
             bigNumEquals(balance, 0)
@@ -1872,7 +1872,7 @@ describe('Operator', () => {
             await operator
               .connect(roles.defaultAccount)
               .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-            const newBalance = await link.balanceOf(
+            const newBalance = await pli.balanceOf(
               await roles.oracleNode.getAddress(),
             )
             bigNumEquals(paymentAmount, newBalance)
@@ -1982,7 +1982,7 @@ describe('Operator', () => {
           beforeEach(async () => {
             forwarder1 = await forwarderFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, link.address, operator.address, '0x')
+              .deploy(pli.address, pli.address, operator.address, '0x')
           })
 
           it('does not allow the contract to callback to owned contracts', async () => {
@@ -2011,7 +2011,7 @@ describe('Operator', () => {
 
             await operator
               .connect(roles.defaultAccount)
-              .transferOwnableContracts([forwarder1.address], link.address)
+              .transferOwnableContracts([forwarder1.address], pli.address)
             //reverts for a different reason after transferring ownership
             await evmRevert(
               operator
@@ -2041,9 +2041,9 @@ describe('Operator', () => {
           beforeEach(async () => {
             gasGuzzlingConsumer = await gasGuzzlingConsumerFactory
               .connect(roles.consumer)
-              .deploy(link.address, operator.address, specId)
+              .deploy(pli.address, operator.address, specId)
             const paymentAmount = toWei('1')
-            await link.transfer(gasGuzzlingConsumer.address, paymentAmount)
+            await pli.transfer(gasGuzzlingConsumer.address, paymentAmount)
             const tx =
               await gasGuzzlingConsumer.gassyMultiWordRequest(paymentAmount)
             const receipt = await tx.wait()
@@ -2071,9 +2071,9 @@ describe('Operator', () => {
           beforeEach(async () => {
             multiConsumer = await multiWordConsumerFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, operator.address, specId)
+              .deploy(pli.address, operator.address, specId)
             const paymentAmount = toWei('1')
-            await link.transfer(multiConsumer.address, paymentAmount)
+            await pli.transfer(multiConsumer.address, paymentAmount)
             const currency = 'USD'
             const tx = await multiConsumer.requestEthereumPrice(
               currency,
@@ -2248,8 +2248,8 @@ describe('Operator', () => {
             const paymentAmount = toWei('1')
             maliciousRequester = await maliciousRequesterFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, operator.address)
-            await link.transfer(maliciousRequester.address, paymentAmount)
+              .deploy(pli.address, operator.address)
+            await pli.transfer(maliciousRequester.address, paymentAmount)
           })
 
           it('cannot cancel before the expiration', async () => {
@@ -2266,7 +2266,7 @@ describe('Operator', () => {
           //   await evmRevert(
           //     maliciousRequester.request(
           //       specId,
-          //       link.address,
+          //       pli.address,
           //       ethers.utils.toUtf8Bytes('transfer(address,uint256)'),
           //     ),
           //   )
@@ -2289,8 +2289,8 @@ describe('Operator', () => {
           beforeEach(async () => {
             maliciousConsumer = await maliciousMultiWordConsumerFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, operator.address)
-            await link.transfer(maliciousConsumer.address, paymentAmount)
+              .deploy(pli.address, operator.address)
+            await pli.transfer(maliciousConsumer.address, paymentAmount)
           })
 
           describe('fails during fulfillment', () => {
@@ -2314,7 +2314,7 @@ describe('Operator', () => {
                   ),
                 )
 
-              const balance = await link.balanceOf(
+              const balance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(balance, 0)
@@ -2323,7 +2323,7 @@ describe('Operator', () => {
                 .connect(roles.defaultAccount)
                 .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
 
-              const newBalance = await link.balanceOf(
+              const newBalance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(paymentAmount, newBalance)
@@ -2378,7 +2378,7 @@ describe('Operator', () => {
                   ),
                 )
 
-              const balance = await link.balanceOf(
+              const balance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(balance, 0)
@@ -2386,7 +2386,7 @@ describe('Operator', () => {
               await operator
                 .connect(roles.defaultAccount)
                 .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-              const newBalance = await link.balanceOf(
+              const newBalance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(paymentAmount, newBalance)
@@ -2404,7 +2404,7 @@ describe('Operator', () => {
               const receipt = await tx.wait()
               request = decodeRunRequest(receipt.logs?.[3])
 
-              bigNumEquals(0, await link.balanceOf(maliciousConsumer.address))
+              bigNumEquals(0, await pli.balanceOf(maliciousConsumer.address))
             })
 
             it('allows the oracle node to receive their payment', async () => {
@@ -2418,12 +2418,12 @@ describe('Operator', () => {
                   ),
                 )
 
-              const mockBalance = await link.balanceOf(
+              const mockBalance = await pli.balanceOf(
                 maliciousConsumer.address,
               )
               bigNumEquals(mockBalance, 0)
 
-              const balance = await link.balanceOf(
+              const balance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(balance, 0)
@@ -2431,7 +2431,7 @@ describe('Operator', () => {
               await operator
                 .connect(roles.defaultAccount)
                 .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-              const newBalance = await link.balanceOf(
+              const newBalance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(paymentAmount, newBalance)
@@ -2558,9 +2558,9 @@ describe('Operator', () => {
           beforeEach(async () => {
             gasGuzzlingConsumer = await gasGuzzlingConsumerFactory
               .connect(roles.consumer)
-              .deploy(link.address, operator.address, specId)
+              .deploy(pli.address, operator.address, specId)
             const paymentAmount = toWei('1')
-            await link.transfer(gasGuzzlingConsumer.address, paymentAmount)
+            await pli.transfer(gasGuzzlingConsumer.address, paymentAmount)
             const tx =
               await gasGuzzlingConsumer.gassyMultiWordRequest(paymentAmount)
             const receipt = await tx.wait()
@@ -2588,9 +2588,9 @@ describe('Operator', () => {
           beforeEach(async () => {
             multiConsumer = await multiWordConsumerFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, operator.address, specId)
+              .deploy(pli.address, operator.address, specId)
             const paymentAmount = toWei('1')
-            await link.transfer(multiConsumer.address, paymentAmount)
+            await pli.transfer(multiConsumer.address, paymentAmount)
             const currency = 'USD'
             const tx = await multiConsumer.requestMultipleParameters(
               currency,
@@ -2782,8 +2782,8 @@ describe('Operator', () => {
             const paymentAmount = toWei('1')
             maliciousRequester = await maliciousRequesterFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, operator.address)
-            await link.transfer(maliciousRequester.address, paymentAmount)
+              .deploy(pli.address, operator.address)
+            await pli.transfer(maliciousRequester.address, paymentAmount)
           })
 
           it('cannot cancel before the expiration', async () => {
@@ -2800,7 +2800,7 @@ describe('Operator', () => {
           //   await evmRevert(
           //     maliciousRequester.request(
           //       specId,
-          //       link.address,
+          //       pli.address,
           //       ethers.utils.toUtf8Bytes('transfer(address,uint256)'),
           //     ),
           //   )
@@ -2823,8 +2823,8 @@ describe('Operator', () => {
           beforeEach(async () => {
             maliciousConsumer = await maliciousMultiWordConsumerFactory
               .connect(roles.defaultAccount)
-              .deploy(link.address, operator.address)
-            await link.transfer(maliciousConsumer.address, paymentAmount)
+              .deploy(pli.address, operator.address)
+            await pli.transfer(maliciousConsumer.address, paymentAmount)
           })
 
           describe('fails during fulfillment', () => {
@@ -2848,7 +2848,7 @@ describe('Operator', () => {
                   ),
                 )
 
-              const balance = await link.balanceOf(
+              const balance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(balance, 0)
@@ -2857,7 +2857,7 @@ describe('Operator', () => {
                 .connect(roles.defaultAccount)
                 .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
 
-              const newBalance = await link.balanceOf(
+              const newBalance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(paymentAmount, newBalance)
@@ -2916,7 +2916,7 @@ describe('Operator', () => {
                   ),
                 )
 
-              const balance = await link.balanceOf(
+              const balance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(balance, 0)
@@ -2924,7 +2924,7 @@ describe('Operator', () => {
               await operator
                 .connect(roles.defaultAccount)
                 .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-              const newBalance = await link.balanceOf(
+              const newBalance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(paymentAmount, newBalance)
@@ -2942,7 +2942,7 @@ describe('Operator', () => {
               const receipt = await tx.wait()
               request = decodeRunRequest(receipt.logs?.[3])
 
-              bigNumEquals(0, await link.balanceOf(maliciousConsumer.address))
+              bigNumEquals(0, await pli.balanceOf(maliciousConsumer.address))
             })
 
             it('allows the oracle node to receive their payment', async () => {
@@ -2956,12 +2956,12 @@ describe('Operator', () => {
                   ),
                 )
 
-              const mockBalance = await link.balanceOf(
+              const mockBalance = await pli.balanceOf(
                 maliciousConsumer.address,
               )
               bigNumEquals(mockBalance, 0)
 
-              const balance = await link.balanceOf(
+              const balance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(balance, 0)
@@ -2969,7 +2969,7 @@ describe('Operator', () => {
               await operator
                 .connect(roles.defaultAccount)
                 .withdraw(await roles.oracleNode.getAddress(), paymentAmount)
-              const newBalance = await link.balanceOf(
+              const newBalance = await pli.balanceOf(
                 await roles.oracleNode.getAddress(),
               )
               bigNumEquals(paymentAmount, newBalance)
@@ -3089,9 +3089,9 @@ describe('Operator', () => {
       it('reverts', async () => {
         let basicConsumer = await basicConsumerFactory
           .connect(roles.defaultAccount)
-          .deploy(link.address, operator.address, specId)
+          .deploy(pli.address, operator.address, specId)
         const paymentAmount = toWei('1')
-        await link.transfer(basicConsumer.address, paymentAmount)
+        await pli.transfer(basicConsumer.address, paymentAmount)
         const tx = await basicConsumer.requestEthereumPrice(
           'USD',
           paymentAmount,
@@ -3118,26 +3118,26 @@ describe('Operator', () => {
   describe('#withdraw', () => {
     describe('without reserving funds via oracleRequest', () => {
       it('does nothing', async () => {
-        let balance = await link.balanceOf(await roles.oracleNode.getAddress())
+        let balance = await pli.balanceOf(await roles.oracleNode.getAddress())
         assert.equal(0, balance.toNumber())
         await evmRevert(
           operator
             .connect(roles.defaultAccount)
             .withdraw(await roles.oracleNode.getAddress(), toWei('1')),
         )
-        balance = await link.balanceOf(await roles.oracleNode.getAddress())
+        balance = await pli.balanceOf(await roles.oracleNode.getAddress())
         assert.equal(0, balance.toNumber())
       })
 
       describe('recovering funds that were mistakenly sent', () => {
         const paid = 1
         beforeEach(async () => {
-          await link.transfer(operator.address, paid)
+          await pli.transfer(operator.address, paid)
         })
 
         it('withdraws funds', async () => {
-          const operatorBalanceBefore = await link.balanceOf(operator.address)
-          const accountBalanceBefore = await link.balanceOf(
+          const operatorBalanceBefore = await pli.balanceOf(operator.address)
+          const accountBalanceBefore = await pli.balanceOf(
             await roles.defaultAccount.getAddress(),
           )
 
@@ -3145,8 +3145,8 @@ describe('Operator', () => {
             .connect(roles.defaultAccount)
             .withdraw(await roles.defaultAccount.getAddress(), paid)
 
-          const operatorBalanceAfter = await link.balanceOf(operator.address)
-          const accountBalanceAfter = await link.balanceOf(
+          const operatorBalanceAfter = await pli.balanceOf(operator.address)
+          const accountBalanceAfter = await pli.balanceOf(
             await roles.defaultAccount.getAddress(),
           )
 
@@ -3174,7 +3174,7 @@ describe('Operator', () => {
           0,
           constants.HashZero,
         )
-        const tx = await link.transferAndCall(operator.address, payment, args)
+        const tx = await pli.transferAndCall(operator.address, payment, args)
         const receipt = await tx.wait()
         assert.equal(3, receipt.logs?.length)
         request = decodeRunRequest(receipt.logs?.[2])
@@ -3187,7 +3187,7 @@ describe('Operator', () => {
               .connect(roles.defaultAccount)
               .withdraw(await roles.oracleNode.getAddress(), payment),
           )
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.oracleNode.getAddress(),
           )
           assert.equal(0, balance.toNumber())
@@ -3196,12 +3196,12 @@ describe('Operator', () => {
         describe('recovering funds that were mistakenly sent', () => {
           const paid = 1
           beforeEach(async () => {
-            await link.transfer(operator.address, paid)
+            await pli.transfer(operator.address, paid)
           })
 
           it('withdraws funds', async () => {
-            const operatorBalanceBefore = await link.balanceOf(operator.address)
-            const accountBalanceBefore = await link.balanceOf(
+            const operatorBalanceBefore = await pli.balanceOf(operator.address)
+            const accountBalanceBefore = await pli.balanceOf(
               await roles.defaultAccount.getAddress(),
             )
 
@@ -3209,8 +3209,8 @@ describe('Operator', () => {
               .connect(roles.defaultAccount)
               .withdraw(await roles.defaultAccount.getAddress(), paid)
 
-            const operatorBalanceAfter = await link.balanceOf(operator.address)
-            const accountBalanceAfter = await link.balanceOf(
+            const operatorBalanceAfter = await pli.balanceOf(operator.address)
+            const accountBalanceAfter = await pli.balanceOf(
               await roles.defaultAccount.getAddress(),
             )
 
@@ -3235,8 +3235,8 @@ describe('Operator', () => {
         })
 
         it('does not allow input greater than the balance', async () => {
-          const originalOracleBalance = await link.balanceOf(operator.address)
-          const originalStrangerBalance = await link.balanceOf(
+          const originalOracleBalance = await pli.balanceOf(operator.address)
+          const originalStrangerBalance = await pli.balanceOf(
             await roles.stranger.getAddress(),
           )
           const withdrawalAmount = payment + 1
@@ -3248,8 +3248,8 @@ describe('Operator', () => {
               .withdraw(await roles.stranger.getAddress(), withdrawalAmount),
           )
 
-          const newOracleBalance = await link.balanceOf(operator.address)
-          const newStrangerBalance = await link.balanceOf(
+          const newOracleBalance = await pli.balanceOf(operator.address)
+          const newStrangerBalance = await pli.balanceOf(
             await roles.stranger.getAddress(),
           )
 
@@ -3269,10 +3269,10 @@ describe('Operator', () => {
           await operator
             .connect(roles.defaultAccount)
             .withdraw(await roles.stranger.getAddress(), partialAmount)
-          const strangerBalance = await link.balanceOf(
+          const strangerBalance = await pli.balanceOf(
             await roles.stranger.getAddress(),
           )
-          const oracleBalance = await link.balanceOf(operator.address)
+          const oracleBalance = await pli.balanceOf(operator.address)
           assert.equal(partialAmount, strangerBalance.toNumber())
           assert.equal(difference, oracleBalance.toNumber())
         })
@@ -3281,7 +3281,7 @@ describe('Operator', () => {
           await operator
             .connect(roles.defaultAccount)
             .withdraw(await roles.stranger.getAddress(), payment)
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.stranger.getAddress(),
           )
           assert.equal(payment, balance.toNumber())
@@ -3293,7 +3293,7 @@ describe('Operator', () => {
               .connect(roles.stranger)
               .withdraw(await roles.stranger.getAddress(), payment),
           )
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.stranger.getAddress(),
           )
           assert.isTrue(ethers.constants.Zero.eq(balance))
@@ -3302,12 +3302,12 @@ describe('Operator', () => {
         describe('recovering funds that were mistakenly sent', () => {
           const paid = 1
           beforeEach(async () => {
-            await link.transfer(operator.address, paid)
+            await pli.transfer(operator.address, paid)
           })
 
           it('withdraws funds', async () => {
-            const operatorBalanceBefore = await link.balanceOf(operator.address)
-            const accountBalanceBefore = await link.balanceOf(
+            const operatorBalanceBefore = await pli.balanceOf(operator.address)
+            const accountBalanceBefore = await pli.balanceOf(
               await roles.defaultAccount.getAddress(),
             )
 
@@ -3315,8 +3315,8 @@ describe('Operator', () => {
               .connect(roles.defaultAccount)
               .withdraw(await roles.defaultAccount.getAddress(), paid)
 
-            const operatorBalanceAfter = await link.balanceOf(operator.address)
-            const accountBalanceAfter = await link.balanceOf(
+            const operatorBalanceAfter = await pli.balanceOf(operator.address)
+            const accountBalanceAfter = await pli.balanceOf(
               await roles.defaultAccount.getAddress(),
             )
 
@@ -3346,7 +3346,7 @@ describe('Operator', () => {
         0,
         constants.HashZero,
       )
-      const tx = await link.transferAndCall(operator.address, amount, args)
+      const tx = await pli.transferAndCall(operator.address, amount, args)
       const receipt = await tx.wait()
       assert.equal(3, receipt.logs?.length)
       request = decodeRunRequest(receipt.logs?.[2])
@@ -3363,7 +3363,7 @@ describe('Operator', () => {
     describe('funds that were mistakenly sent', () => {
       const paid = 1
       beforeEach(async () => {
-        await link.transfer(operator.address, paid)
+        await pli.transfer(operator.address, paid)
       })
 
       it('returns the correct value', async () => {
@@ -3385,7 +3385,7 @@ describe('Operator', () => {
     beforeEach(async () => {
       operator2 = await operatorFactory
         .connect(roles.oracleNode2)
-        .deploy(link.address, await roles.oracleNode2.getAddress())
+        .deploy(pli.address, await roles.oracleNode2.getAddress())
       to = operator2.address
       args = encodeOracleRequest(
         specId,
@@ -3398,7 +3398,7 @@ describe('Operator', () => {
 
     describe('when called by a non-owner', () => {
       it('reverts with owner error message', async () => {
-        await link.transfer(operator.address, startingBalance)
+        await pli.transfer(operator.address, startingBalance)
         await evmRevert(
           operator
             .connect(roles.stranger)
@@ -3410,7 +3410,7 @@ describe('Operator', () => {
 
     describe('when called by the owner', () => {
       beforeEach(async () => {
-        await link.transfer(operator.address, startingBalance)
+        await pli.transfer(operator.address, startingBalance)
       })
 
       describe('without sufficient funds in contract', () => {
@@ -3434,20 +3434,20 @@ describe('Operator', () => {
         let receiverBalanceAfter: BigNumber
 
         before(async () => {
-          requesterBalanceBefore = await link.balanceOf(operator.address)
-          receiverBalanceBefore = await link.balanceOf(operator2.address)
+          requesterBalanceBefore = await pli.balanceOf(operator.address)
+          receiverBalanceBefore = await pli.balanceOf(operator2.address)
           tx = await operator
             .connect(roles.defaultAccount)
             .ownerTransferAndCall(to, payment, args)
           receipt = await tx.wait()
-          requesterBalanceAfter = await link.balanceOf(operator.address)
-          receiverBalanceAfter = await link.balanceOf(operator2.address)
+          requesterBalanceAfter = await pli.balanceOf(operator.address)
+          receiverBalanceAfter = await pli.balanceOf(operator2.address)
         })
 
         it('emits an event', async () => {
           assert.equal(3, receipt.logs?.length)
           const transferLog = await getLog(tx, 1)
-          const parsedLog = link.interface.parseLog({
+          const parsedLog = pli.interface.parseLog({
             data: transferLog.data,
             topics: transferLog.topics,
           })
@@ -3504,7 +3504,7 @@ describe('Operator', () => {
       beforeEach(async () => {
         const requestAmount = 20
 
-        await link.transfer(await roles.consumer.getAddress(), startingBalance)
+        await pli.transfer(await roles.consumer.getAddress(), startingBalance)
 
         const args = encodeOracleRequest(
           specId,
@@ -3513,7 +3513,7 @@ describe('Operator', () => {
           nonce,
           constants.HashZero,
         )
-        const tx = await link
+        const tx = await pli
           .connect(roles.consumer)
           .transferAndCall(operator.address, requestAmount, args)
         receipt = await tx.wait()
@@ -3522,10 +3522,10 @@ describe('Operator', () => {
         request = decodeRunRequest(receipt.logs?.[2])
 
         // pre conditions
-        const oracleBalance = await link.balanceOf(operator.address)
+        const oracleBalance = await pli.balanceOf(operator.address)
         bigNumEquals(request.payment, oracleBalance)
 
-        const consumerAmount = await link.balanceOf(
+        const consumerAmount = await pli.balanceOf(
           await roles.consumer.getAddress(),
         )
         assert.equal(
@@ -3554,7 +3554,7 @@ describe('Operator', () => {
             .cancelOracleRequestByRequester(
               ...convertCancelByRequesterParams(request, nonce),
             )
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.consumer.getAddress(),
           )
 
@@ -3627,7 +3627,7 @@ describe('Operator', () => {
       beforeEach(async () => {
         const requestAmount = 20
 
-        await link.transfer(await roles.consumer.getAddress(), startingBalance)
+        await pli.transfer(await roles.consumer.getAddress(), startingBalance)
 
         const args = encodeOracleRequest(
           specId,
@@ -3636,7 +3636,7 @@ describe('Operator', () => {
           1,
           constants.HashZero,
         )
-        const tx = await link
+        const tx = await pli
           .connect(roles.consumer)
           .transferAndCall(operator.address, requestAmount, args)
         receipt = await tx.wait()
@@ -3646,10 +3646,10 @@ describe('Operator', () => {
       })
 
       it('has correct initial balances', async () => {
-        const oracleBalance = await link.balanceOf(operator.address)
+        const oracleBalance = await pli.balanceOf(operator.address)
         bigNumEquals(request.payment, oracleBalance)
 
-        const consumerAmount = await link.balanceOf(
+        const consumerAmount = await pli.balanceOf(
           await roles.consumer.getAddress(),
         )
         assert.equal(
@@ -3674,7 +3674,7 @@ describe('Operator', () => {
           await operator
             .connect(roles.consumer)
             .cancelOracleRequest(...convertCancelParams(request))
-          const balance = await link.balanceOf(
+          const balance = await pli.balanceOf(
             await roles.consumer.getAddress(),
           )
 
@@ -3731,13 +3731,13 @@ describe('Operator', () => {
     })
 
     describe('when called by owner', () => {
-      describe('when attempting to forward to the link token', () => {
+      describe('when attempting to forward to the pli token', () => {
         it('reverts', async () => {
-          const sighash = linkTokenFactory.interface.getSighash('name')
+          const sighash = pliTokenFactory.interface.getSighash('name')
           await evmRevert(
             operator
               .connect(roles.defaultAccount)
-              .ownerForward(link.address, sighash),
+              .ownerForward(pli.address, sighash),
             'Cannot call to PLI',
           )
         })

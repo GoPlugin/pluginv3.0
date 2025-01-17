@@ -49,14 +49,14 @@ contract MockRouterTest is TokenSetup {
     mockRouter.ccipSend{value: 0.1 ether}(mockChainSelector, message);
   }
 
-  function test_ccipSendWithLinkFeeTokenbutInsufficientAllowance_Revert() public {
+  function test_ccipSendWithPliFeeTokenbutInsufficientAllowance_Revert() public {
     message.feeToken = s_sourceFeeToken;
 
     vm.expectRevert(bytes("ERC20: insufficient allowance"));
     mockRouter.ccipSend(mockChainSelector, message);
   }
 
-  function test_ccipSendWithLinkFeeTokenAndValidMsgValue_Success() public {
+  function test_ccipSendWithPliFeeTokenAndValidMsgValue_Success() public {
     message.feeToken = s_sourceFeeToken;
 
     vm.startPrank(OWNER, OWNER);

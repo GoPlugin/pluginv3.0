@@ -19,7 +19,7 @@ contract VerifierBillingTests is VerifierWithFeeManager {
       observationsTimestamp: OBSERVATIONS_TIMESTAMP,
       validFromTimestamp: uint32(block.timestamp),
       nativeFee: uint192(DEFAULT_REPORT_NATIVE_FEE),
-      linkFee: uint192(DEFAULT_REPORT_PLI_FEE),
+      pliFee: uint192(DEFAULT_REPORT_PLI_FEE),
       expiresAt: uint32(block.timestamp),
       benchmarkPrice: MEDIAN,
       bid: BID,
@@ -27,7 +27,7 @@ contract VerifierBillingTests is VerifierWithFeeManager {
     });
   }
 
-  function test_verifyWithLinkV3Report() public {
+  function test_verifyWithPliV3Report() public {
     Signer[] memory signers = _getSigners(MAX_ORACLES);
     address[] memory signerAddrs = _getSignerAddresses(signers);
     Common.AddressAndWeight[] memory weights = new Common.AddressAndWeight[](0);
@@ -35,14 +35,14 @@ contract VerifierBillingTests is VerifierWithFeeManager {
     bytes memory signedReport = _generateV3EncodedBlob(s_testReportThree, s_reportContext, signers);
     bytes32 expectedDonConfigId = _donConfigIdFromConfigData(signerAddrs, FAULT_TOLERANCE);
 
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-    _verify(signedReport, address(link), 0, USER);
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _verify(signedReport, address(pli), 0, USER);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
 
     // internal state checks
-    assertEq(feeManager.s_linkDeficit(expectedDonConfigId), 0);
+    assertEq(feeManager.s_pliDeficit(expectedDonConfigId), 0);
     assertEq(rewardManager.s_totalRewardRecipientFees(expectedDonConfigId), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
   }
 
   function test_verifyWithNativeERC20() public {
@@ -61,7 +61,7 @@ contract VerifierBillingTests is VerifierWithFeeManager {
     _verify(signedReport, address(native), 0, USER);
     assertEq(native.balanceOf(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
 
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
   }
 
   function test_verifyWithNativeUnwrapped() public {
@@ -114,7 +114,7 @@ contract DestinationVerifierBulkVerifyBillingReport is VerifierWithFeeManager {
     s_verifier.setConfig(signerAddrs, FAULT_TOLERANCE, weights);
   }
 
-  function test_verifyWithBulkLink() public {
+  function test_verifyWithBulkPli() public {
     bytes memory signedReport = _generateV3EncodedBlob(
       _generateV3Report(),
       s_reportContext,
@@ -126,12 +126,12 @@ contract DestinationVerifierBulkVerifyBillingReport is VerifierWithFeeManager {
       signedReports[i] = signedReport;
     }
 
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS, USER);
 
-    _verifyBulk(signedReports, address(link), 0, USER);
+    _verifyBulk(signedReports, address(pli), 0, USER);
 
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
   }
 
   function test_verifyWithBulkNative() public {

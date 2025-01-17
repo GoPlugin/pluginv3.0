@@ -15,21 +15,21 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
 
   function test_WithdrawERC20() public {
     //simulate a fee
-    mintLink(address(feeManager), DEFAULT_PLI_MINT_QUANTITY);
+    mintPli(address(feeManager), DEFAULT_PLI_MINT_QUANTITY);
 
     //get the balances to ne used for comparison
-    uint256 contractBalance = getLinkBalance(address(feeManager));
-    uint256 adminBalance = getLinkBalance(ADMIN);
+    uint256 contractBalance = getPliBalance(address(feeManager));
+    uint256 adminBalance = getPliBalance(ADMIN);
 
     //the amount to withdraw
     uint256 withdrawAmount = contractBalance / 2;
 
     //withdraw some balance
-    withdraw(address(link), ADMIN, withdrawAmount, ADMIN);
+    withdraw(address(pli), ADMIN, withdrawAmount, ADMIN);
 
     //check the balance has been reduced
-    uint256 newContractBalance = getLinkBalance(address(feeManager));
-    uint256 newAdminBalance = getLinkBalance(ADMIN);
+    uint256 newContractBalance = getPliBalance(address(feeManager));
+    uint256 newAdminBalance = getPliBalance(ADMIN);
 
     //check the balance is greater than zero
     assertGt(newContractBalance, 0);
@@ -67,13 +67,13 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
 
   function test_WithdrawNonAdminAddr() public {
     //simulate a fee
-    mintLink(address(feeManager), DEFAULT_PLI_MINT_QUANTITY);
+    mintPli(address(feeManager), DEFAULT_PLI_MINT_QUANTITY);
 
     //should revert if not admin
     vm.expectRevert(ONLY_CALLABLE_BY_OWNER_ERROR);
 
     //withdraw some balance
-    withdraw(address(link), ADMIN, DEFAULT_PLI_MINT_QUANTITY, USER);
+    withdraw(address(pli), ADMIN, DEFAULT_PLI_MINT_QUANTITY, USER);
   }
 
   function test_eventIsEmittedAfterSurchargeIsSet() public {
@@ -106,7 +106,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
 
   function test_eventIsEmittedUponWithdraw() public {
     //simulate a fee
-    mintLink(address(feeManager), DEFAULT_PLI_MINT_QUANTITY);
+    mintPli(address(feeManager), DEFAULT_PLI_MINT_QUANTITY);
 
     //the amount to withdraw
     uint192 withdrawAmount = 1;
@@ -115,96 +115,96 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     vm.expectEmit();
 
     //the event to be emitted
-    emit Withdraw(ADMIN, ADMIN, address(link), withdrawAmount);
+    emit Withdraw(ADMIN, ADMIN, address(pli), withdrawAmount);
 
     //withdraw some balance
-    withdraw(address(link), ADMIN, withdrawAmount, ADMIN);
+    withdraw(address(pli), ADMIN, withdrawAmount, ADMIN);
   }
 
-  function test_linkAvailableForPaymentReturnsLinkBalance() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+  function test_pliAvailableForPaymentReturnsPliBalance() public {
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //check there's a balance
-    assertGt(getLinkBalance(address(feeManager)), 0);
+    assertGt(getPliBalance(address(feeManager)), 0);
 
-    //check the link available for payment is the link balance
-    assertEq(feeManager.linkAvailableForPayment(), getLinkBalance(address(feeManager)));
+    //check the pli available for payment is the pli balance
+    assertEq(feeManager.pliAvailableForPayment(), getPliBalance(address(feeManager)));
   }
 
-  function test_payLinkDeficit() public {
+  function test_payPliDeficit() public {
     //get the default payload
     bytes memory payload = getPayload(getV2Report(DEFAULT_FEED_1_V3));
 
     approveNative(address(feeManager), DEFAULT_REPORT_NATIVE_FEE, USER);
 
-    //not enough funds in the reward pool should trigger an insufficient link event
+    //not enough funds in the reward pool should trigger an insufficient pli event
     vm.expectEmit();
 
     IRewardManager.FeePayment[] memory contractFees = new IRewardManager.FeePayment[](1);
     contractFees[0] = IRewardManager.FeePayment(DEFAULT_CONFIG_DIGEST, uint192(DEFAULT_REPORT_PLI_FEE));
 
-    emit InsufficientLink(contractFees);
+    emit InsufficientPli(contractFees);
 
     //process the fee
     processFee(payload, USER, address(native), 0);
 
     //double check the rewardManager balance is 0
-    assertEq(getLinkBalance(address(rewardManager)), 0);
+    assertEq(getPliBalance(address(rewardManager)), 0);
 
-    //simulate a deposit of link to cover the deficit
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli to cover the deficit
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     vm.expectEmit();
-    emit LinkDeficitCleared(DEFAULT_CONFIG_DIGEST, DEFAULT_REPORT_PLI_FEE);
+    emit PliDeficitCleared(DEFAULT_CONFIG_DIGEST, DEFAULT_REPORT_PLI_FEE);
 
-    //pay the deficit which will transfer link from the rewardManager to the rewardManager
-    payLinkDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
+    //pay the deficit which will transfer pli from the rewardManager to the rewardManager
+    payPliDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
 
-    //check the rewardManager received the link
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the rewardManager received the pli
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
   }
 
-  function test_payLinkDeficitTwice() public {
+  function test_payPliDeficitTwice() public {
     //get the default payload
     bytes memory payload = getPayload(getV2Report(DEFAULT_FEED_1_V3));
 
     approveNative(address(feeManager), DEFAULT_REPORT_NATIVE_FEE, USER);
 
-    //not enough funds in the reward pool should trigger an insufficient link event
+    //not enough funds in the reward pool should trigger an insufficient pli event
     vm.expectEmit();
 
     IRewardManager.FeePayment[] memory contractFees = new IRewardManager.FeePayment[](1);
     contractFees[0] = IRewardManager.FeePayment(DEFAULT_CONFIG_DIGEST, uint192(DEFAULT_REPORT_PLI_FEE));
 
     //emit the event that is expected to be emitted
-    emit InsufficientLink(contractFees);
+    emit InsufficientPli(contractFees);
 
     //process the fee
     processFee(payload, USER, address(native), 0);
 
     //double check the rewardManager balance is 0
-    assertEq(getLinkBalance(address(rewardManager)), 0);
+    assertEq(getPliBalance(address(rewardManager)), 0);
 
-    //simulate a deposit of link to cover the deficit
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli to cover the deficit
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     vm.expectEmit();
-    emit LinkDeficitCleared(DEFAULT_CONFIG_DIGEST, DEFAULT_REPORT_PLI_FEE);
+    emit PliDeficitCleared(DEFAULT_CONFIG_DIGEST, DEFAULT_REPORT_PLI_FEE);
 
-    //pay the deficit which will transfer link from the rewardManager to the rewardManager
-    payLinkDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
+    //pay the deficit which will transfer pli from the rewardManager to the rewardManager
+    payPliDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
 
-    //check the rewardManager received the link
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the rewardManager received the pli
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
     //paying again should revert with 0
     vm.expectRevert(ZERO_DEFICIT);
 
-    payLinkDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
+    payPliDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
   }
 
-  function test_payLinkDeficitPaysAllFeesProcessed() public {
+  function test_payPliDeficitPaysAllFeesProcessed() public {
     //get the default payload
     bytes memory payload = getPayload(getV2Report(DEFAULT_FEED_1_V3));
 
@@ -216,27 +216,27 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     processFee(payload, USER, address(native), 0);
 
     //check the deficit has been increased twice
-    assertEq(getLinkDeficit(DEFAULT_CONFIG_DIGEST), DEFAULT_REPORT_PLI_FEE * 2);
+    assertEq(getPliDeficit(DEFAULT_CONFIG_DIGEST), DEFAULT_REPORT_PLI_FEE * 2);
 
     //double check the rewardManager balance is 0
-    assertEq(getLinkBalance(address(rewardManager)), 0);
+    assertEq(getPliBalance(address(rewardManager)), 0);
 
-    //simulate a deposit of link to cover the deficit
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE * 2);
+    //simulate a deposit of pli to cover the deficit
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE * 2);
 
     vm.expectEmit();
-    emit LinkDeficitCleared(DEFAULT_CONFIG_DIGEST, DEFAULT_REPORT_PLI_FEE * 2);
+    emit PliDeficitCleared(DEFAULT_CONFIG_DIGEST, DEFAULT_REPORT_PLI_FEE * 2);
 
-    //pay the deficit which will transfer link from the rewardManager to the rewardManager
-    payLinkDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
+    //pay the deficit which will transfer pli from the rewardManager to the rewardManager
+    payPliDeficit(DEFAULT_CONFIG_DIGEST, ADMIN);
 
-    //check the rewardManager received the link
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 2);
+    //check the rewardManager received the pli
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 2);
   }
 
-  function test_payLinkDeficitOnlyCallableByAdmin() public {
+  function test_payPliDeficitOnlyCallableByAdmin() public {
     vm.expectRevert(ONLY_CALLABLE_BY_OWNER_ERROR);
 
-    payLinkDeficit(DEFAULT_CONFIG_DIGEST, USER);
+    payPliDeficit(DEFAULT_CONFIG_DIGEST, USER);
   }
 }

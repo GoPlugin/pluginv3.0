@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "../VRFConsumerBaseV2.sol";
 import {ChainSpecificUtil} from "../../ChainSpecificUtil_v0_8_6.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 
 /**
  * @title The VRFLoadTestExternalSubOwner contract.
@@ -12,7 +12,7 @@ import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol
  */
 contract VRFV2LoadTestWithMetrics is VRFConsumerBaseV2 {
   VRFCoordinatorV2Interface public immutable COORDINATOR;
-  LinkTokenInterface public PLITOKEN;
+  PliTokenInterface public PLITOKEN;
   uint256 public s_responseCount;
   uint256 public s_requestCount;
   uint256 public s_averageFulfillmentInMillions = 0; // in millions for better precision
@@ -77,13 +77,13 @@ contract VRFV2LoadTestWithMetrics is VRFConsumerBaseV2 {
     uint32 _numWords,
     uint16 _requestCount,
     uint256 _subTopUpAmount,
-    address _link
+    address _pli
   ) external {
     // create a subscription, address(this) will be the owner
     uint64 _subId = COORDINATOR.createSubscription();
     // add address(this) as a consumer on the subscription
     COORDINATOR.addConsumer(_subId, address(this));
-    topUpSubscription(_subId, _subTopUpAmount, _link);
+    topUpSubscription(_subId, _subTopUpAmount, _pli);
     emit SubscriptionCreatedFundedAndConsumerAdded(_subId, address(this), _subTopUpAmount);
 
     _makeLoadTestRequests(_subId, _requestConfirmations, _keyHash, _callbackGasLimit, _numWords, _requestCount);
@@ -156,8 +156,8 @@ contract VRFV2LoadTestWithMetrics is VRFConsumerBaseV2 {
     }
   }
 
-  function topUpSubscription(uint64 _subId, uint256 _amount, address _link) public {
-    PLITOKEN = LinkTokenInterface(_link);
+  function topUpSubscription(uint64 _subId, uint256 _amount, address _pli) public {
+    PLITOKEN = PliTokenInterface(_pli);
     PLITOKEN.transferAndCall(address(COORDINATOR), _amount, abi.encode(_subId));
   }
 }

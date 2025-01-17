@@ -8,7 +8,7 @@ library SCALibrary {
   // keccak256("executeTransactionFromEntryPoint(address to, uint256 value, bytes calldata data)");
   bytes32 internal constant TYPEHASH = hex"4750045d47fce615521b32cee713ff8db50147e98aec5ca94926b52651ca3fa0";
 
-  enum LinkPaymentType {
+  enum PliPaymentType {
     DIRECT_FUNDING,
     SUBSCRIPTION // TODO: implement
   }

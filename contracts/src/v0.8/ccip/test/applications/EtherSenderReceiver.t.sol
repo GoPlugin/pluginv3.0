@@ -16,7 +16,7 @@ contract EtherSenderReceiverTest is Test {
   EtherSenderReceiverHelper internal s_etherSenderReceiver;
   WETH9 internal s_weth;
   WETH9 internal s_someOtherWeth;
-  ERC20 internal s_linkToken;
+  ERC20 internal s_pliToken;
 
   address internal constant OWNER = 0x00007e64E1fB0C487F25dd6D3601ff6aF8d32e4e;
   address internal constant ROUTER = 0x0F3779ee3a832D10158073ae2F5e61ac7FBBF880;
@@ -25,14 +25,14 @@ contract EtherSenderReceiverTest is Test {
   function setUp() public {
     vm.startPrank(OWNER);
 
-    s_linkToken = new ERC20("Plugin Token", "PLI");
+    s_pliToken = new ERC20("Plugin Token", "PLI");
     s_someOtherWeth = new WETH9();
     s_weth = new WETH9();
     vm.mockCall(ROUTER, abi.encodeWithSelector(CCIPRouter.getWrappedNative.selector), abi.encode(address(s_weth)));
     s_etherSenderReceiver = new EtherSenderReceiverHelper(ROUTER);
 
     deal(OWNER, 1_000_000 ether);
-    deal(address(s_linkToken), OWNER, 1_000_000 ether);
+    deal(address(s_pliToken), OWNER, 1_000_000 ether);
 
     // deposit some eth into the weth contract.
     s_weth.deposit{value: 10 ether}();
@@ -358,18 +358,18 @@ contract EtherSenderReceiverTest_ccipReceive is EtherSenderReceiverTest {
       messageId: keccak256(abi.encode("ccip send")),
       sourceChainSelector: 424242,
       sender: abi.encode(XCHAIN_SENDER),
-      data: abi.encode(address(s_linkToken)), // ERC20 cannot receive() ether.
+      data: abi.encode(address(s_pliToken)), // ERC20 cannot receive() ether.
       destTokenAmounts: destTokenAmounts
     });
 
     // simulate a cross-chain token transfer, just transfer the weth to s_etherSenderReceiver.
     s_weth.transfer(address(s_etherSenderReceiver), amount);
 
-    uint256 balanceBefore = address(s_linkToken).balance;
+    uint256 balanceBefore = address(s_pliToken).balance;
     s_etherSenderReceiver.publicCcipReceive(message);
-    uint256 balanceAfter = address(s_linkToken).balance;
+    uint256 balanceAfter = address(s_pliToken).balance;
     assertEq(balanceAfter, balanceBefore, "balance must be unchanged");
-    uint256 wethBalance = s_weth.balanceOf(address(s_linkToken));
+    uint256 wethBalance = s_weth.balanceOf(address(s_pliToken));
     assertEq(wethBalance, amount, "weth balance must be correct");
   }
 
@@ -469,7 +469,7 @@ contract EtherSenderReceiverTest_ccipSend is EtherSenderReceiverTest {
       receiver: abi.encode(XCHAIN_RECEIVER),
       data: "",
       tokenAmounts: tokenAmounts,
-      feeToken: address(s_linkToken),
+      feeToken: address(s_pliToken),
       extraArgs: ""
     });
 
@@ -481,7 +481,7 @@ contract EtherSenderReceiverTest_ccipSend is EtherSenderReceiverTest {
       abi.encode(feeFromRouter)
     );
 
-    s_linkToken.approve(address(s_etherSenderReceiver), feeSupplied);
+    s_pliToken.approve(address(s_etherSenderReceiver), feeSupplied);
 
     if (feeSupplied < feeFromRouter) {
       vm.expectRevert();
@@ -537,7 +537,7 @@ contract EtherSenderReceiverTest_ccipSend is EtherSenderReceiverTest {
       receiver: abi.encode(XCHAIN_RECEIVER),
       data: "",
       tokenAmounts: tokenAmounts,
-      feeToken: address(s_linkToken),
+      feeToken: address(s_pliToken),
       extraArgs: ""
     });
 
@@ -549,7 +549,7 @@ contract EtherSenderReceiverTest_ccipSend is EtherSenderReceiverTest {
       abi.encode(feeJuels)
     );
 
-    s_linkToken.approve(address(s_etherSenderReceiver), feeJuels - 1);
+    s_pliToken.approve(address(s_etherSenderReceiver), feeJuels - 1);
 
     vm.expectRevert("ERC20: insufficient allowance");
     s_etherSenderReceiver.ccipSend{value: amount}(destinationChainSelector, message);
@@ -660,7 +660,7 @@ contract EtherSenderReceiverTest_ccipSend is EtherSenderReceiverTest {
       receiver: abi.encode(XCHAIN_RECEIVER),
       data: "",
       tokenAmounts: tokenAmounts,
-      feeToken: address(s_linkToken),
+      feeToken: address(s_pliToken),
       extraArgs: ""
     });
 
@@ -678,11 +678,11 @@ contract EtherSenderReceiverTest_ccipSend is EtherSenderReceiverTest {
       abi.encode(expectedMsgId)
     );
 
-    s_linkToken.approve(address(s_etherSenderReceiver), feeJuels);
+    s_pliToken.approve(address(s_etherSenderReceiver), feeJuels);
 
     bytes32 actualMsgId = s_etherSenderReceiver.ccipSend{value: amount}(destinationChainSelector, message);
     assertEq(actualMsgId, expectedMsgId, "message id must be correct");
-    uint256 routerAllowance = s_linkToken.allowance(address(s_etherSenderReceiver), ROUTER);
+    uint256 routerAllowance = s_pliToken.allowance(address(s_etherSenderReceiver), ROUTER);
     assertEq(routerAllowance, feeJuels, "router allowance must be feeJuels");
   }
 

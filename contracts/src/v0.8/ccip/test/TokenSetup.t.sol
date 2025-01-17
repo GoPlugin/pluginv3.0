@@ -84,27 +84,27 @@ contract TokenSetup is RouterSetup {
     }
 
     // Source tokens & pools
-    address sourceLink = _deploySourceToken("sPLI", type(uint256).max, 18);
-    _deployLockReleasePool(sourceLink, true);
-    s_sourceFeeToken = sourceLink;
+    address sourcePli = _deploySourceToken("sPLI", type(uint256).max, 18);
+    _deployLockReleasePool(sourcePli, true);
+    s_sourceFeeToken = sourcePli;
 
     address sourceEth = _deploySourceToken("sETH", 2 ** 128, 18);
     _deployTokenAndBurnMintPool(sourceEth, true);
 
     // Destination tokens & pools
-    address destLink = _deployDestToken("dPLI", type(uint256).max);
-    _deployLockReleasePool(destLink, false);
-    s_destFeeToken = destLink;
+    address destPli = _deployDestToken("dPLI", type(uint256).max);
+    _deployLockReleasePool(destPli, false);
+    s_destFeeToken = destPli;
 
-    s_destTokenBySourceToken[sourceLink] = destLink;
+    s_destTokenBySourceToken[sourcePli] = destPli;
 
     address destEth = _deployDestToken("dETH", 2 ** 128);
     _deployTokenAndBurnMintPool(destEth, false);
 
     s_destTokenBySourceToken[sourceEth] = destEth;
 
-    // Float the dest link lock release pool with funds
-    IERC20(destLink).transfer(s_destPoolByToken[destLink], 1000 ether);
+    // Float the dest pli lock release pool with funds
+    IERC20(destPli).transfer(s_destPoolByToken[destPli], 1000 ether);
 
     s_tokenAdminRegistry = new TokenAdminRegistry();
 

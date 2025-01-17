@@ -16,7 +16,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     super.setUp();
   }
 
-  function test_processMultipleLinkReports() public {
+  function test_processMultiplePliReports() public {
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
     bytes[] memory payloads = new bytes[](NUMBER_OF_REPORTS);
@@ -24,13 +24,13 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
       payloads[i] = payload;
     }
 
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS, USER);
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS, USER);
 
-    processFee(payloads, USER, address(link), DEFAULT_NATIVE_MINT_QUANTITY);
+    processFee(payloads, USER, address(pli), DEFAULT_NATIVE_MINT_QUANTITY);
 
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
-    assertEq(getLinkBalance(address(feeManager)), 0);
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
+    assertEq(getPliBalance(address(feeManager)), 0);
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
 
     //the subscriber (user) should receive funds back and not the proxy, although when live the proxy will forward the funds sent and not cover it seen here
     assertEq(USER.balance, DEFAULT_NATIVE_MINT_QUANTITY);
@@ -38,7 +38,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
   }
 
   function test_processMultipleWrappedNativeReports() public {
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS + 1);
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS + 1);
 
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
@@ -52,13 +52,13 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     processFee(payloads, USER, address(native), 0);
 
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE * NUMBER_OF_REPORTS);
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
-    assertEq(getLinkBalance(address(feeManager)), 1);
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
+    assertEq(getPliBalance(address(feeManager)), 1);
     assertEq(getNativeBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE * NUMBER_OF_REPORTS);
   }
 
   function test_processMultipleUnwrappedNativeReports() public {
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS + 1);
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS + 1);
 
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
@@ -70,15 +70,15 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     processFee(payloads, USER, address(native), DEFAULT_REPORT_NATIVE_FEE * NUMBER_OF_REPORTS * 2);
 
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE * NUMBER_OF_REPORTS);
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
-    assertEq(getLinkBalance(address(feeManager)), 1);
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS);
+    assertEq(getPliBalance(address(feeManager)), 1);
 
     assertEq(PROXY.balance, DEFAULT_NATIVE_MINT_QUANTITY);
     assertEq(USER.balance, DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE * NUMBER_OF_REPORTS);
   }
 
   function test_processV1V2V3Reports() public {
-    mintLink(address(feeManager), 1);
+    mintPli(address(feeManager), 1);
 
     bytes memory payloadV1 = abi.encode(
       [DEFAULT_CONFIG_DIGEST, 0, 0],
@@ -88,30 +88,30 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
       bytes32("")
     );
 
-    bytes memory linkPayloadV2 = getPayload(getV2Report(DEFAULT_FEED_1_V2));
-    bytes memory linkPayloadV3 = getPayload(getV3Report(DEFAULT_FEED_1_V3));
+    bytes memory pliPayloadV2 = getPayload(getV2Report(DEFAULT_FEED_1_V2));
+    bytes memory pliPayloadV3 = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
     bytes[] memory payloads = new bytes[](5);
     payloads[0] = payloadV1;
-    payloads[1] = linkPayloadV2;
-    payloads[2] = linkPayloadV2;
-    payloads[3] = linkPayloadV3;
-    payloads[4] = linkPayloadV3;
+    payloads[1] = pliPayloadV2;
+    payloads[2] = pliPayloadV2;
+    payloads[3] = pliPayloadV3;
+    payloads[4] = pliPayloadV3;
 
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE * 4, USER);
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE * 4, USER);
 
-    processFee(payloads, USER, address(link), 0);
+    processFee(payloads, USER, address(pli), 0);
 
     assertEq(getNativeBalance(address(feeManager)), 0);
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 4);
-    assertEq(getLinkBalance(address(feeManager)), 1);
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 4);
+    assertEq(getPliBalance(address(feeManager)), 1);
 
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * 4);
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * 4);
     assertEq(getNativeBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - 0);
   }
 
   function test_processV1V2V3ReportsWithUnwrapped() public {
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE * 4 + 1);
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE * 4 + 1);
 
     bytes memory payloadV1 = abi.encode(
       [DEFAULT_CONFIG_DIGEST, 0, 0],
@@ -134,8 +134,8 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     processFee(payloads, USER, address(native), DEFAULT_REPORT_NATIVE_FEE * 4);
 
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE * 4);
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 4);
-    assertEq(getLinkBalance(address(feeManager)), 1);
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 4);
+    assertEq(getPliBalance(address(feeManager)), 1);
 
     assertEq(USER.balance, DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE * 4);
     assertEq(PROXY.balance, DEFAULT_NATIVE_MINT_QUANTITY);
@@ -161,7 +161,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     assertEq(PROXY.balance, DEFAULT_NATIVE_MINT_QUANTITY);
   }
 
-  function test_eventIsEmittedIfNotEnoughLink() public {
+  function test_eventIsEmittedIfNotEnoughPli() public {
     bytes memory nativePayload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
     bytes[] memory payloads = new bytes[](5);
@@ -182,12 +182,12 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
 
     vm.expectEmit();
 
-    emit InsufficientLink(payments);
+    emit InsufficientPli(payments);
 
     processFee(payloads, USER, address(native), 0);
 
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE * 5);
     assertEq(getNativeBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE * 5);
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY);
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY);
   }
 }

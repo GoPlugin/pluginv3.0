@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "../VRFConsumerBaseV2.sol";
 
 contract VRFExternalSubOwnerExample is VRFConsumerBaseV2 {
   VRFCoordinatorV2Interface internal COORDINATOR;
-  LinkTokenInterface internal PLITOKEN;
+  PliTokenInterface internal PLITOKEN;
 
   uint256[] public s_randomWords;
   uint256 public s_requestId;
   address internal s_owner;
 
-  constructor(address vrfCoordinator, address link) VRFConsumerBaseV2(vrfCoordinator) {
+  constructor(address vrfCoordinator, address pli) VRFConsumerBaseV2(vrfCoordinator) {
     COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
-    PLITOKEN = LinkTokenInterface(link);
+    PLITOKEN = PliTokenInterface(pli);
     s_owner = msg.sender;
   }
 

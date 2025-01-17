@@ -6,7 +6,7 @@ import {FunctionsSubscriptions} from "../../../dev/v1_X/FunctionsSubscriptions.s
 /// @title Functions Subscriptions Test Harness
 /// @notice Contract to expose internal functions for testing purposes
 contract FunctionsSubscriptionsHarness is FunctionsSubscriptions {
-  constructor(address link) FunctionsSubscriptions(link) {}
+  constructor(address pli) FunctionsSubscriptions(pli) {}
 
   function markRequestInFlight_HARNESS(address client, uint64 subscriptionId, uint96 estimatedTotalCostJuels) external {
     return super._markRequestInFlight(client, subscriptionId, estimatedTotalCostJuels);

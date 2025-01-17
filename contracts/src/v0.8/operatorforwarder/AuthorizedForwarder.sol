@@ -10,18 +10,18 @@ contract AuthorizedForwarder is ConfirmedOwnerWithProposal, AuthorizedReceiver {
   using Address for address;
 
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
-  address public immutable linkToken;
+  address public immutable pliToken;
 
   event OwnershipTransferRequestedWithMessage(address indexed from, address indexed to, bytes message);
 
   constructor(
-    address link,
+    address pli,
     address owner,
     address recipient,
     bytes memory message
   ) ConfirmedOwnerWithProposal(owner, recipient) {
-    require(link != address(0), "Link token cannot be a zero address");
-    linkToken = link;
+    require(pli != address(0), "Pli token cannot be a zero address");
+    pliToken = pli;
     if (recipient != address(0)) {
       emit OwnershipTransferRequestedWithMessage(owner, recipient, message);
     }
@@ -34,7 +34,7 @@ contract AuthorizedForwarder is ConfirmedOwnerWithProposal, AuthorizedReceiver {
   // @param to address
   // @param data to forward
   function forward(address to, bytes calldata data) external validateAuthorizedSender {
-    require(to != linkToken, "Cannot forward to Link token");
+    require(to != pliToken, "Cannot forward to Pli token");
     _forward(to, data);
   }
 
@@ -47,7 +47,7 @@ contract AuthorizedForwarder is ConfirmedOwnerWithProposal, AuthorizedReceiver {
 
     for (uint256 i = 0; i < tos.length; ++i) {
       address to = tos[i];
-      require(to != linkToken, "Cannot forward to Link token");
+      require(to != pliToken, "Cannot forward to Pli token");
 
       // Perform the forward operation
       _forward(to, datas[i]);

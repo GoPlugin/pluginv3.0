@@ -88,7 +88,7 @@ contract BurnMintERC677 is IBurnMintERC20, ERC677, IERC165, ERC20Burnable, Owner
 
   /// @notice Check if recipient is valid (not this contract address).
   /// @param recipient the account we transfer/approve to.
-  /// @dev Reverts with an empty revert to be compatible with the existing link token when
+  /// @dev Reverts with an empty revert to be compatible with the existing pli token when
   /// the recipient is this contract address.
   modifier validAddress(address recipient) virtual {
     // solhint-disable-next-line reason-string, gas-custom-errors

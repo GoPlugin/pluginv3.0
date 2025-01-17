@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import "forge-std/Test.sol";
 
-import {LinkToken} from "../../../shared/token/ERC677/LinkToken.sol";
+import {PliToken} from "../../../shared/token/ERC677/PliToken.sol";
 import {ERC20Mock} from "../../../vendor/openzeppelin-solidity/v4.8.3/contracts/mocks/ERC20Mock.sol";
 import {ERC20Mock6Decimals} from "../../mocks/ERC20Mock6Decimals.sol";
 import {MockV3Aggregator} from "../../../tests/MockV3Aggregator.sol";
@@ -40,7 +40,7 @@ contract BaseTest is Test {
   uint64 internal constant OFFCHAIN_CONFIG_VERSION = 30; // 2 for OCR2
 
   // contracts
-  LinkToken internal linkToken;
+  PliToken internal pliToken;
   ERC20Mock6Decimals internal usdToken6;
   ERC20Mock internal usdToken18;
   ERC20Mock internal usdToken18_2;
@@ -74,8 +74,8 @@ contract BaseTest is Test {
 
   function setUp() public virtual {
     vm.startPrank(OWNER);
-    linkToken = new LinkToken();
-    linkToken.grantMintRole(OWNER);
+    pliToken = new PliToken();
+    pliToken.grantMintRole(OWNER);
     usdToken18 = new ERC20Mock("MOCK_ERC20_18Decimals", "MOCK_ERC20_18Decimals", OWNER, 0);
     usdToken18_2 = new ERC20Mock("Second_MOCK_ERC20_18Decimals", "Second_MOCK_ERC20_18Decimals", OWNER, 0);
     usdToken6 = new ERC20Mock6Decimals("MOCK_ERC20_6Decimals", "MOCK_ERC20_6Decimals", OWNER, 0);
@@ -120,10 +120,10 @@ contract BaseTest is Test {
     vm.deal(FINANCE_ADMIN, 100 ether);
     vm.deal(STRANGER, 100 ether);
 
-    linkToken.mint(OWNER, 1000e18);
-    linkToken.mint(UPKEEP_ADMIN, 1000e18);
-    linkToken.mint(FINANCE_ADMIN, 1000e18);
-    linkToken.mint(STRANGER, 1000e18);
+    pliToken.mint(OWNER, 1000e18);
+    pliToken.mint(UPKEEP_ADMIN, 1000e18);
+    pliToken.mint(FINANCE_ADMIN, 1000e18);
+    pliToken.mint(STRANGER, 1000e18);
 
     usdToken18.mint(OWNER, 1000e18);
     usdToken18.mint(UPKEEP_ADMIN, 1000e18);
@@ -149,7 +149,7 @@ contract BaseTest is Test {
   function deployRegistry(AutoBase.PayoutMode payoutMode) internal returns (Registry) {
     AutomationForwarderLogic forwarderLogic = new AutomationForwarderLogic();
     AutomationRegistryLogicC2_3 logicC2_3 = new AutomationRegistryLogicC2_3(
-      address(linkToken),
+      address(pliToken),
       address(PLI_USD_FEED),
       address(NATIVE_USD_FEED),
       address(FAST_GAS_FEED),
@@ -172,7 +172,7 @@ contract BaseTest is Test {
     IERC20[] memory billingTokens = new IERC20[](4);
     billingTokens[0] = IERC20(address(usdToken18));
     billingTokens[1] = IERC20(address(weth));
-    billingTokens[2] = IERC20(address(linkToken));
+    billingTokens[2] = IERC20(address(pliToken));
     billingTokens[3] = IERC20(address(usdToken6));
     uint256[] memory minRegistrationFees = new uint256[](billingTokens.length);
     minRegistrationFees[0] = 100e18; // 100 USD
@@ -242,7 +242,7 @@ contract BaseTest is Test {
       autoApproveMaxAllowed: 0
     });
     AutomationRegistrar2_3 registrar = new AutomationRegistrar2_3(
-      address(linkToken),
+      address(pliToken),
       registry,
       triggerConfigs,
       billingTokens,
@@ -263,7 +263,7 @@ contract BaseTest is Test {
       maxPerformDataSize: 5_000,
       maxRevertDataSize: 5_000,
       fallbackGasPrice: 20_000_000_000,
-      fallbackLinkPrice: 2_000_000_000, // $20
+      fallbackPliPrice: 2_000_000_000, // $20
       fallbackNativePrice: 400_000_000_000, // $4,000
       transcoder: address(TRANSCODER),
       registrars: registrars,
@@ -461,9 +461,9 @@ contract BaseTest is Test {
   }
 
   /// @dev mints PLI to the recipient
-  function _mintLink(address recipient, uint256 amount) internal {
+  function _mintPli(address recipient, uint256 amount) internal {
     vm.prank(OWNER);
-    linkToken.mint(recipient, amount);
+    pliToken.mint(recipient, amount);
   }
 
   /// @dev mints USDToken with 18 decimals to the recipient

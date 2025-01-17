@@ -69,11 +69,11 @@ cd contracts && pnpm i && cd ../
 kill $spinner_pid
 wait $spinner_pid 2>/dev/null
 
-# Step 3: Download Go modules
-echo "Step 3/6: Downloading Go modules..."
+# Step 3: Build Go modules
+echo "Step 3/6: Building Go modules..."
 spin_animation &
 spinner_pid=$!
-go mod download 
+go mod tidy 
 # Kill spinner after command finishes
 kill $spinner_pid
 wait $spinner_pid 2>/dev/null

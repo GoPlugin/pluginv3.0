@@ -7,11 +7,11 @@ import {MockReceiver} from "./MockReceiver.sol";
 import {AuthorizedForwarder} from "../../AuthorizedForwarder.sol";
 import {Operator} from "../../Operator.sol";
 import {OperatorFactory} from "../../OperatorFactory.sol";
-import {LinkToken} from "../../../shared/token/ERC677/LinkToken.sol";
+import {PliToken} from "../../../shared/token/ERC677/PliToken.sol";
 
 abstract contract Deployer is Test {
   OperatorFactory internal s_factory;
-  LinkToken internal s_link;
+  PliToken internal s_pli;
   MockReceiver internal s_mockReceiver;
 
   address internal constant ALICE = address(0x101);
@@ -25,8 +25,8 @@ abstract contract Deployer is Test {
   }
 
   function _deploy() internal {
-    s_link = new LinkToken();
-    s_factory = new OperatorFactory(address(s_link));
+    s_pli = new PliToken();
+    s_factory = new OperatorFactory(address(s_pli));
 
     s_mockReceiver = new MockReceiver();
   }

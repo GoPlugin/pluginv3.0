@@ -8,7 +8,7 @@ import {BlockhashStore} from "../dev/BlockhashStore.sol";
 import {VRFV2PlusClient} from "../dev/libraries/VRFV2PlusClient.sol";
 import {ExposedVRFCoordinatorV2_5} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5.sol";
 import {VRFV2PlusConsumerExample} from "../dev/testhelpers/VRFV2PlusConsumerExample.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import "./BaseTest.t.sol";
 
@@ -36,8 +36,8 @@ contract FixtureVRFCoordinatorV2_5 is BaseTest, VRF {
   VRFV2PlusConsumerExample internal s_consumer;
   VRFV2PlusConsumerExample internal s_consumer1;
 
-  MockLinkToken internal s_linkToken;
-  MockV3Aggregator internal s_linkNativeFeed;
+  MockPliToken internal s_pliToken;
+  MockV3Aggregator internal s_pliNativeFeed;
 
   function setUp() public virtual override {
     BaseTest.setUp();
@@ -48,17 +48,17 @@ contract FixtureVRFCoordinatorV2_5 is BaseTest, VRF {
 
     // Deploy coordinator.
     s_coordinator = new ExposedVRFCoordinatorV2_5(address(s_bhs));
-    s_linkToken = new MockLinkToken();
-    s_linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    s_pliToken = new MockPliToken();
+    s_pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Configure the coordinator.
-    s_coordinator.setPLIAndPLINativeFeed(address(s_linkToken), address(s_linkNativeFeed));
+    s_coordinator.setPLIAndPLINativeFeed(address(s_pliToken), address(s_pliNativeFeed));
     vm.stopPrank();
 
     // Deploy consumers.
     vm.startPrank(SUBSCRIPTION_OWNER);
-    s_consumer = new VRFV2PlusConsumerExample(address(s_coordinator), address(s_linkToken));
-    s_consumer1 = new VRFV2PlusConsumerExample(address(s_coordinator), address(s_linkToken));
+    s_consumer = new VRFV2PlusConsumerExample(address(s_coordinator), address(s_pliToken));
+    s_consumer1 = new VRFV2PlusConsumerExample(address(s_coordinator), address(s_pliToken));
     vm.stopPrank();
   }
 
@@ -69,11 +69,11 @@ contract FixtureVRFCoordinatorV2_5 is BaseTest, VRF {
       2_500_000, // maxGasLimit
       1, // stalenessSeconds
       50_000, // gasAfterPaymentCalculation
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
   }
 

@@ -1,7 +1,7 @@
 pragma solidity 0.8.19;
 
 import "./BaseTest.t.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {ExposedVRFCoordinatorV2_5_Optimism} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5_Optimism.sol";
 import {OptimismL1Fees} from "../dev/OptimismL1Fees.sol";
@@ -23,8 +23,8 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
 
   BlockhashStore s_bhs;
   ExposedVRFCoordinatorV2_5_Optimism s_testCoordinator;
-  MockLinkToken s_linkToken;
-  MockV3Aggregator s_linkNativeFeed;
+  MockPliToken s_pliToken;
+  MockV3Aggregator s_pliNativeFeed;
 
   uint256 s_startGas = 0.0038 gwei;
   uint256 s_weiPerUnitGas = 0.003 gwei;
@@ -55,21 +55,21 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
 
     // Deploy coordinator, PLI token and PLI/Native feed.
     s_testCoordinator = new ExposedVRFCoordinatorV2_5_Optimism(address(s_bhs));
-    s_linkToken = new MockLinkToken();
-    s_linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    s_pliToken = new MockPliToken();
+    s_pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Configure the coordinator.
-    s_testCoordinator.setPLIAndPLINativeFeed(address(s_linkToken), address(s_linkNativeFeed));
+    s_testCoordinator.setPLIAndPLINativeFeed(address(s_pliToken), address(s_pliNativeFeed));
     s_testCoordinator.setConfig(
       0, // minRequestConfirmations
       2_500_000, // maxGasLimit
       1, // stalenessSeconds
       50_000, // gasAfterPaymentCalculation
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
   }
 
@@ -87,14 +87,14 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
       );
   }
 
-  function _encodeCalculatePaymentAmountLinkExternal(
+  function _encodeCalculatePaymentAmountPliExternal(
     uint256 startGas,
     uint256 weiPerUnitGas,
     bool onlyPremium
   ) internal pure returns (bytes memory) {
     return
       abi.encodeWithSelector(
-        ExposedVRFCoordinatorV2_5_Optimism.calculatePaymentAmountLinkExternal.selector,
+        ExposedVRFCoordinatorV2_5_Optimism.calculatePaymentAmountPliExternal.selector,
         startGas,
         weiPerUnitGas,
         onlyPremium
@@ -247,12 +247,12 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
     assertApproxEqAbs(payment, 5.0015168 * 1e17, 1e15);
   }
 
-  function test_calculatePaymentAmountLinkUsingL1GasFeesMode() public {
+  function test_calculatePaymentAmountPliUsingL1GasFeesMode() public {
     s_testCoordinator.setL1FeeCalculation(L1_GAS_FEES_MODE, 100);
 
     // first we test premium and flat fee payment combined
     bool onlyPremium = false;
-    bytes memory txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    bytes memory txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     _mockGasOraclePriceGetL1FeeCall(txMsgData);
     vm.recordLogs();
 
@@ -267,7 +267,7 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
 
     // now we test only premium payment
     onlyPremium = true;
-    txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     _mockGasOraclePriceGetL1FeeCall(txMsgData);
 
     (success, returnData) = address(s_testCoordinator).call{gas: gasLimit}(txMsgData);
@@ -312,13 +312,13 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
     assertApproxEqAbs(payment, 5.00037 * 1e17, 1e15);
   }
 
-  function test_calculatePaymentAmountLinkUsingCalldataGasCostMode() public {
+  function test_calculatePaymentAmountPliUsingCalldataGasCostMode() public {
     // for this type of cost calculation we are applying coefficient to reduce the inflated gas price
     s_testCoordinator.setL1FeeCalculation(L1_CALLDATA_GAS_COST_MODE, 70);
 
     // first we test premium and flat fee payment combined
     bool onlyPremium = false;
-    bytes memory txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    bytes memory txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     _mockGasOraclePriceFeeMethods();
     vm.recordLogs();
 
@@ -333,7 +333,7 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
 
     // now we test only premium payment
     onlyPremium = true;
-    txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     _mockGasOraclePriceFeeMethods();
 
     (success, returnData) = address(s_testCoordinator).call{gas: gasLimit}(txMsgData);
@@ -378,13 +378,13 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
     assertApproxEqAbs(payment, 5.015017 * 1e17, 1e15);
   }
 
-  function test_calculatePaymentAmountLinkUsingL1GasFeesUpperBoundMode() public {
+  function test_calculatePaymentAmountPliUsingL1GasFeesUpperBoundMode() public {
     // for this type of cost calculation we are applying coefficient to reduce the inflated gas price
     s_testCoordinator.setL1FeeCalculation(L1_GAS_FEES_UPPER_BOUND_MODE, 50);
 
     // first we test premium and flat fee payment combined
     bool onlyPremium = false;
-    bytes memory txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    bytes memory txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     _mockGasOraclePriceGetL1FeeUpperBoundCall();
     vm.recordLogs();
 
@@ -399,7 +399,7 @@ contract VRFV2CoordinatorV2_5_Optimism is BaseTest {
 
     // now we test only premium payment
     onlyPremium = true;
-    txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     _mockGasOraclePriceGetL1FeeUpperBoundCall();
 
     (success, returnData) = address(s_testCoordinator).call{gas: gasLimit}(txMsgData);

@@ -32,8 +32,8 @@ contract ZKSyncAutomationRegistryLogicA2_3 is ZKSyncAutomationRegistryBase2_3, C
     ZKSyncAutomationRegistryLogicB2_3 logicB
   )
     ZKSyncAutomationRegistryBase2_3(
-      ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getLinkAddress(),
-      ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getLinkUSDFeedAddress(),
+      ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getPliAddress(),
+      ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getPliUSDFeedAddress(),
       ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getNativeUSDFeedAddress(),
       ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getFastGasFeedAddress(),
       ZKSyncAutomationRegistryLogicC2_3(address(logicB)).getAutomationForwarderLogic(),
@@ -51,13 +51,13 @@ contract ZKSyncAutomationRegistryLogicA2_3 is ZKSyncAutomationRegistryBase2_3, C
    * @param amount number of PLI transfer
    */
   function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
-    if (msg.sender != address(i_link)) revert OnlyCallableByPLIToken();
+    if (msg.sender != address(i_pli)) revert OnlyCallableByPLIToken();
     if (data.length != 32) revert InvalidDataLength();
     uint256 id = abi.decode(data, (uint256));
     if (s_upkeep[id].maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
-    if (address(s_upkeep[id].billingToken) != address(i_link)) revert InvalidToken();
+    if (address(s_upkeep[id].billingToken) != address(i_pli)) revert InvalidToken();
     s_upkeep[id].balance = s_upkeep[id].balance + uint96(amount);
-    s_reserveAmounts[IERC20(address(i_link))] = s_reserveAmounts[IERC20(address(i_link))] + amount;
+    s_reserveAmounts[IERC20(address(i_pli))] = s_reserveAmounts[IERC20(address(i_pli))] + amount;
     emit FundsAdded(id, sender, uint96(amount));
   }
 

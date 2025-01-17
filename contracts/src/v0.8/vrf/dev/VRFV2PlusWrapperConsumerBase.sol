@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {IVRFV2PlusWrapper} from "./interfaces/IVRFV2PlusWrapper.sol";
 
 /**
@@ -31,7 +31,7 @@ import {IVRFV2PlusWrapper} from "./interfaces/IVRFV2PlusWrapper.sol";
 abstract contract VRFV2PlusWrapperConsumerBase {
   error OnlyVRFWrapperCanFulfill(address have, address want);
 
-  LinkTokenInterface internal immutable i_linkToken;
+  PliTokenInterface internal immutable i_pliToken;
   IVRFV2PlusWrapper public immutable i_vrfV2PlusWrapper;
 
   /**
@@ -40,7 +40,7 @@ abstract contract VRFV2PlusWrapperConsumerBase {
   constructor(address _vrfV2PlusWrapper) {
     IVRFV2PlusWrapper vrfV2PlusWrapper = IVRFV2PlusWrapper(_vrfV2PlusWrapper);
 
-    i_linkToken = LinkTokenInterface(vrfV2PlusWrapper.link());
+    i_pliToken = PliTokenInterface(vrfV2PlusWrapper.pli());
     i_vrfV2PlusWrapper = vrfV2PlusWrapper;
   }
 
@@ -64,7 +64,7 @@ abstract contract VRFV2PlusWrapperConsumerBase {
     bytes memory extraArgs
   ) internal returns (uint256 requestId, uint256 reqPrice) {
     reqPrice = i_vrfV2PlusWrapper.calculateRequestPrice(_callbackGasLimit, _numWords);
-    i_linkToken.transferAndCall(
+    i_pliToken.transferAndCall(
       address(i_vrfV2PlusWrapper),
       reqPrice,
       abi.encode(_callbackGasLimit, _requestConfirmations, _numWords, extraArgs)
@@ -114,8 +114,8 @@ abstract contract VRFV2PlusWrapperConsumerBase {
     return address(this).balance;
   }
 
-  /// @notice getLinkToken returns the link token contract
-  function getLinkToken() public view returns (LinkTokenInterface) {
-    return i_linkToken;
+  /// @notice getPliToken returns the pli token contract
+  function getPliToken() public view returns (PliTokenInterface) {
+    return i_pliToken;
   }
 }

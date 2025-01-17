@@ -45,7 +45,7 @@ contract VerifierBillingTests is VerifierWithFeeManager {
         observationsTimestamp: OBSERVATIONS_TIMESTAMP,
         validFromTimestamp: uint32(timestamp),
         nativeFee: uint192(DEFAULT_REPORT_NATIVE_FEE),
-        linkFee: uint192(DEFAULT_REPORT_PLI_FEE),
+        pliFee: uint192(DEFAULT_REPORT_PLI_FEE),
         // ask michael about this expires at, is it usually set at what blocks
         expiresAt: uint32(timestamp) + 500,
         benchmarkPrice: MEDIAN,
@@ -99,21 +99,21 @@ contract VerifierBillingTests is VerifierWithFeeManager {
     bytes memory signedReport = _generateV3EncodedBlob(s_testReport, s_reportContext, signers);
     bytes32 expectedDonConfigId = _donConfigIdFromConfigData(signerAddrs, FAULT_TOLERANCE);
 
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-    _verify(signedReport, address(link), 0, USER);
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _verify(signedReport, address(pli), 0, USER);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
 
     // internal state checks
-    assertEq(feeManager.s_linkDeficit(expectedDonConfigId), 0);
+    assertEq(feeManager.s_pliDeficit(expectedDonConfigId), 0);
     assertEq(rewardManager.s_totalRewardRecipientFees(expectedDonConfigId), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
     // check the recipients are paid according to weights
     address[] memory recipients = new address[](1);
     recipients[0] = DEFAULT_RECIPIENT_1;
     payRecipients(expectedDonConfigId, recipients, ADMIN);
-    assertEq(link.balanceOf(recipients[0]), DEFAULT_REPORT_PLI_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), 0);
+    assertEq(pli.balanceOf(recipients[0]), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), 0);
   }
 
   function test_rewardsAreDistributedAccordingToWeightsMultipleWeigths() public {
@@ -134,8 +134,8 @@ contract VerifierBillingTests is VerifierWithFeeManager {
     uint256 number_of_reports_verified = 10;
 
     for (uint256 i = 0; i < number_of_reports_verified; i++) {
-      _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-      _verify(signedReport, address(link), 0, USER);
+      _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+      _verify(signedReport, address(pli), 0, USER);
     }
 
     uint256 expected_pool_amount = DEFAULT_REPORT_PLI_FEE * number_of_reports_verified;
@@ -146,10 +146,10 @@ contract VerifierBillingTests is VerifierWithFeeManager {
     payRecipients(expectedDonConfigId, recipients, ADMIN);
     for (uint256 i = 0; i < recipients.length; i++) {
       // checking each recipient got rewards as set by the weights
-      assertEq(link.balanceOf(recipients[i]), expectedRecipientAmount);
+      assertEq(pli.balanceOf(recipients[i]), expectedRecipientAmount);
     }
     // checking nothing left in reward manager
-    assertEq(link.balanceOf(address(rewardManager)), 0);
+    assertEq(pli.balanceOf(address(rewardManager)), 0);
   }
 
   function test_rewardsAreDistributedAccordingToWeightsUsingHistoricalConfigs() public {
@@ -191,14 +191,14 @@ contract VerifierBillingTests is VerifierWithFeeManager {
 
     // verifiying using ConfigA (report with Old timestamp)
     for (uint256 i = 0; i < number_of_reports_verified; i++) {
-      _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-      _verify(signedReportT1, address(link), 0, USER);
+      _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+      _verify(signedReportT1, address(pli), 0, USER);
     }
 
     // verifying using ConfigB (report with new timestamp)
     for (uint256 i = 0; i < number_of_reports_verified; i++) {
-      _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
-      _verify(_generateV3EncodedBlob(testReportAtT2, s_reportContext, signers2), address(link), 0, USER);
+      _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+      _verify(_generateV3EncodedBlob(testReportAtT2, s_reportContext, signers2), address(pli), 0, USER);
     }
 
     uint256 expected_pool_amount = DEFAULT_REPORT_PLI_FEE * number_of_reports_verified;
@@ -210,18 +210,18 @@ contract VerifierBillingTests is VerifierWithFeeManager {
 
     for (uint256 i = 0; i < recipients.length; i++) {
       // //each recipient should receive 1/4 of the pool
-      assertEq(link.balanceOf(recipients[i]), expected_pool_amount / 4);
+      assertEq(pli.balanceOf(recipients[i]), expected_pool_amount / 4);
     }
 
     payRecipients(expectedDonConfigIdB, recipients2, ADMIN);
 
     for (uint256 i = 1; i < recipients2.length; i++) {
       // //each recipient should receive 1/4 of the pool
-      assertEq(link.balanceOf(recipients2[i]), expected_pool_amount / 4);
+      assertEq(pli.balanceOf(recipients2[i]), expected_pool_amount / 4);
     }
 
     // this recipient was part of the two config weights
-    assertEq(link.balanceOf(recipients2[0]), (expected_pool_amount / 4) * 2);
-    assertEq(link.balanceOf(address(rewardManager)), 0);
+    assertEq(pli.balanceOf(recipients2[0]), (expected_pool_amount / 4) * 2);
+    assertEq(pli.balanceOf(address(rewardManager)), 0);
   }
 }

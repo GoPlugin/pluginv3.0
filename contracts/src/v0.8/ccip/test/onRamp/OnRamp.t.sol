@@ -313,7 +313,7 @@ contract OnRamp_forwardFromRouter is OnRampSetup {
     }
   }
 
-  function test_ShouldStoreLinkFees() public {
+  function test_ShouldStorePliFees() public {
     Client.EVM2AnyMessage memory message = _generateEmptyMessage();
 
     uint256 feeAmount = 1234567890;
@@ -327,7 +327,7 @@ contract OnRamp_forwardFromRouter is OnRampSetup {
     assertEq(IERC20(s_sourceFeeToken).balanceOf(address(s_onRamp)), feeAmount);
   }
 
-  function test_ShouldStoreNonLinkFees() public {
+  function test_ShouldStoreNonPliFees() public {
     Client.EVM2AnyMessage memory message = _generateEmptyMessage();
     message.feeToken = s_sourceTokens[1];
 
@@ -336,8 +336,8 @@ contract OnRamp_forwardFromRouter is OnRampSetup {
 
     // Calculate conversion done by prices contract
     uint256 feeTokenPrice = s_feeQuoter.getTokenPrice(s_sourceTokens[1]).value;
-    uint256 linkTokenPrice = s_feeQuoter.getTokenPrice(s_sourceFeeToken).value;
-    uint256 conversionRate = (feeTokenPrice * 1e18) / linkTokenPrice;
+    uint256 pliTokenPrice = s_feeQuoter.getTokenPrice(s_sourceFeeToken).value;
+    uint256 conversionRate = (feeTokenPrice * 1e18) / pliTokenPrice;
     uint256 expectedJuels = (feeAmount * conversionRate) / 1e18;
 
     vm.expectEmit();

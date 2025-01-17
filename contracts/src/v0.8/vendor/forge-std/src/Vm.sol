@@ -686,9 +686,9 @@ interface VmSafe {
     /// Reads next line of file to string.
     function readLine(string calldata path) external view returns (string memory line);
 
-    /// Reads a symbolic link, returning the path that the link points to.
+    /// Reads a symbolic link, returning the path that the pli points to.
     /// This cheatcode will revert in the following situations, but is not limited to just these cases:
-    /// - `path` is not a symbolic link.
+    /// - `path` is not a symbolic pli.
     /// - `path` does not exist.
     function readLink(string calldata linkPath) external view returns (string memory targetPath);
 

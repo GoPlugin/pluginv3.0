@@ -17,7 +17,7 @@ import {IERC20} from "../../../../vendor/openzeppelin-solidity/v4.8.3/contracts/
 This test checks the interfaces of destination verifier matches the expectations.
 The code here comes from this example:
 
-https://docs.chain.link/plugin-automation/guides/streams-lookup
+https://docs.chain.pli/plugin-automation/guides/streams-lookup
 
 */
 
@@ -58,7 +58,7 @@ interface IFeeManager {
     address quoteAddress
   ) external returns (Common.Asset memory, Common.Asset memory, uint256);
 
-  function i_linkAddress() external view returns (address);
+  function i_pliAddress() external view returns (address);
 
   function i_nativeAddress() external view returns (address);
 
@@ -66,7 +66,7 @@ interface IFeeManager {
 }
 
 //Tests
-// https://docs.chain.link/plugin-automation/guides/streams-lookup
+// https://docs.chain.pli/plugin-automation/guides/streams-lookup
 contract VerifierInterfacesTest is VerifierWithFeeManager {
   address internal constant DEFAULT_RECIPIENT_1 = address(uint160(uint256(keccak256("DEFAULT_RECIPIENT_1"))));
 
@@ -91,7 +91,7 @@ contract VerifierInterfacesTest is VerifierWithFeeManager {
       observationsTimestamp: OBSERVATIONS_TIMESTAMP,
       validFromTimestamp: uint32(block.timestamp),
       nativeFee: uint192(DEFAULT_REPORT_NATIVE_FEE),
-      linkFee: uint192(DEFAULT_REPORT_PLI_FEE),
+      pliFee: uint192(DEFAULT_REPORT_PLI_FEE),
       expiresAt: uint32(block.timestamp),
       benchmarkPrice: MEDIAN,
       bid: BID,
@@ -115,14 +115,14 @@ contract VerifierInterfacesTest is VerifierWithFeeManager {
     IFeeManager feeManager = IFeeManager(address(verifier.s_feeManager()));
     IDestinationRewardManager rewardManager = IDestinationRewardManager(address(feeManager.i_rewardManager()));
 
-    address feeTokenAddress = feeManager.i_linkAddress();
+    address feeTokenAddress = feeManager.i_pliAddress();
     (Common.Asset memory fee, , ) = feeManager.getFeeAndReward(address(this), reportData, feeTokenAddress);
 
     // Approve rewardManager to spend this contract's balance in fees
-    _approveLink(address(rewardManager), fee.amount, USER);
+    _approvePli(address(rewardManager), fee.amount, USER);
     _verify(unverifiedReport, address(feeTokenAddress), 0, USER);
 
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - fee.amount);
-    assertEq(link.balanceOf(address(rewardManager)), fee.amount);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - fee.amount);
+    assertEq(pli.balanceOf(address(rewardManager)), fee.amount);
   }
 }

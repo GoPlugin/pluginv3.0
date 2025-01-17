@@ -16,68 +16,68 @@ contract VRFCoordinatorV2TestHelper {
     // Reentrancy protection.
     bool reentrancyLock;
     // stalenessSeconds is how long before we consider the feed price to be stale
-    // and fallback to fallbackWeiPerUnitLink.
+    // and fallback to fallbackWeiPerUnitPli.
     uint32 stalenessSeconds;
     // Gas to cover oracle payment after we calculate the payment.
     // We make it configurable in case those operations are repriced.
     uint32 gasAfterPaymentCalculation;
   }
-  int256 private s_fallbackWeiPerUnitLink;
+  int256 private s_fallbackWeiPerUnitPli;
   Config private s_config;
 
   constructor(
-    address linkEthFeed // solhint-disable-next-line no-empty-blocks
+    address pliEthFeed // solhint-disable-next-line no-empty-blocks
   ) {
-    PLI_ETH_FEED = AggregatorV3Interface(linkEthFeed);
+    PLI_ETH_FEED = AggregatorV3Interface(pliEthFeed);
   }
 
   function calculatePaymentAmountTest(
     uint256 gasAfterPaymentCalculation,
-    uint32 fulfillmentFlatFeeLinkPPM,
+    uint32 fulfillmentFlatFeePliPPM,
     uint256 weiPerUnitGas
   ) external {
     s_paymentAmount = calculatePaymentAmount(
       gasleft(),
       gasAfterPaymentCalculation,
-      fulfillmentFlatFeeLinkPPM,
+      fulfillmentFlatFeePliPPM,
       weiPerUnitGas
     );
   }
 
-  error InvalidLinkWeiPrice(int256 linkWei);
+  error InvalidPliWeiPrice(int256 pliWei);
   error PaymentTooLarge();
 
   function getFeedData() private view returns (int256) {
     uint32 stalenessSeconds = s_config.stalenessSeconds;
     bool staleFallback = stalenessSeconds > 0;
     uint256 timestamp;
-    int256 weiPerUnitLink;
-    (, weiPerUnitLink, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
+    int256 weiPerUnitPli;
+    (, weiPerUnitPli, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     if (staleFallback && stalenessSeconds < block.timestamp - timestamp) {
-      weiPerUnitLink = s_fallbackWeiPerUnitLink;
+      weiPerUnitPli = s_fallbackWeiPerUnitPli;
     }
-    return weiPerUnitLink;
+    return weiPerUnitPli;
   }
 
   // Get the amount of gas used for fulfillment
   function calculatePaymentAmount(
     uint256 startGas,
     uint256 gasAfterPaymentCalculation,
-    uint32 fulfillmentFlatFeeLinkPPM,
+    uint32 fulfillmentFlatFeePliPPM,
     uint256 weiPerUnitGas
   ) internal view returns (uint96) {
-    int256 weiPerUnitLink;
-    weiPerUnitLink = getFeedData();
-    if (weiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(weiPerUnitLink);
+    int256 weiPerUnitPli;
+    weiPerUnitPli = getFeedData();
+    if (weiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(weiPerUnitPli);
     }
-    // (1e18 juels/link) (wei/gas * gas) / (wei/link) = juels
+    // (1e18 juels/pli) (wei/gas * gas) / (wei/pli) = juels
     uint256 paymentNoFee = (1e18 * weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft())) /
-      uint256(weiPerUnitLink);
-    uint256 fee = 1e12 * uint256(fulfillmentFlatFeeLinkPPM);
+      uint256(weiPerUnitPli);
+    uint256 fee = 1e12 * uint256(fulfillmentFlatFeePliPPM);
     if (paymentNoFee > (1e27 - fee)) {
-      revert PaymentTooLarge(); // Payment + fee cannot be more than all of the link in existence.
+      revert PaymentTooLarge(); // Payment + fee cannot be more than all of the pli in existence.
     }
     return uint96(paymentNoFee + fee);
   }

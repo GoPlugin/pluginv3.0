@@ -5,10 +5,10 @@ import {VRFV2PlusClient} from "../dev/libraries/VRFV2PlusClient.sol";
 import {SubscriptionAPI} from "../dev/SubscriptionAPI.sol";
 import {VRFCoordinatorV2_5Mock} from "../mocks/VRFCoordinatorV2_5Mock.sol";
 import {VRFConsumerV2Plus} from "../testhelpers/VRFConsumerV2Plus.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 
 contract VRFCoordinatorV2_5MockTest is BaseTest {
-  MockLinkToken internal s_linkToken;
+  MockPliToken internal s_pliToken;
   VRFCoordinatorV2_5Mock internal s_vrfCoordinatorV2_5Mock;
   VRFConsumerV2Plus internal s_vrfConsumerV2Plus;
   address internal s_subOwner = address(1234);
@@ -20,14 +20,14 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
   uint32 internal constant DEFAULT_NUM_WORDS = 1;
 
   uint96 internal constant oneNative = 1 ether;
-  uint96 internal constant twoLink = 2 ether;
+  uint96 internal constant twoPli = 2 ether;
 
   event SubscriptionCreated(uint256 indexed subId, address owner);
   event SubscriptionFunded(uint256 indexed subId, uint256 oldBalance, uint256 newBalance);
   event SubscriptionFundedWithNative(uint256 indexed subId, uint256 oldNativeBalance, uint256 newNativeBalance);
   event SubscriptionConsumerAdded(uint256 indexed subId, address consumer);
   event SubscriptionConsumerRemoved(uint256 indexed subId, address consumer);
-  event SubscriptionCanceled(uint256 indexed subId, address to, uint256 amountLink, uint256 amountNative);
+  event SubscriptionCanceled(uint256 indexed subId, address to, uint256 amountPli, uint256 amountNative);
 
   event RandomWordsRequested(
     bytes32 indexed keyHash,
@@ -58,13 +58,13 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
     vm.deal(OWNER, 10_000 ether);
     vm.deal(s_subOwner, 20 ether);
 
-    // Deploy link token and link/eth feed.
-    s_linkToken = new MockLinkToken();
+    // Deploy pli token and pli/eth feed.
+    s_pliToken = new MockPliToken();
 
     // Deploy coordinator and consumer.
     s_vrfCoordinatorV2_5Mock = new VRFCoordinatorV2_5Mock(0.002 ether, 40 gwei, 0.004 ether);
     address coordinatorAddr = address(s_vrfCoordinatorV2_5Mock);
-    s_vrfConsumerV2Plus = new VRFConsumerV2Plus(coordinatorAddr, address(s_linkToken));
+    s_vrfConsumerV2Plus = new VRFConsumerV2Plus(coordinatorAddr, address(s_pliToken));
 
     s_vrfCoordinatorV2_5Mock.setConfig();
   }
@@ -206,14 +206,14 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
     uint256 subId = s_vrfCoordinatorV2_5Mock.createSubscription();
 
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionFunded(subId, 0, twoLink);
-    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoLink);
+    emit SubscriptionFunded(subId, 0, twoPli);
+    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoPli);
 
     (uint96 balance, , , , address[] memory consumers) = s_vrfCoordinatorV2_5Mock.getSubscription(subId);
-    assertEq(balance, twoLink);
+    assertEq(balance, twoPli);
     assertEq(consumers.length, 0);
 
-    assertEq(s_vrfCoordinatorV2_5Mock.s_totalBalance(), twoLink);
+    assertEq(s_vrfCoordinatorV2_5Mock.s_totalBalance(), twoPli);
 
     vm.stopPrank();
   }
@@ -223,7 +223,7 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
     vm.startPrank(s_subOwner);
 
     vm.expectRevert(SubscriptionAPI.InvalidSubscription.selector);
-    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoLink);
+    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoPli);
 
     vm.stopPrank();
   }
@@ -257,20 +257,20 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
   }
 
   // can cancel a subscription
-  function test_CancelSubscription_Link() public {
+  function test_CancelSubscription_Pli() public {
     vm.startPrank(s_subOwner);
     uint256 subId = s_vrfCoordinatorV2_5Mock.createSubscription();
 
-    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoLink);
+    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoPli);
 
     uint256 totalBalance = s_vrfCoordinatorV2_5Mock.s_totalBalance();
 
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionCanceled(subId, s_subOwner, twoLink, 0);
+    emit SubscriptionCanceled(subId, s_subOwner, twoPli, 0);
     s_vrfCoordinatorV2_5Mock.cancelSubscription(subId, s_subOwner);
 
     // check coordinator balance decreased
-    assertEq(s_vrfCoordinatorV2_5Mock.s_totalBalance(), totalBalance - twoLink);
+    assertEq(s_vrfCoordinatorV2_5Mock.s_totalBalance(), totalBalance - twoPli);
 
     // sub owner balance did not increase as no actual token is involved
 
@@ -313,7 +313,7 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
     vm.startPrank(s_subOwner);
     uint256 subId = s_vrfCoordinatorV2_5Mock.createSubscription();
 
-    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoLink);
+    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoPli);
 
     vm.expectRevert(abi.encodeWithSelector(SubscriptionAPI.InvalidConsumer.selector, subId, address(s_subOwner)));
     VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
@@ -370,11 +370,11 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
   }
 
   // can request and fulfill [ @skip-coverage ]
-  function test_RequestRandomWords_Link_HappyPath() public {
+  function test_RequestRandomWords_Pli_HappyPath() public {
     vm.startPrank(s_subOwner);
     uint256 subId = s_vrfCoordinatorV2_5Mock.createSubscription();
 
-    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoLink);
+    s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoPli);
 
     address consumerAddr = address(s_vrfConsumerV2Plus);
     s_vrfCoordinatorV2_5Mock.addConsumer(subId, consumerAddr);
@@ -460,7 +460,7 @@ contract VRFCoordinatorV2_5MockTest is BaseTest {
       s_vrfCoordinatorV2_5Mock.fundSubscriptionWithNative{value: oneNative}(subId);
     } else {
       expectedPayment = 1252860000000000000;
-      s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoLink);
+      s_vrfCoordinatorV2_5Mock.fundSubscription(subId, twoPli);
     }
 
     address consumerAddr = address(s_vrfConsumerV2Plus);

@@ -50,16 +50,16 @@ interface IDestinationFeeManager is IERC165 {
   function withdraw(address assetAddress, address recipientAddress, uint192 quantity) external;
 
   /**
-   * @notice Returns the link balance of the fee manager
-   * @return link balance of the fee manager
+   * @notice Returns the pli balance of the fee manager
+   * @return pli balance of the fee manager
    */
-  function linkAvailableForPayment() external returns (uint256);
+  function pliAvailableForPayment() external returns (uint256);
 
   /**
    * @notice Admin function to pay the PLI deficit for a given config digest
    * @param configDigest the config digest to pay the deficit for
    */
-  function payLinkDeficit(bytes32 configDigest) external;
+  function payPliDeficit(bytes32 configDigest) external;
 
   /**
    * @notice Adds the verifier to the list of verifiers able to use the feeManager

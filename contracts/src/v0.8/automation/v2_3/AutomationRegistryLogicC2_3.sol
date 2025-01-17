@@ -18,8 +18,8 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
    * @dev see AutomationRegistry master contract for constructor description
    */
   constructor(
-    address link,
-    address linkUSDFeed,
+    address pli,
+    address pliUSDFeed,
     address nativeUSDFeed,
     address fastGasFeed,
     address automationForwarderLogic,
@@ -28,8 +28,8 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
     address wrappedNativeTokenAddress
   )
     AutomationRegistryBase2_3(
-      link,
-      linkUSDFeed,
+      pli,
+      pliUSDFeed,
       nativeUSDFeed,
       fastGasFeed,
       automationForwarderLogic,
@@ -77,8 +77,8 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
     if (s_transmitterPayees[from] != msg.sender) revert OnlyCallableByPayee();
     uint96 balance = _updateTransmitterBalanceFromPool(from, s_hotVars.totalPremium, uint96(s_transmittersList.length));
     s_transmitters[from].balance = 0;
-    s_reserveAmounts[IERC20(address(i_link))] = s_reserveAmounts[IERC20(address(i_link))] - balance;
-    bool transferStatus = i_link.transfer(to, balance);
+    s_reserveAmounts[IERC20(address(i_pli))] = s_reserveAmounts[IERC20(address(i_pli))] - balance;
+    bool transferStatus = i_pli.transfer(to, balance);
     if (!transferStatus) {
       revert TransferFailed();
     }
@@ -194,7 +194,7 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
     }
 
     // reserve amount of PLI is reset to 0 since no user deposits of PLI are expected in offchain mode
-    s_reserveAmounts[IERC20(address(i_link))] = 0;
+    s_reserveAmounts[IERC20(address(i_pli))] = 0;
 
     for (uint256 idx = s_deactivatedTransmitters.length(); idx > 0; idx--) {
       s_deactivatedTransmitters.remove(s_deactivatedTransmitters.at(idx - 1));
@@ -242,12 +242,12 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
     return CANCELLATION_DELAY;
   }
 
-  function getLinkAddress() external view returns (address) {
-    return address(i_link);
+  function getPliAddress() external view returns (address) {
+    return address(i_pli);
   }
 
-  function getLinkUSDFeedAddress() external view returns (address) {
-    return address(i_linkUSDFeed);
+  function getPliUSDFeedAddress() external view returns (address) {
+    return address(i_pliUSDFeed);
   }
 
   function getNativeUSDFeedAddress() external view returns (address) {
@@ -408,7 +408,7 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
         maxPerformDataSize: s_storage.maxPerformDataSize,
         maxRevertDataSize: s_storage.maxRevertDataSize,
         fallbackGasPrice: s_fallbackGasPrice,
-        fallbackLinkPrice: s_fallbackLinkPrice,
+        fallbackPliPrice: s_fallbackPliPrice,
         fallbackNativePrice: s_fallbackNativePrice,
         transcoder: s_storage.transcoder,
         registrars: s_registrars.values(),
@@ -436,8 +436,8 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
   {
     state = IAutomationV21PlusCommon.StateLegacy({
       nonce: s_storage.nonce,
-      ownerLinkBalance: 0, // deprecated
-      expectedLinkBalance: 0, // deprecated
+      ownerPliBalance: 0, // deprecated
+      expectedPliBalance: 0, // deprecated
       totalPremium: s_hotVars.totalPremium,
       numUpkeeps: s_upkeepIDs.length(),
       configCount: s_storage.configCount,
@@ -449,7 +449,7 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
 
     config = IAutomationV21PlusCommon.OnchainConfigLegacy({
       paymentPremiumPPB: 0, // deprecated
-      flatFeeMicroLink: 0, // deprecated
+      flatFeeMicroPli: 0, // deprecated
       checkGasLimit: s_storage.checkGasLimit,
       stalenessSeconds: s_hotVars.stalenessSeconds,
       gasCeilingMultiplier: s_hotVars.gasCeilingMultiplier,
@@ -459,7 +459,7 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
       maxPerformDataSize: s_storage.maxPerformDataSize,
       maxRevertDataSize: s_storage.maxRevertDataSize,
       fallbackGasPrice: s_fallbackGasPrice,
-      fallbackLinkPrice: s_fallbackLinkPrice,
+      fallbackPliPrice: s_fallbackPliPrice,
       transcoder: s_storage.transcoder,
       registrars: s_registrars.values(),
       upkeepPrivilegeManager: s_storage.upkeepPrivilegeManager
@@ -537,8 +537,8 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
     IERC20 billingToken
   ) public view returns (uint96 maxPayment) {
     HotVars memory hotVars = s_hotVars;
-    (uint256 fastGasWei, uint256 linkUSD, uint256 nativeUSD) = _getFeedData(hotVars);
-    return _getMaxPayment(id, hotVars, triggerType, gasLimit, fastGasWei, linkUSD, nativeUSD, billingToken);
+    (uint256 fastGasWei, uint256 pliUSD, uint256 nativeUSD) = _getFeedData(hotVars);
+    return _getMaxPayment(id, hotVars, triggerType, gasLimit, fastGasWei, pliUSD, nativeUSD, billingToken);
   }
 
   /**
@@ -601,8 +601,8 @@ contract AutomationRegistryLogicC2_3 is AutomationRegistryBase2_3 {
   /**
    * @notice returns the size of the PLI liquidity pool
    */
-  function linkAvailableForPayment() public view returns (int256) {
-    return _linkAvailableForPayment();
+  function pliAvailableForPayment() public view returns (int256) {
+    return _pliAvailableForPayment();
   }
 
   /**

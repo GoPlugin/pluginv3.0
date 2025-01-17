@@ -23,8 +23,8 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
     AutomationRegistryLogicC2_3 logicC
   )
     AutomationRegistryBase2_3(
-      logicC.getLinkAddress(),
-      logicC.getLinkUSDFeedAddress(),
+      logicC.getPliAddress(),
+      logicC.getPliUSDFeedAddress(),
       logicC.getNativeUSDFeedAddress(),
       logicC.getFastGasFeedAddress(),
       logicC.getAutomationForwarderLogic(),
@@ -60,7 +60,7 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
       uint256 gasUsed,
       uint256 gasLimit,
       uint256 fastGasWei,
-      uint256 linkUSD
+      uint256 pliUSD
     )
   {
     _preventExecution();
@@ -76,14 +76,14 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
       if (upkeep.maxValidBlocknumber != UINT32_MAX)
         return (false, bytes(""), UpkeepFailureReason.UPKEEP_CANCELLED, 0, upkeep.performGas, 0, 0);
       if (upkeep.paused) return (false, bytes(""), UpkeepFailureReason.UPKEEP_PAUSED, 0, upkeep.performGas, 0, 0);
-      (fastGasWei, linkUSD, nativeUSD) = _getFeedData(hotVars);
+      (fastGasWei, pliUSD, nativeUSD) = _getFeedData(hotVars);
       maxPayment = _getMaxPayment(
         id,
         hotVars,
         triggerType,
         upkeep.performGas,
         fastGasWei,
-        linkUSD,
+        pliUSD,
         nativeUSD,
         upkeep.billingToken
       );
@@ -109,7 +109,7 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
           gasUsed,
           upkeep.performGas,
           fastGasWei,
-          linkUSD
+          pliUSD
         );
       }
       return (
@@ -119,13 +119,13 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
         gasUsed,
         upkeep.performGas,
         fastGasWei,
-        linkUSD
+        pliUSD
       );
     }
 
     (upkeepNeeded, performData) = abi.decode(result, (bool, bytes));
     if (!upkeepNeeded)
-      return (false, bytes(""), UpkeepFailureReason.UPKEEP_NOT_NEEDED, gasUsed, upkeep.performGas, fastGasWei, linkUSD);
+      return (false, bytes(""), UpkeepFailureReason.UPKEEP_NOT_NEEDED, gasUsed, upkeep.performGas, fastGasWei, pliUSD);
 
     if (performData.length > s_storage.maxPerformDataSize)
       return (
@@ -135,10 +135,10 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
         gasUsed,
         upkeep.performGas,
         fastGasWei,
-        linkUSD
+        pliUSD
       );
 
-    return (upkeepNeeded, performData, upkeepFailureReason, gasUsed, upkeep.performGas, fastGasWei, linkUSD);
+    return (upkeepNeeded, performData, upkeepFailureReason, gasUsed, upkeep.performGas, fastGasWei, pliUSD);
   }
 
   /**
@@ -156,7 +156,7 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
       uint256 gasUsed,
       uint256 gasLimit,
       uint256 fastGasWei,
-      uint256 linkUSD
+      uint256 pliUSD
     )
   {
     return checkUpkeep(id, bytes(""));
@@ -409,22 +409,22 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
    * @param to the address to send the fees to
    * @param amount the amount to withdraw
    */
-  function withdrawLink(address to, uint256 amount) external {
+  function withdrawPli(address to, uint256 amount) external {
     _onlyFinanceAdminAllowed();
     if (to == ZERO_ADDRESS) revert InvalidRecipient();
 
-    int256 available = _linkAvailableForPayment();
+    int256 available = _pliAvailableForPayment();
     if (available < 0) {
       revert InsufficientBalance(0, amount);
     } else if (amount > uint256(available)) {
       revert InsufficientBalance(uint256(available), amount);
     }
 
-    bool transferStatus = i_link.transfer(to, amount);
+    bool transferStatus = i_pli.transfer(to, amount);
     if (!transferStatus) {
       revert TransferFailed();
     }
-    emit FeesWithdrawn(address(i_link), to, amount);
+    emit FeesWithdrawn(address(i_pli), to, amount);
   }
 
   /**
@@ -438,8 +438,8 @@ contract AutomationRegistryLogicB2_3 is AutomationRegistryBase2_3, Chainable {
   function withdrawERC20Fees(IERC20 asset, address to, uint256 amount) external {
     _onlyFinanceAdminAllowed();
     if (to == ZERO_ADDRESS) revert InvalidRecipient();
-    if (address(asset) == address(i_link)) revert InvalidToken();
-    if (_linkAvailableForPayment() < 0 && s_payoutMode == PayoutMode.ON_CHAIN) revert InsufficientLinkLiquidity();
+    if (address(asset) == address(i_pli)) revert InvalidToken();
+    if (_pliAvailableForPayment() < 0 && s_payoutMode == PayoutMode.ON_CHAIN) revert InsufficientPliLiquidity();
     uint256 available = asset.balanceOf(address(this)) - s_reserveAmounts[asset];
     if (amount > available) revert InsufficientBalance(available, amount);
 

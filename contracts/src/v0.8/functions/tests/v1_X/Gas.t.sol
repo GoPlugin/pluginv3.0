@@ -80,7 +80,7 @@ contract Gas_FundSubscription is FunctionsSubscriptionSetup {
     bytes memory data = abi.encode(s_subscriptionId);
     vm.resumeGasMetering();
 
-    s_linkToken.transferAndCall(routerAddress, s_subscriptionFunding, data);
+    s_pliToken.transferAndCall(routerAddress, s_subscriptionFunding, data);
   }
 }
 

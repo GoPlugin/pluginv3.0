@@ -7,11 +7,11 @@ import {VRFV2PlusWrapper} from "./VRFV2PlusWrapper.sol";
 // solhint-disable-next-line contract-name-camelcase
 contract VRFV2PlusWrapper_Arbitrum is VRFV2PlusWrapper, ArbitrumL1Fees {
   constructor(
-    address _link,
-    address _linkNativeFeed,
+    address _pli,
+    address _pliNativeFeed,
     address _coordinator,
     uint256 _subId
-  ) VRFV2PlusWrapper(_link, _linkNativeFeed, _coordinator, _subId) {}
+  ) VRFV2PlusWrapper(_pli, _pliNativeFeed, _coordinator, _subId) {}
 
   /**
    * @notice Returns estimated L1 gas fee cost for fulfillment calldata payload once

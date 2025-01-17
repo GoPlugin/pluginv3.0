@@ -18,7 +18,7 @@ foundry-cache
 cache
 node_modules
 solc
-LinkToken.json
+PliToken.json
 typechain
 **/vendor
 src/v0.8/ccip/**

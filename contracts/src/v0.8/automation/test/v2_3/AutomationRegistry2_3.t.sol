@@ -55,7 +55,7 @@ contract SetUp is BaseTest {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -66,7 +66,7 @@ contract SetUp is BaseTest {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -106,8 +106,8 @@ contract SetUp is BaseTest {
     );
 
     vm.startPrank(OWNER);
-    registry.addFunds(linkUpkeepID, registry.getMinBalanceForUpkeep(linkUpkeepID));
-    registry.addFunds(linkUpkeepID2, registry.getMinBalanceForUpkeep(linkUpkeepID2));
+    registry.addFunds(pliUpkeepID, registry.getMinBalanceForUpkeep(pliUpkeepID));
+    registry.addFunds(pliUpkeepID2, registry.getMinBalanceForUpkeep(pliUpkeepID2));
     registry.addFunds(usdUpkeepID18, registry.getMinBalanceForUpkeep(usdUpkeepID18));
     registry.addFunds(usdUpkeepID6, registry.getMinBalanceForUpkeep(usdUpkeepID6));
     registry.addFunds(nativeUpkeepID, registry.getMinBalanceForUpkeep(nativeUpkeepID));
@@ -142,37 +142,37 @@ contract WithdrawFunds is SetUp {
   function test_RevertsWhen_CalledByNonAdmin() external {
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
     vm.prank(STRANGER);
-    registry.withdrawFunds(linkUpkeepID, STRANGER);
+    registry.withdrawFunds(pliUpkeepID, STRANGER);
   }
 
   function test_RevertsWhen_InvalidRecipient() external {
     vm.expectRevert(Registry.InvalidRecipient.selector);
     vm.prank(UPKEEP_ADMIN);
-    registry.withdrawFunds(linkUpkeepID, ZERO_ADDRESS);
+    registry.withdrawFunds(pliUpkeepID, ZERO_ADDRESS);
   }
 
   function test_RevertsWhen_UpkeepNotCanceled() external {
     vm.expectRevert(Registry.UpkeepNotCanceled.selector);
     vm.prank(UPKEEP_ADMIN);
-    registry.withdrawFunds(linkUpkeepID, UPKEEP_ADMIN);
+    registry.withdrawFunds(pliUpkeepID, UPKEEP_ADMIN);
   }
 
-  function test_Happy_Link() external {
+  function test_Happy_Pli() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
     vm.roll(100 + block.number);
 
     uint256 startUpkeepAdminBalance = pliToken.balanceOf(UPKEEP_ADMIN);
-    uint256 startLinkReserveAmountBalance = registry.getReserveAmount(address(linkToken));
+    uint256 startPliReserveAmountBalance = registry.getReserveAmount(address(pliToken));
 
-    uint256 upkeepBalance = registry.getBalance(linkUpkeepID);
+    uint256 upkeepBalance = registry.getBalance(pliUpkeepID);
     vm.expectEmit();
-    emit FundsWithdrawn(linkUpkeepID, upkeepBalance, address(UPKEEP_ADMIN));
-    registry.withdrawFunds(linkUpkeepID, UPKEEP_ADMIN);
+    emit FundsWithdrawn(pliUpkeepID, upkeepBalance, address(UPKEEP_ADMIN));
+    registry.withdrawFunds(pliUpkeepID, UPKEEP_ADMIN);
 
-    assertEq(registry.getBalance(linkUpkeepID), 0);
-    assertEq(linkToken.balanceOf(UPKEEP_ADMIN), startUpkeepAdminBalance + upkeepBalance);
-    assertEq(registry.getReserveAmount(address(linkToken)), startLinkReserveAmountBalance - upkeepBalance);
+    assertEq(registry.getBalance(pliUpkeepID), 0);
+    assertEq(pliToken.balanceOf(UPKEEP_ADMIN), startUpkeepAdminBalance + upkeepBalance);
+    assertEq(registry.getReserveAmount(address(pliToken)), startPliReserveAmountBalance - upkeepBalance);
   }
 
   function test_Happy_USDToken() external {
@@ -221,7 +221,7 @@ contract AddFunds is SetUp {
   // it fails when the billing token is not native, but trying to pay with native
   function test_RevertsWhen_NativePaymentDoesntMatchBillingToken() external {
     vm.expectRevert(abi.encodeWithSelector(Registry.InvalidToken.selector));
-    registry.addFunds{value: 1}(linkUpkeepID, 0);
+    registry.addFunds{value: 1}(pliUpkeepID, 0);
   }
 
   function test_RevertsWhen_UpkeepDoesNotExist() public {
@@ -230,19 +230,19 @@ contract AddFunds is SetUp {
   }
 
   function test_RevertsWhen_UpkeepIsCanceled() public {
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.addFunds(linkUpkeepID, 1);
+    registry.addFunds(pliUpkeepID, 1);
   }
 
   function test_anyoneCanAddFunds() public {
-    uint256 startAmount = registry.getBalance(linkUpkeepID);
+    uint256 startAmount = registry.getBalance(pliUpkeepID);
     vm.prank(UPKEEP_ADMIN);
-    registry.addFunds(linkUpkeepID, 1);
-    assertEq(registry.getBalance(linkUpkeepID), startAmount + 1);
+    registry.addFunds(pliUpkeepID, 1);
+    assertEq(registry.getBalance(pliUpkeepID), startAmount + 1);
     vm.prank(STRANGER);
-    registry.addFunds(linkUpkeepID, 1);
-    assertEq(registry.getBalance(linkUpkeepID), startAmount + 2);
+    registry.addFunds(pliUpkeepID, 1);
+    assertEq(registry.getBalance(pliUpkeepID), startAmount + 2);
   }
 
   function test_movesFundFromCorrectToken() public {
@@ -250,86 +250,86 @@ contract AddFunds is SetUp {
 
     uint256 startPLIRegistryBalance = pliToken.balanceOf(address(registry));
     uint256 startUSDRegistryBalance = usdToken18.balanceOf(address(registry));
-    uint256 startLinkUpkeepBalance = registry.getBalance(linkUpkeepID);
+    uint256 startPliUpkeepBalance = registry.getBalance(pliUpkeepID);
     uint256 startUSDUpkeepBalance = registry.getBalance(usdUpkeepID18);
 
-    registry.addFunds(linkUpkeepID, 1);
-    assertEq(registry.getBalance(linkUpkeepID), startLinkUpkeepBalance + 1);
+    registry.addFunds(pliUpkeepID, 1);
+    assertEq(registry.getBalance(pliUpkeepID), startPliUpkeepBalance + 1);
     assertEq(registry.getBalance(usdUpkeepID18), startUSDRegistryBalance);
-    assertEq(linkToken.balanceOf(address(registry)), startPLIRegistryBalance + 1);
+    assertEq(pliToken.balanceOf(address(registry)), startPLIRegistryBalance + 1);
     assertEq(usdToken18.balanceOf(address(registry)), startUSDUpkeepBalance);
 
     registry.addFunds(usdUpkeepID18, 2);
-    assertEq(registry.getBalance(linkUpkeepID), startLinkUpkeepBalance + 1);
+    assertEq(registry.getBalance(pliUpkeepID), startPliUpkeepBalance + 1);
     assertEq(registry.getBalance(usdUpkeepID18), startUSDRegistryBalance + 2);
-    assertEq(linkToken.balanceOf(address(registry)), startPLIRegistryBalance + 1);
+    assertEq(pliToken.balanceOf(address(registry)), startPLIRegistryBalance + 1);
     assertEq(usdToken18.balanceOf(address(registry)), startUSDUpkeepBalance + 2);
   }
 
   function test_emitsAnEvent() public {
     vm.startPrank(UPKEEP_ADMIN);
     vm.expectEmit();
-    emit FundsAdded(linkUpkeepID, address(UPKEEP_ADMIN), 100);
-    registry.addFunds(linkUpkeepID, 100);
+    emit FundsAdded(pliUpkeepID, address(UPKEEP_ADMIN), 100);
+    registry.addFunds(pliUpkeepID, 100);
   }
 }
 
 contract Withdraw is SetUp {
   address internal aMockAddress = randomAddress();
 
-  function testLinkAvailableForPaymentReturnsLinkBalance() public {
+  function testPliAvailableForPaymentReturnsPliBalance() public {
     uint256 startBalance = pliToken.balanceOf(address(registry));
-    int256 startLinkAvailable = registry.linkAvailableForPayment();
+    int256 startPliAvailable = registry.pliAvailableForPayment();
 
     //simulate a deposit of pli to the liquidity pool
-    _mintLink(address(registry), 1e10);
+    _mintPli(address(registry), 1e10);
 
     //check there's a balance
-    assertEq(linkToken.balanceOf(address(registry)), startBalance + 1e10);
+    assertEq(pliToken.balanceOf(address(registry)), startBalance + 1e10);
 
     //check the pli available has increased by the same amount
-    assertEq(uint256(registry.linkAvailableForPayment()), uint256(startLinkAvailable) + 1e10);
+    assertEq(uint256(registry.pliAvailableForPayment()), uint256(startPliAvailable) + 1e10);
   }
 
-  function testWithdrawLinkRevertsBecauseOnlyFinanceAdminAllowed() public {
+  function testWithdrawPliRevertsBecauseOnlyFinanceAdminAllowed() public {
     vm.expectRevert(abi.encodeWithSelector(Registry.OnlyFinanceAdmin.selector));
-    registry.withdrawLink(aMockAddress, 1);
+    registry.withdrawPli(aMockAddress, 1);
   }
 
-  function testWithdrawLinkRevertsBecauseOfInsufficientBalance() public {
+  function testWithdrawPliRevertsBecauseOfInsufficientBalance() public {
     vm.startPrank(FINANCE_ADMIN);
 
     // try to withdraw 1 pli while there is 0 balance
     vm.expectRevert(abi.encodeWithSelector(Registry.InsufficientBalance.selector, 0, 1));
-    registry.withdrawLink(aMockAddress, 1);
+    registry.withdrawPli(aMockAddress, 1);
 
     vm.stopPrank();
   }
 
-  function testWithdrawLinkRevertsBecauseOfInvalidRecipient() public {
+  function testWithdrawPliRevertsBecauseOfInvalidRecipient() public {
     vm.startPrank(FINANCE_ADMIN);
 
     // try to withdraw 1 pli while there is 0 balance
     vm.expectRevert(abi.encodeWithSelector(Registry.InvalidRecipient.selector));
-    registry.withdrawLink(ZERO_ADDRESS, 1);
+    registry.withdrawPli(ZERO_ADDRESS, 1);
 
     vm.stopPrank();
   }
 
-  function testWithdrawLinkSuccess() public {
+  function testWithdrawPliSuccess() public {
     //simulate a deposit of pli to the liquidity pool
-    _mintLink(address(registry), 1e10);
+    _mintPli(address(registry), 1e10);
     uint256 startBalance = pliToken.balanceOf(address(registry));
 
     vm.startPrank(FINANCE_ADMIN);
 
     // try to withdraw 1 pli while there is a ton of pli available
-    registry.withdrawLink(aMockAddress, 1);
+    registry.withdrawPli(aMockAddress, 1);
 
     vm.stopPrank();
 
-    assertEq(linkToken.balanceOf(address(aMockAddress)), 1);
-    assertEq(linkToken.balanceOf(address(registry)), startBalance - 1);
+    assertEq(pliToken.balanceOf(address(aMockAddress)), 1);
+    assertEq(pliToken.balanceOf(address(registry)), startBalance - 1);
   }
 
   function test_WithdrawERC20Fees_RespectsReserveAmount() public {
@@ -340,25 +340,25 @@ contract Withdraw is SetUp {
   }
 
   function test_WithdrawERC20Fees_RevertsWhen_AttemptingToWithdrawPLI() public {
-    _mintLink(address(registry), 1e10);
+    _mintPli(address(registry), 1e10);
     vm.startPrank(FINANCE_ADMIN);
     vm.expectRevert(Registry.InvalidToken.selector);
-    registry.withdrawERC20Fees(address(linkToken), FINANCE_ADMIN, 1); // should revert
-    registry.withdrawLink(FINANCE_ADMIN, 1); // but using pli withdraw functions succeeds
+    registry.withdrawERC20Fees(address(pliToken), FINANCE_ADMIN, 1); // should revert
+    registry.withdrawPli(FINANCE_ADMIN, 1); // but using pli withdraw functions succeeds
   }
 
   // default is ON_CHAIN mode
-  function test_WithdrawERC20Fees_RevertsWhen_LinkAvailableForPaymentIsNegative() public {
+  function test_WithdrawERC20Fees_RevertsWhen_PliAvailableForPaymentIsNegative() public {
     _transmit(usdUpkeepID18, registry); // adds USD token to finance withdrawable, and gives NOPs a PLI balance
-    require(registry.linkAvailableForPayment() < 0, "linkAvailableForPayment should be negative");
+    require(registry.pliAvailableForPayment() < 0, "pliAvailableForPayment should be negative");
     require(
       registry.getAvailableERC20ForPayment(address(usdToken18)) > 0,
       "ERC20AvailableForPayment should be positive"
     );
-    vm.expectRevert(Registry.InsufficientLinkLiquidity.selector);
+    vm.expectRevert(Registry.InsufficientPliLiquidity.selector);
     vm.prank(FINANCE_ADMIN);
     registry.withdrawERC20Fees(address(usdToken18), FINANCE_ADMIN, 1); // should revert
-    _mintLink(address(registry), uint256(registry.linkAvailableForPayment() * -10)); // top up PLI liquidity pool
+    _mintPli(address(registry), uint256(registry.pliAvailableForPayment() * -10)); // top up PLI liquidity pool
     vm.prank(FINANCE_ADMIN);
     registry.withdrawERC20Fees(address(usdToken18), FINANCE_ADMIN, 1); // now finance can withdraw
   }
@@ -376,7 +376,7 @@ contract Withdraw is SetUp {
 
     // manually create a transmit so transmitters earn some rewards
     _transmit(id, registry);
-    require(registry.linkAvailableForPayment() < 0, "linkAvailableForPayment should be negative");
+    require(registry.pliAvailableForPayment() < 0, "pliAvailableForPayment should be negative");
     vm.prank(FINANCE_ADMIN);
     registry.withdrawERC20Fees(address(usdToken18), aMockAddress, 1); // finance can withdraw
 
@@ -431,7 +431,7 @@ contract SetConfig is SetUp {
       maxPerformDataSize: 5_000,
       maxRevertDataSize: 5_000,
       fallbackGasPrice: 20_000_000_000,
-      fallbackLinkPrice: 2_000_000_000, // $20
+      fallbackPliPrice: 2_000_000_000, // $20
       fallbackNativePrice: 400_000_000_000, // $4,000
       transcoder: 0xB1e66855FD67f6e85F0f0fA38cd6fBABdf00923c,
       registrars: _getRegistrars(),
@@ -516,7 +516,7 @@ contract SetConfig is SetUp {
     (uint32 configCount, , ) = registry.latestConfigDetails();
     assertEq(configCount, 1);
 
-    address billingTokenAddress1 = address(linkToken);
+    address billingTokenAddress1 = address(pliToken);
     address billingTokenAddress2 = address(usdToken18);
     address[] memory billingTokens = new address[](2);
     billingTokens[0] = billingTokenAddress1;
@@ -640,7 +640,7 @@ contract SetConfig is SetUp {
       maxPerformDataSize: 5_000,
       maxRevertDataSize: 5_000,
       fallbackGasPrice: 20_000_000_000,
-      fallbackLinkPrice: 2_000_000_000, // $20
+      fallbackPliPrice: 2_000_000_000, // $20
       fallbackNativePrice: 400_000_000_000, // $4,000
       transcoder: 0xB1e66855FD67f6e85F0f0fA38cd6fBABdf00923c,
       registrars: newRegistrars,
@@ -694,8 +694,8 @@ contract SetConfig is SetUp {
     (uint32 configCount, , ) = registry.latestConfigDetails();
     assertEq(configCount, 1);
 
-    address billingTokenAddress1 = address(linkToken);
-    address billingTokenAddress2 = address(linkToken);
+    address billingTokenAddress1 = address(pliToken);
+    address billingTokenAddress2 = address(pliToken);
     address[] memory billingTokens = new address[](2);
     billingTokens[0] = billingTokenAddress1;
     billingTokens[1] = billingTokenAddress2;
@@ -734,7 +734,7 @@ contract SetConfig is SetUp {
 
   function testSetConfigRevertDueToInvalidToken() public {
     address[] memory billingTokens = new address[](1);
-    billingTokens[0] = address(linkToken);
+    billingTokens[0] = address(pliToken);
 
     AutomationRegistryBase2_3.BillingConfig[] memory billingConfigs = new AutomationRegistryBase2_3.BillingConfig[](1);
     billingConfigs[0] = AutomationRegistryBase2_3.BillingConfig({
@@ -764,7 +764,7 @@ contract SetConfig is SetUp {
 
   function testSetConfigRevertDueToInvalidDecimals() public {
     address[] memory billingTokens = new address[](1);
-    billingTokens[0] = address(linkToken);
+    billingTokens[0] = address(pliToken);
 
     AutomationRegistryBase2_3.BillingConfig[] memory billingConfigs = new AutomationRegistryBase2_3.BillingConfig[](1);
     billingConfigs[0] = AutomationRegistryBase2_3.BillingConfig({
@@ -1032,7 +1032,7 @@ contract NOPsSettlement is SetUp {
     }
 
     // after the offchain settlement, the total reserve amount of PLI should be 0
-    assertEq(registry.getReserveAmount(address(linkToken)), 0);
+    assertEq(registry.getReserveAmount(address(pliToken)), 0);
     // should have some ERC20s in registry after transmit
     uint256 erc20ForPayment1 = registry.getAvailableERC20ForPayment(address(usdToken18));
     require(erc20ForPayment1 > 0, "ERC20AvailableForPayment should be positive");
@@ -1052,8 +1052,8 @@ contract NOPsSettlement is SetUp {
     uint256 erc20ForPayment3 = registry.getAvailableERC20ForPayment(address(usdToken18));
     require(erc20ForPayment3 == 0, "ERC20AvailableForPayment should be 0 now after withdrawal");
 
-    uint256 reservedLink = registry.getReserveAmount(address(linkToken));
-    require(reservedLink > 0, "Reserve amount of PLI should be positive since there was another transmit");
+    uint256 reservedPli = registry.getReserveAmount(address(pliToken));
+    require(reservedPli > 0, "Reserve amount of PLI should be positive since there was another transmit");
 
     // owner comes to disable offchain mode
     vm.startPrank(registry.owner());
@@ -1062,11 +1062,11 @@ contract NOPsSettlement is SetUp {
     // finance admin comes to withdraw all available ERC20s, should revert bc of insufficient pli liquidity
     vm.startPrank(FINANCE_ADMIN);
     uint256 erc20ForPayment4 = registry.getAvailableERC20ForPayment(address(usdToken18));
-    vm.expectRevert(abi.encodeWithSelector(Registry.InsufficientLinkLiquidity.selector));
+    vm.expectRevert(abi.encodeWithSelector(Registry.InsufficientPliLiquidity.selector));
     registry.withdrawERC20Fees(address(usdToken18), FINANCE_ADMIN, erc20ForPayment4);
 
     // reserved pli amount to NOPs should stay the same after switching to onchain mode
-    assertEq(registry.getReserveAmount(address(linkToken)), reservedLink);
+    assertEq(registry.getReserveAmount(address(pliToken)), reservedPli);
     // available ERC20 for payment should be 0 since finance admin withdrew all already
     assertEq(erc20ForPayment4, 0);
   }
@@ -1166,7 +1166,7 @@ contract NOPsSettlement is SetUp {
     }
 
     // after the offchain settlement, the total reserve amount of PLI should be 0
-    assertEq(registry.getReserveAmount(address(linkToken)), 0);
+    assertEq(registry.getReserveAmount(address(pliToken)), 0);
   }
 
   function testDisableOffchainPaymentsRevertDueToUnauthorizedCaller() public {
@@ -1202,7 +1202,7 @@ contract NOPsSettlement is SetUp {
     _transmit(id, registry);
 
     // disable offchain payments
-    _mintLink(address(registry), 1e19);
+    _mintPli(address(registry), 1e19);
     vm.prank(registry.owner());
     registry.disableOffchainPayments();
 
@@ -1244,7 +1244,7 @@ contract NOPsSettlement is SetUp {
     }
 
     // disable offchain payments
-    _mintLink(address(registry), 1e19);
+    _mintPli(address(registry), 1e19);
     vm.prank(registry.owner());
     registry.disableOffchainPayments();
 
@@ -1308,7 +1308,7 @@ contract NOPsSettlement is SetUp {
       maxPerformDataSize: 5_000,
       maxRevertDataSize: 5_000,
       fallbackGasPrice: 20_000_000_000,
-      fallbackLinkPrice: 2_000_000_000, // $20
+      fallbackPliPrice: 2_000_000_000, // $20
       fallbackNativePrice: 400_000_000_000, // $4,000
       transcoder: 0xB1e66855FD67f6e85F0f0fA38cd6fBABdf00923c,
       registrars: registrars,
@@ -1351,7 +1351,7 @@ contract RegisterUpkeep is SetUp {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -1365,7 +1365,7 @@ contract RegisterUpkeep is SetUp {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -1380,7 +1380,7 @@ contract RegisterUpkeep is SetUp {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -1394,7 +1394,7 @@ contract RegisterUpkeep is SetUp {
       2299, // 1 less than min
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -1408,7 +1408,7 @@ contract RegisterUpkeep is SetUp {
       config.maxPerformGas + 1,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       "",
       "",
       ""
@@ -1436,7 +1436,7 @@ contract RegisterUpkeep is SetUp {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.CONDITION),
-      address(linkToken),
+      address(pliToken),
       randomBytes(config.maxCheckDataSize + 1),
       "",
       ""
@@ -1455,7 +1455,7 @@ contract RegisterUpkeep is SetUp {
       config.maxPerformGas,
       UPKEEP_ADMIN,
       uint8(Trigger.LOG),
-      address(linkToken),
+      address(pliToken),
       checkData,
       trigggerConfig,
       offchainConfig
@@ -1474,13 +1474,13 @@ contract RegisterUpkeep is SetUp {
 }
 
 contract OnTokenTransfer is SetUp {
-  function test_RevertsWhen_NotCalledByTheLinkToken() public {
+  function test_RevertsWhen_NotCalledByThePliToken() public {
     vm.expectRevert(Registry.OnlyCallableByPLIToken.selector);
-    registry.onTokenTransfer(UPKEEP_ADMIN, 100, abi.encode(linkUpkeepID));
+    registry.onTokenTransfer(UPKEEP_ADMIN, 100, abi.encode(pliUpkeepID));
   }
 
   function test_RevertsWhen_NotCalledWithExactly32Bytes() public {
-    vm.startPrank(address(linkToken));
+    vm.startPrank(address(pliToken));
     vm.expectRevert(Registry.InvalidDataLength.selector);
     registry.onTokenTransfer(UPKEEP_ADMIN, 100, randomBytes(31));
     vm.expectRevert(Registry.InvalidDataLength.selector);
@@ -1488,22 +1488,22 @@ contract OnTokenTransfer is SetUp {
   }
 
   function test_RevertsWhen_TheUpkeepIsCancelledOrDNE() public {
-    vm.startPrank(address(linkToken));
+    vm.startPrank(address(pliToken));
     vm.expectRevert(Registry.UpkeepCancelled.selector);
     registry.onTokenTransfer(UPKEEP_ADMIN, 100, abi.encode(randomNumber()));
   }
 
   function test_RevertsWhen_TheUpkeepDoesNotUsePLIAsItsBillingToken() public {
-    vm.startPrank(address(linkToken));
+    vm.startPrank(address(pliToken));
     vm.expectRevert(Registry.InvalidToken.selector);
     registry.onTokenTransfer(UPKEEP_ADMIN, 100, abi.encode(usdUpkeepID18));
   }
 
   function test_Happy() public {
-    vm.startPrank(address(linkToken));
-    uint256 beforeBalance = registry.getBalance(linkUpkeepID);
-    registry.onTokenTransfer(UPKEEP_ADMIN, 100, abi.encode(linkUpkeepID));
-    assertEq(registry.getBalance(linkUpkeepID), beforeBalance + 100);
+    vm.startPrank(address(pliToken));
+    uint256 beforeBalance = registry.getBalance(pliUpkeepID);
+    registry.onTokenTransfer(UPKEEP_ADMIN, 100, abi.encode(pliUpkeepID));
+    assertEq(registry.getBalance(pliUpkeepID), beforeBalance + 100);
   }
 }
 
@@ -1558,7 +1558,7 @@ contract BillingOverrides is SetUp {
     });
 
     vm.expectRevert(Registry.OnlyCallableByUpkeepPrivilegeManager.selector);
-    registry.setBillingOverrides(linkUpkeepID, billingOverrides);
+    registry.setBillingOverrides(pliUpkeepID, billingOverrides);
   }
 
   function test_RevertsWhen_UpkeepCancelled() public {
@@ -1567,11 +1567,11 @@ contract BillingOverrides is SetUp {
       flatFeeMilliCents: 20_000
     });
 
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.startPrank(PRIVILEGE_MANAGER);
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.setBillingOverrides(linkUpkeepID, billingOverrides);
+    registry.setBillingOverrides(pliUpkeepID, billingOverrides);
   }
 
   function test_Happy_SetBillingOverrides() public {
@@ -1583,20 +1583,20 @@ contract BillingOverrides is SetUp {
     vm.startPrank(PRIVILEGE_MANAGER);
 
     vm.expectEmit();
-    emit BillingConfigOverridden(linkUpkeepID, billingOverrides);
-    registry.setBillingOverrides(linkUpkeepID, billingOverrides);
+    emit BillingConfigOverridden(pliUpkeepID, billingOverrides);
+    registry.setBillingOverrides(pliUpkeepID, billingOverrides);
   }
 
   function test_Happy_RemoveBillingOverrides() public {
     vm.startPrank(PRIVILEGE_MANAGER);
 
     vm.expectEmit();
-    emit BillingConfigOverrideRemoved(linkUpkeepID);
-    registry.removeBillingOverrides(linkUpkeepID);
+    emit BillingConfigOverrideRemoved(pliUpkeepID);
+    registry.removeBillingOverrides(pliUpkeepID);
   }
 
   function test_Happy_MaxGasPayment_WithBillingOverrides() public {
-    uint96 maxPayment1 = registry.getMaxPaymentForGas(linkUpkeepID, 0, 5_000_000, address(linkToken));
+    uint96 maxPayment1 = registry.getMaxPaymentForGas(pliUpkeepID, 0, 5_000_000, address(pliToken));
 
     // Double the two billing values
     AutomationRegistryBase2_3.BillingOverrides memory billingOverrides = AutomationRegistryBase2_3.BillingOverrides({
@@ -1605,12 +1605,12 @@ contract BillingOverrides is SetUp {
     });
 
     vm.startPrank(PRIVILEGE_MANAGER);
-    registry.setBillingOverrides(linkUpkeepID, billingOverrides);
+    registry.setBillingOverrides(pliUpkeepID, billingOverrides);
 
     // maxPayment2 should be greater than maxPayment1 after the overrides
     // The 2 numbers should follow this: maxPayment2 - maxPayment1 == 2 * recepit.premium
     // We do not apply the exact equation since we couldn't get the receipt.premium value
-    uint96 maxPayment2 = registry.getMaxPaymentForGas(linkUpkeepID, 0, 5_000_000, address(linkToken));
+    uint96 maxPayment2 = registry.getMaxPaymentForGas(pliUpkeepID, 0, 5_000_000, address(pliToken));
     assertGt(maxPayment2, maxPayment1);
   }
 }
@@ -1655,7 +1655,7 @@ contract Transmit is SetUp {
 
   function test_handlesMixedBatchOfBillingTokens() external {
     uint256[] memory prevUpkeepBalances = new uint256[](3);
-    prevUpkeepBalances[0] = registry.getBalance(linkUpkeepID);
+    prevUpkeepBalances[0] = registry.getBalance(pliUpkeepID);
     prevUpkeepBalances[1] = registry.getBalance(usdUpkeepID18);
     prevUpkeepBalances[2] = registry.getBalance(nativeUpkeepID);
     uint256[] memory prevTokenBalances = new uint256[](3);
@@ -1663,7 +1663,7 @@ contract Transmit is SetUp {
     prevTokenBalances[1] = usdToken18.balanceOf(address(registry));
     prevTokenBalances[2] = weth.balanceOf(address(registry));
     uint256[] memory prevReserveBalances = new uint256[](3);
-    prevReserveBalances[0] = registry.getReserveAmount(address(linkToken));
+    prevReserveBalances[0] = registry.getReserveAmount(address(pliToken));
     prevReserveBalances[1] = registry.getReserveAmount(address(usdToken18));
     prevReserveBalances[2] = registry.getReserveAmount(address(weth));
     uint256[] memory upkeepIDs = new uint256[](3);
@@ -1686,7 +1686,7 @@ contract Transmit is SetUp {
     require(registry.getAvailableERC20ForPayment(address(weth)) > 0, "ERC20AvailableForPayment should be positive");
 
     // assert upkeep balances have decreased
-    require(prevUpkeepBalances[0] > registry.getBalance(linkUpkeepID), "link upkeep balance should have decreased");
+    require(prevUpkeepBalances[0] > registry.getBalance(pliUpkeepID), "pli upkeep balance should have decreased");
     require(prevUpkeepBalances[1] > registry.getBalance(usdUpkeepID18), "usd upkeep balance should have decreased");
     require(prevUpkeepBalances[2] > registry.getBalance(nativeUpkeepID), "native upkeep balance should have decreased");
     // assert token balances have not changed
@@ -1695,7 +1695,7 @@ contract Transmit is SetUp {
     assertEq(prevTokenBalances[2], weth.balanceOf(address(registry)));
     // assert reserve amounts have adjusted accordingly
     require(
-      prevReserveBalances[0] < registry.getReserveAmount(address(linkToken)),
+      prevReserveBalances[0] < registry.getReserveAmount(address(pliToken)),
       "usd reserve amount should have increased"
     ); // pli reserve amount increases in value equal to the decrease of the other reserve amounts
     require(
@@ -1817,8 +1817,8 @@ contract MigrateReceive is SetUp {
   function setUp() public override {
     super.setUp();
     (newRegistry, ) = deployAndConfigureRegistryAndRegistrar(AutoBase.PayoutMode.ON_CHAIN);
-    idsToMigrate.push(linkUpkeepID);
-    idsToMigrate.push(linkUpkeepID2);
+    idsToMigrate.push(pliUpkeepID);
+    idsToMigrate.push(pliUpkeepID2);
     idsToMigrate.push(usdUpkeepID18);
     idsToMigrate.push(nativeUpkeepID);
     registry.setPeerRegistryMigrationPermission(address(newRegistry), 1);
@@ -1876,17 +1876,17 @@ contract MigrateReceive is SetUp {
 
     // add some changes in upkeep data to the mix
     registry.pauseUpkeep(usdUpkeepID18);
-    registry.setUpkeepTriggerConfig(linkUpkeepID, randomBytes(100));
+    registry.setUpkeepTriggerConfig(pliUpkeepID, randomBytes(100));
     registry.setUpkeepCheckData(nativeUpkeepID, randomBytes(25));
 
     // record previous state
     uint256[] memory prevUpkeepBalances = new uint256[](4);
-    prevUpkeepBalances[0] = registry.getBalance(linkUpkeepID);
-    prevUpkeepBalances[1] = registry.getBalance(linkUpkeepID2);
+    prevUpkeepBalances[0] = registry.getBalance(pliUpkeepID);
+    prevUpkeepBalances[1] = registry.getBalance(pliUpkeepID2);
     prevUpkeepBalances[2] = registry.getBalance(usdUpkeepID18);
     prevUpkeepBalances[3] = registry.getBalance(nativeUpkeepID);
     uint256[] memory prevReserveBalances = new uint256[](3);
-    prevReserveBalances[0] = registry.getReserveAmount(address(linkToken));
+    prevReserveBalances[0] = registry.getReserveAmount(address(pliToken));
     prevReserveBalances[1] = registry.getReserveAmount(address(usdToken18));
     prevReserveBalances[2] = registry.getReserveAmount(address(weth));
     uint256[] memory prevTokenBalances = new uint256[](3);
@@ -1894,29 +1894,29 @@ contract MigrateReceive is SetUp {
     prevTokenBalances[1] = usdToken18.balanceOf(address(registry));
     prevTokenBalances[2] = weth.balanceOf(address(registry));
     bytes[] memory prevUpkeepData = new bytes[](4);
-    prevUpkeepData[0] = abi.encode(registry.getUpkeep(linkUpkeepID));
-    prevUpkeepData[1] = abi.encode(registry.getUpkeep(linkUpkeepID2));
+    prevUpkeepData[0] = abi.encode(registry.getUpkeep(pliUpkeepID));
+    prevUpkeepData[1] = abi.encode(registry.getUpkeep(pliUpkeepID2));
     prevUpkeepData[2] = abi.encode(registry.getUpkeep(usdUpkeepID18));
     prevUpkeepData[3] = abi.encode(registry.getUpkeep(nativeUpkeepID));
     bytes[] memory prevUpkeepTriggerData = new bytes[](4);
-    prevUpkeepTriggerData[0] = registry.getUpkeepTriggerConfig(linkUpkeepID);
-    prevUpkeepTriggerData[1] = registry.getUpkeepTriggerConfig(linkUpkeepID2);
+    prevUpkeepTriggerData[0] = registry.getUpkeepTriggerConfig(pliUpkeepID);
+    prevUpkeepTriggerData[1] = registry.getUpkeepTriggerConfig(pliUpkeepID2);
     prevUpkeepTriggerData[2] = registry.getUpkeepTriggerConfig(usdUpkeepID18);
     prevUpkeepTriggerData[3] = registry.getUpkeepTriggerConfig(nativeUpkeepID);
 
     // event expectations
     vm.expectEmit(address(registry));
-    emit UpkeepMigrated(linkUpkeepID, prevUpkeepBalances[0], address(newRegistry));
+    emit UpkeepMigrated(pliUpkeepID, prevUpkeepBalances[0], address(newRegistry));
     vm.expectEmit(address(registry));
-    emit UpkeepMigrated(linkUpkeepID2, prevUpkeepBalances[1], address(newRegistry));
+    emit UpkeepMigrated(pliUpkeepID2, prevUpkeepBalances[1], address(newRegistry));
     vm.expectEmit(address(registry));
     emit UpkeepMigrated(usdUpkeepID18, prevUpkeepBalances[2], address(newRegistry));
     vm.expectEmit(address(registry));
     emit UpkeepMigrated(nativeUpkeepID, prevUpkeepBalances[3], address(newRegistry));
     vm.expectEmit(address(newRegistry));
-    emit UpkeepReceived(linkUpkeepID, prevUpkeepBalances[0], address(registry));
+    emit UpkeepReceived(pliUpkeepID, prevUpkeepBalances[0], address(registry));
     vm.expectEmit(address(newRegistry));
-    emit UpkeepReceived(linkUpkeepID2, prevUpkeepBalances[1], address(registry));
+    emit UpkeepReceived(pliUpkeepID2, prevUpkeepBalances[1], address(registry));
     vm.expectEmit(address(newRegistry));
     emit UpkeepReceived(usdUpkeepID18, prevUpkeepBalances[2], address(registry));
     vm.expectEmit(address(newRegistry));
@@ -1926,25 +1926,25 @@ contract MigrateReceive is SetUp {
     registry.migrateUpkeeps(idsToMigrate, address(newRegistry));
 
     // assert upkeep balances have been migrated
-    assertEq(registry.getBalance(linkUpkeepID), 0);
-    assertEq(registry.getBalance(linkUpkeepID2), 0);
+    assertEq(registry.getBalance(pliUpkeepID), 0);
+    assertEq(registry.getBalance(pliUpkeepID2), 0);
     assertEq(registry.getBalance(usdUpkeepID18), 0);
     assertEq(registry.getBalance(nativeUpkeepID), 0);
-    assertEq(newRegistry.getBalance(linkUpkeepID), prevUpkeepBalances[0]);
-    assertEq(newRegistry.getBalance(linkUpkeepID2), prevUpkeepBalances[1]);
+    assertEq(newRegistry.getBalance(pliUpkeepID), prevUpkeepBalances[0]);
+    assertEq(newRegistry.getBalance(pliUpkeepID2), prevUpkeepBalances[1]);
     assertEq(newRegistry.getBalance(usdUpkeepID18), prevUpkeepBalances[2]);
     assertEq(newRegistry.getBalance(nativeUpkeepID), prevUpkeepBalances[3]);
 
     // assert reserve balances have been adjusted
     assertEq(
-      newRegistry.getReserveAmount(address(linkToken)),
-      newRegistry.getBalance(linkUpkeepID) + newRegistry.getBalance(linkUpkeepID2)
+      newRegistry.getReserveAmount(address(pliToken)),
+      newRegistry.getBalance(pliUpkeepID) + newRegistry.getBalance(pliUpkeepID2)
     );
     assertEq(newRegistry.getReserveAmount(address(usdToken18)), newRegistry.getBalance(usdUpkeepID18));
     assertEq(newRegistry.getReserveAmount(address(weth)), newRegistry.getBalance(nativeUpkeepID));
     assertEq(
-      newRegistry.getReserveAmount(address(linkToken)),
-      prevReserveBalances[0] - registry.getReserveAmount(address(linkToken))
+      newRegistry.getReserveAmount(address(pliToken)),
+      prevReserveBalances[0] - registry.getReserveAmount(address(pliToken))
     );
     assertEq(
       newRegistry.getReserveAmount(address(usdToken18)),
@@ -1958,11 +1958,11 @@ contract MigrateReceive is SetUp {
     // assert token have been transferred
     assertEq(
       pliToken.balanceOf(address(newRegistry)),
-      newRegistry.getBalance(linkUpkeepID) + newRegistry.getBalance(linkUpkeepID2)
+      newRegistry.getBalance(pliUpkeepID) + newRegistry.getBalance(pliUpkeepID2)
     );
     assertEq(usdToken18.balanceOf(address(newRegistry)), newRegistry.getBalance(usdUpkeepID18));
     assertEq(weth.balanceOf(address(newRegistry)), newRegistry.getBalance(nativeUpkeepID));
-    assertEq(linkToken.balanceOf(address(registry)), prevTokenBalances[0] - pliToken.balanceOf(address(newRegistry)));
+    assertEq(pliToken.balanceOf(address(registry)), prevTokenBalances[0] - pliToken.balanceOf(address(newRegistry)));
     assertEq(
       usdToken18.balanceOf(address(registry)),
       prevTokenBalances[1] - usdToken18.balanceOf(address(newRegistry))
@@ -1970,12 +1970,12 @@ contract MigrateReceive is SetUp {
     assertEq(weth.balanceOf(address(registry)), prevTokenBalances[2] - weth.balanceOf(address(newRegistry)));
 
     // assert upkeep data matches
-    assertEq(prevUpkeepData[0], abi.encode(newRegistry.getUpkeep(linkUpkeepID)));
-    assertEq(prevUpkeepData[1], abi.encode(newRegistry.getUpkeep(linkUpkeepID2)));
+    assertEq(prevUpkeepData[0], abi.encode(newRegistry.getUpkeep(pliUpkeepID)));
+    assertEq(prevUpkeepData[1], abi.encode(newRegistry.getUpkeep(pliUpkeepID2)));
     assertEq(prevUpkeepData[2], abi.encode(newRegistry.getUpkeep(usdUpkeepID18)));
     assertEq(prevUpkeepData[3], abi.encode(newRegistry.getUpkeep(nativeUpkeepID)));
-    assertEq(prevUpkeepTriggerData[0], newRegistry.getUpkeepTriggerConfig(linkUpkeepID));
-    assertEq(prevUpkeepTriggerData[1], newRegistry.getUpkeepTriggerConfig(linkUpkeepID2));
+    assertEq(prevUpkeepTriggerData[0], newRegistry.getUpkeepTriggerConfig(pliUpkeepID));
+    assertEq(prevUpkeepTriggerData[1], newRegistry.getUpkeepTriggerConfig(pliUpkeepID2));
     assertEq(prevUpkeepTriggerData[2], newRegistry.getUpkeepTriggerConfig(usdUpkeepID18));
     assertEq(prevUpkeepTriggerData[3], newRegistry.getUpkeepTriggerConfig(nativeUpkeepID));
 
@@ -2046,53 +2046,53 @@ contract CancelUpkeep is SetUp {
   function test_RevertsWhen_NotCalledByOwnerOrAdmin() external {
     vm.startPrank(STRANGER);
     vm.expectRevert(Registry.OnlyCallableByOwnerOrAdmin.selector);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceledByAdmin_CalledByOwner() external {
     uint256 bn = block.number;
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.startPrank(registry.owner());
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceledByOwner_CalledByAdmin() external {
     uint256 bn = block.number;
     vm.startPrank(registry.owner());
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.startPrank(UPKEEP_ADMIN);
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceledByAdmin_CalledByAdmin() external {
     uint256 bn = block.number;
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceledByOwner_CalledByOwner() external {
     uint256 bn = block.number;
     vm.startPrank(registry.owner());
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
   }
 
   function test_CancelUpkeep_SetMaxValidBlockNumber_CalledByAdmin() external {
     uint256 bn = block.number;
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
-    uint256 maxValidBlocknumber = uint256(registry.getUpkeep(linkUpkeepID).maxValidBlocknumber);
+    uint256 maxValidBlocknumber = uint256(registry.getUpkeep(pliUpkeepID).maxValidBlocknumber);
 
     // 50 is the cancellation delay
     assertEq(bn + 50, maxValidBlocknumber);
@@ -2101,9 +2101,9 @@ contract CancelUpkeep is SetUp {
   function test_CancelUpkeep_SetMaxValidBlockNumber_CalledByOwner() external {
     uint256 bn = block.number;
     vm.startPrank(registry.owner());
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
-    uint256 maxValidBlocknumber = uint256(registry.getUpkeep(linkUpkeepID).maxValidBlocknumber);
+    uint256 maxValidBlocknumber = uint256(registry.getUpkeep(pliUpkeepID).maxValidBlocknumber);
 
     // cancellation by registry owner is immediate and no cancellation delay is applied
     assertEq(bn, maxValidBlocknumber);
@@ -2114,8 +2114,8 @@ contract CancelUpkeep is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectEmit();
-    emit UpkeepCanceled(linkUpkeepID, uint64(bn + 50));
-    registry.cancelUpkeep(linkUpkeepID);
+    emit UpkeepCanceled(pliUpkeepID, uint64(bn + 50));
+    registry.cancelUpkeep(pliUpkeepID);
   }
 
   function test_CancelUpkeep_EmitEvent_CalledByOwner() external {
@@ -2123,8 +2123,8 @@ contract CancelUpkeep is SetUp {
     vm.startPrank(registry.owner());
 
     vm.expectEmit();
-    emit UpkeepCanceled(linkUpkeepID, uint64(bn));
-    registry.cancelUpkeep(linkUpkeepID);
+    emit UpkeepCanceled(pliUpkeepID, uint64(bn));
+    registry.cancelUpkeep(pliUpkeepID);
   }
 }
 
@@ -2171,20 +2171,20 @@ contract SetUpkeepPrivilegeConfig is SetUp {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByUpkeepPrivilegeManager.selector);
-    registry.setUpkeepPrivilegeConfig(linkUpkeepID, hex"1233");
+    registry.setUpkeepPrivilegeConfig(pliUpkeepID, hex"1233");
   }
 
   function test_UpkeepHasEmptyConfig() external {
-    bytes memory cfg = registry.getUpkeepPrivilegeConfig(linkUpkeepID);
+    bytes memory cfg = registry.getUpkeepPrivilegeConfig(pliUpkeepID);
     assertEq(cfg, bytes(""));
   }
 
   function test_SetUpkeepPrivilegeConfig_CalledByManager() external {
     vm.startPrank(PRIVILEGE_MANAGER);
 
-    registry.setUpkeepPrivilegeConfig(linkUpkeepID, hex"1233");
+    registry.setUpkeepPrivilegeConfig(pliUpkeepID, hex"1233");
 
-    bytes memory cfg = registry.getUpkeepPrivilegeConfig(linkUpkeepID);
+    bytes memory cfg = registry.getUpkeepPrivilegeConfig(pliUpkeepID);
     assertEq(cfg, hex"1233");
   }
 }
@@ -2220,30 +2220,30 @@ contract TransferUpkeepAdmin is SetUp {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.transferUpkeepAdmin(linkUpkeepID, randomAddress());
+    registry.transferUpkeepAdmin(pliUpkeepID, randomAddress());
   }
 
   function test_RevertsWhen_TransferToSelf() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.ValueNotChanged.selector);
-    registry.transferUpkeepAdmin(linkUpkeepID, UPKEEP_ADMIN);
+    registry.transferUpkeepAdmin(pliUpkeepID, UPKEEP_ADMIN);
   }
 
   function test_RevertsWhen_UpkeepCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
 
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.transferUpkeepAdmin(linkUpkeepID, randomAddress());
+    registry.transferUpkeepAdmin(pliUpkeepID, randomAddress());
   }
 
   function test_DoesNotChangeUpkeepAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.transferUpkeepAdmin(linkUpkeepID, randomAddress());
+    registry.transferUpkeepAdmin(pliUpkeepID, randomAddress());
 
-    assertEq(registry.getUpkeep(linkUpkeepID).admin, UPKEEP_ADMIN);
+    assertEq(registry.getUpkeep(pliUpkeepID).admin, UPKEEP_ADMIN);
   }
 
   function test_EmitEvent_CalledByAdmin() external {
@@ -2251,12 +2251,12 @@ contract TransferUpkeepAdmin is SetUp {
     address newAdmin = randomAddress();
 
     vm.expectEmit();
-    emit UpkeepAdminTransferRequested(linkUpkeepID, UPKEEP_ADMIN, newAdmin);
-    registry.transferUpkeepAdmin(linkUpkeepID, newAdmin);
+    emit UpkeepAdminTransferRequested(pliUpkeepID, UPKEEP_ADMIN, newAdmin);
+    registry.transferUpkeepAdmin(pliUpkeepID, newAdmin);
 
     // transferring to the same propose admin won't yield another event
     vm.recordLogs();
-    registry.transferUpkeepAdmin(linkUpkeepID, newAdmin);
+    registry.transferUpkeepAdmin(pliUpkeepID, newAdmin);
     Vm.Log[] memory entries = vm.getRecordedLogs();
     assertEq(0, entries.length);
   }
@@ -2266,12 +2266,12 @@ contract TransferUpkeepAdmin is SetUp {
     address newAdmin = randomAddress();
 
     vm.expectEmit();
-    emit UpkeepAdminTransferRequested(linkUpkeepID, UPKEEP_ADMIN, newAdmin);
-    registry.transferUpkeepAdmin(linkUpkeepID, newAdmin);
+    emit UpkeepAdminTransferRequested(pliUpkeepID, UPKEEP_ADMIN, newAdmin);
+    registry.transferUpkeepAdmin(pliUpkeepID, newAdmin);
 
     vm.expectEmit();
-    emit UpkeepAdminTransferRequested(linkUpkeepID, UPKEEP_ADMIN, address(0));
-    registry.transferUpkeepAdmin(linkUpkeepID, address(0));
+    emit UpkeepAdminTransferRequested(pliUpkeepID, UPKEEP_ADMIN, address(0));
+    registry.transferUpkeepAdmin(pliUpkeepID, address(0));
   }
 }
 
@@ -2281,36 +2281,36 @@ contract AcceptUpkeepAdmin is SetUp {
   function test_RevertsWhen_NotCalledByProposedAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
     address newAdmin = randomAddress();
-    registry.transferUpkeepAdmin(linkUpkeepID, newAdmin);
+    registry.transferUpkeepAdmin(pliUpkeepID, newAdmin);
 
     vm.startPrank(STRANGER);
     vm.expectRevert(Registry.OnlyCallableByProposedAdmin.selector);
-    registry.acceptUpkeepAdmin(linkUpkeepID);
+    registry.acceptUpkeepAdmin(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
     address newAdmin = randomAddress();
-    registry.transferUpkeepAdmin(linkUpkeepID, newAdmin);
+    registry.transferUpkeepAdmin(pliUpkeepID, newAdmin);
 
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.startPrank(newAdmin);
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.acceptUpkeepAdmin(linkUpkeepID);
+    registry.acceptUpkeepAdmin(pliUpkeepID);
   }
 
   function test_UpkeepAdminChanged() external {
     vm.startPrank(UPKEEP_ADMIN);
     address newAdmin = randomAddress();
-    registry.transferUpkeepAdmin(linkUpkeepID, newAdmin);
+    registry.transferUpkeepAdmin(pliUpkeepID, newAdmin);
 
     vm.startPrank(newAdmin);
     vm.expectEmit();
-    emit UpkeepAdminTransferred(linkUpkeepID, UPKEEP_ADMIN, newAdmin);
-    registry.acceptUpkeepAdmin(linkUpkeepID);
+    emit UpkeepAdminTransferred(pliUpkeepID, UPKEEP_ADMIN, newAdmin);
+    registry.acceptUpkeepAdmin(pliUpkeepID);
 
-    assertEq(newAdmin, registry.getUpkeep(linkUpkeepID).admin);
+    assertEq(newAdmin, registry.getUpkeep(pliUpkeepID).admin);
   }
 }
 
@@ -2321,38 +2321,38 @@ contract PauseUpkeep is SetUp {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_InvalidUpkeepId() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.pauseUpkeep(linkUpkeepID + 1);
+    registry.pauseUpkeep(pliUpkeepID + 1);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepAlreadyPaused() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.OnlyUnpausedUpkeep.selector);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
   }
 
   function test_EmitEvent_CalledByAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectEmit();
-    emit UpkeepPaused(linkUpkeepID);
-    registry.pauseUpkeep(linkUpkeepID);
+    emit UpkeepPaused(pliUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
   }
 }
 
@@ -2363,44 +2363,44 @@ contract UnpauseUpkeep is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.unpauseUpkeep(linkUpkeepID + 1);
+    registry.unpauseUpkeep(pliUpkeepID + 1);
   }
 
   function test_RevertsWhen_UpkeepIsNotPaused() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyPausedUpkeep.selector);
-    registry.unpauseUpkeep(linkUpkeepID);
+    registry.unpauseUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
 
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.unpauseUpkeep(linkUpkeepID);
+    registry.unpauseUpkeep(pliUpkeepID);
   }
 
   function test_RevertsWhen_NotCalledByUpkeepAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
 
     vm.startPrank(STRANGER);
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.unpauseUpkeep(linkUpkeepID);
+    registry.unpauseUpkeep(pliUpkeepID);
   }
 
   function test_UnpauseUpkeep_CalledByUpkeepAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
 
     uint256[] memory ids1 = registry.getActiveUpkeepIDs(0, 0);
 
     vm.expectEmit();
-    emit UpkeepUnpaused(linkUpkeepID);
-    registry.unpauseUpkeep(linkUpkeepID);
+    emit UpkeepUnpaused(pliUpkeepID);
+    registry.unpauseUpkeep(pliUpkeepID);
 
     uint256[] memory ids2 = registry.getActiveUpkeepIDs(0, 0);
     assertEq(ids1.length + 1, ids2.length);
@@ -2414,52 +2414,52 @@ contract SetUpkeepCheckData is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepCheckData(linkUpkeepID + 1, hex"1234");
+    registry.setUpkeepCheckData(pliUpkeepID + 1, hex"1234");
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.setUpkeepCheckData(linkUpkeepID, hex"1234");
+    registry.setUpkeepCheckData(pliUpkeepID, hex"1234");
   }
 
   function test_RevertsWhen_NewCheckDataTooLarge() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.CheckDataExceedsLimit.selector);
-    registry.setUpkeepCheckData(linkUpkeepID, new bytes(10_000));
+    registry.setUpkeepCheckData(pliUpkeepID, new bytes(10_000));
   }
 
   function test_RevertsWhen_NotCalledByAdmin() external {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepCheckData(linkUpkeepID, hex"1234");
+    registry.setUpkeepCheckData(pliUpkeepID, hex"1234");
   }
 
   function test_UpdateOffchainConfig_CalledByAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectEmit();
-    emit UpkeepCheckDataSet(linkUpkeepID, hex"1234");
-    registry.setUpkeepCheckData(linkUpkeepID, hex"1234");
+    emit UpkeepCheckDataSet(pliUpkeepID, hex"1234");
+    registry.setUpkeepCheckData(pliUpkeepID, hex"1234");
 
-    assertEq(registry.getUpkeep(linkUpkeepID).checkData, hex"1234");
+    assertEq(registry.getUpkeep(pliUpkeepID).checkData, hex"1234");
   }
 
   function test_UpdateOffchainConfigOnPausedUpkeep_CalledByAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
 
-    registry.pauseUpkeep(linkUpkeepID);
+    registry.pauseUpkeep(pliUpkeepID);
 
     vm.expectEmit();
-    emit UpkeepCheckDataSet(linkUpkeepID, hex"1234");
-    registry.setUpkeepCheckData(linkUpkeepID, hex"1234");
+    emit UpkeepCheckDataSet(pliUpkeepID, hex"1234");
+    registry.setUpkeepCheckData(pliUpkeepID, hex"1234");
 
-    assertTrue(registry.getUpkeep(linkUpkeepID).paused);
-    assertEq(registry.getUpkeep(linkUpkeepID).checkData, hex"1234");
+    assertTrue(registry.getUpkeep(pliUpkeepID).paused);
+    assertEq(registry.getUpkeep(pliUpkeepID).checkData, hex"1234");
   }
 }
 
@@ -2470,42 +2470,42 @@ contract SetUpkeepGasLimit is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepGasLimit(linkUpkeepID + 1, 1230000);
+    registry.setUpkeepGasLimit(pliUpkeepID + 1, 1230000);
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.setUpkeepGasLimit(linkUpkeepID, 1230000);
+    registry.setUpkeepGasLimit(pliUpkeepID, 1230000);
   }
 
   function test_RevertsWhen_NewGasLimitOutOfRange() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.GasLimitOutsideRange.selector);
-    registry.setUpkeepGasLimit(linkUpkeepID, 300);
+    registry.setUpkeepGasLimit(pliUpkeepID, 300);
 
     vm.expectRevert(Registry.GasLimitOutsideRange.selector);
-    registry.setUpkeepGasLimit(linkUpkeepID, 3000000000);
+    registry.setUpkeepGasLimit(pliUpkeepID, 3000000000);
   }
 
   function test_RevertsWhen_NotCalledByAdmin() external {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepGasLimit(linkUpkeepID, 1230000);
+    registry.setUpkeepGasLimit(pliUpkeepID, 1230000);
   }
 
   function test_UpdateGasLimit_CalledByAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectEmit();
-    emit UpkeepGasLimitSet(linkUpkeepID, 1230000);
-    registry.setUpkeepGasLimit(linkUpkeepID, 1230000);
+    emit UpkeepGasLimitSet(pliUpkeepID, 1230000);
+    registry.setUpkeepGasLimit(pliUpkeepID, 1230000);
 
-    assertEq(registry.getUpkeep(linkUpkeepID).performGas, 1230000);
+    assertEq(registry.getUpkeep(pliUpkeepID).performGas, 1230000);
   }
 }
 
@@ -2516,32 +2516,32 @@ contract SetUpkeepOffchainConfig is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepOffchainConfig(linkUpkeepID + 1, hex"1233");
+    registry.setUpkeepOffchainConfig(pliUpkeepID + 1, hex"1233");
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.setUpkeepOffchainConfig(linkUpkeepID, hex"1234");
+    registry.setUpkeepOffchainConfig(pliUpkeepID, hex"1234");
   }
 
   function test_RevertsWhen_NotCalledByAdmin() external {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepOffchainConfig(linkUpkeepID, hex"1234");
+    registry.setUpkeepOffchainConfig(pliUpkeepID, hex"1234");
   }
 
   function test_UpdateOffchainConfig_CalledByAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectEmit();
-    emit UpkeepOffchainConfigSet(linkUpkeepID, hex"1234");
-    registry.setUpkeepOffchainConfig(linkUpkeepID, hex"1234");
+    emit UpkeepOffchainConfigSet(pliUpkeepID, hex"1234");
+    registry.setUpkeepOffchainConfig(pliUpkeepID, hex"1234");
 
-    assertEq(registry.getUpkeep(linkUpkeepID).offchainConfig, hex"1234");
+    assertEq(registry.getUpkeep(pliUpkeepID).offchainConfig, hex"1234");
   }
 }
 
@@ -2552,32 +2552,32 @@ contract SetUpkeepTriggerConfig is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepTriggerConfig(linkUpkeepID + 1, hex"1233");
+    registry.setUpkeepTriggerConfig(pliUpkeepID + 1, hex"1233");
   }
 
   function test_RevertsWhen_UpkeepAlreadyCanceled() external {
     vm.startPrank(UPKEEP_ADMIN);
-    registry.cancelUpkeep(linkUpkeepID);
+    registry.cancelUpkeep(pliUpkeepID);
 
     vm.expectRevert(Registry.UpkeepCancelled.selector);
-    registry.setUpkeepTriggerConfig(linkUpkeepID, hex"1234");
+    registry.setUpkeepTriggerConfig(pliUpkeepID, hex"1234");
   }
 
   function test_RevertsWhen_NotCalledByAdmin() external {
     vm.startPrank(STRANGER);
 
     vm.expectRevert(Registry.OnlyCallableByAdmin.selector);
-    registry.setUpkeepTriggerConfig(linkUpkeepID, hex"1234");
+    registry.setUpkeepTriggerConfig(pliUpkeepID, hex"1234");
   }
 
   function test_UpdateTriggerConfig_CalledByAdmin() external {
     vm.startPrank(UPKEEP_ADMIN);
 
     vm.expectEmit();
-    emit UpkeepTriggerConfigSet(linkUpkeepID, hex"1234");
-    registry.setUpkeepTriggerConfig(linkUpkeepID, hex"1234");
+    emit UpkeepTriggerConfigSet(pliUpkeepID, hex"1234");
+    registry.setUpkeepTriggerConfig(pliUpkeepID, hex"1234");
 
-    assertEq(registry.getUpkeepTriggerConfig(linkUpkeepID), hex"1234");
+    assertEq(registry.getUpkeepTriggerConfig(pliUpkeepID), hex"1234");
   }
 }
 

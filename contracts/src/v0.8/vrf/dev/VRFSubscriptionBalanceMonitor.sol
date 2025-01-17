@@ -5,7 +5,7 @@ pragma solidity 0.8.6;
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {AutomationCompatibleInterface as KeeperCompatibleInterface} from "../../automation/interfaces/AutomationCompatibleInterface.sol";
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
@@ -14,7 +14,7 @@ import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
  */
 contract VRFSubscriptionBalanceMonitor is ConfirmedOwner, Pausable, KeeperCompatibleInterface {
   VRFCoordinatorV2Interface public COORDINATOR;
-  LinkTokenInterface public PLITOKEN;
+  PliTokenInterface public PLITOKEN;
 
   uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
 
@@ -24,7 +24,7 @@ contract VRFSubscriptionBalanceMonitor is ConfirmedOwner, Pausable, KeeperCompat
   event TopUpFailed(uint64 indexed subscriptionId);
   event KeeperRegistryAddressUpdated(address oldAddress, address newAddress);
   event VRFCoordinatorV2AddressUpdated(address oldAddress, address newAddress);
-  event LinkTokenAddressUpdated(address oldAddress, address newAddress);
+  event PliTokenAddressUpdated(address oldAddress, address newAddress);
   event MinWaitPeriodUpdated(uint256 oldMinWaitPeriod, uint256 newMinWaitPeriod);
   event OutOfGas(uint256 lastId);
 
@@ -45,18 +45,18 @@ contract VRFSubscriptionBalanceMonitor is ConfirmedOwner, Pausable, KeeperCompat
   mapping(uint64 => Target) internal s_targets;
 
   /**
-   * @param linkTokenAddress the Link token address
+   * @param pliTokenAddress the Pli token address
    * @param coordinatorAddress the address of the vrf coordinator contract
    * @param keeperRegistryAddress the address of the keeper registry contract
    * @param minWaitPeriodSeconds the minimum wait period for addresses between funding
    */
   constructor(
-    address linkTokenAddress,
+    address pliTokenAddress,
     address coordinatorAddress,
     address keeperRegistryAddress,
     uint256 minWaitPeriodSeconds
   ) ConfirmedOwner(msg.sender) {
-    setLinkTokenAddress(linkTokenAddress);
+    setPliTokenAddress(pliTokenAddress);
     setVRFCoordinatorV2Address(coordinatorAddress);
     setKeeperRegistryAddress(keeperRegistryAddress);
     setMinWaitPeriodSeconds(minWaitPeriodSeconds);
@@ -206,11 +206,11 @@ contract VRFSubscriptionBalanceMonitor is ConfirmedOwner, Pausable, KeeperCompat
   /**
    * @notice Sets the PLI token address.
    */
-  function setLinkTokenAddress(address linkTokenAddress) public onlyOwner {
+  function setPliTokenAddress(address pliTokenAddress) public onlyOwner {
     // solhint-disable-next-line gas-custom-errors, reason-string
-    require(linkTokenAddress != address(0));
-    emit LinkTokenAddressUpdated(address(PLITOKEN), linkTokenAddress);
-    PLITOKEN = LinkTokenInterface(linkTokenAddress);
+    require(pliTokenAddress != address(0));
+    emit PliTokenAddressUpdated(address(PLITOKEN), pliTokenAddress);
+    PLITOKEN = PliTokenInterface(pliTokenAddress);
   }
 
   /**

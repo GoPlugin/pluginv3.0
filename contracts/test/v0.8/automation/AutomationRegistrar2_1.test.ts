@@ -28,7 +28,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //   LOG,
 // }
 //
-// let linkTokenFactory: LinkTokenFactory
+// let pliTokenFactory: PliTokenFactory
 // let mockV3AggregatorFactory: MockV3AggregatorFactory
 // let upkeepMockFactory: UpkeepMockFactory
 //
@@ -37,8 +37,8 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 // before(async () => {
 //   personas = (await getUsers()).personas
 //
-//   linkTokenFactory = await ethers.getContractFactory(
-//     'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+//   pliTokenFactory = await ethers.getContractFactory(
+//     'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
 //   )
 //   mockV3AggregatorFactory = (await ethers.getContractFactory(
 //     'src/v0.8/tests/MockV3Aggregator.sol:MockV3Aggregator',
@@ -56,11 +56,11 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 // describe('AutomationRegistrar2_1', () => {
 //   const upkeepName = 'SampleUpkeep'
 //
-//   const linkEth = BigNumber.from(300000000)
+//   const pliEth = BigNumber.from(300000000)
 //   const gasWei = BigNumber.from(100)
 //   const performGas = BigNumber.from(100000)
 //   const paymentPremiumPPB = BigNumber.from(250000000)
-//   const flatFeeMicroLink = BigNumber.from(0)
+//   const flatFeeMicroPli = BigNumber.from(0)
 //   const maxAllowedAutoApprove = 5
 //   const trigger = '0xdeadbeef'
 //   const offchainConfig = '0x01234567'
@@ -70,7 +70,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //   const gasCeilingMultiplier = BigNumber.from(1)
 //   const checkGasLimit = BigNumber.from(20000000)
 //   const fallbackGasPrice = BigNumber.from(200)
-//   const fallbackLinkPrice = BigNumber.from(200000000)
+//   const fallbackPliPrice = BigNumber.from(200000000)
 //   const maxCheckDataSize = BigNumber.from(10000)
 //   const maxPerformDataSize = BigNumber.from(10000)
 //   const maxRevertDataSize = BigNumber.from(1000)
@@ -93,8 +93,8 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //   let stranger: Signer
 //   let requestSender: Signer
 //
-//   let linkToken: LinkToken
-//   let linkEthFeed: MockV3Aggregator
+//   let pliToken: PliToken
+//   let pliEthFeed: MockV3Aggregator
 //   let gasPriceFeed: MockV3Aggregator
 //   let mock: UpkeepMock
 //   let registry: IKeeperRegistry
@@ -108,19 +108,19 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //     stranger = personas.Nancy
 //     requestSender = personas.Norbert
 //
-//     linkToken = await linkTokenFactory.connect(owner).deploy()
+//     pliToken = await pliTokenFactory.connect(owner).deploy()
 //     gasPriceFeed = await mockV3AggregatorFactory
 //       .connect(owner)
 //       .deploy(0, gasWei)
-//     linkEthFeed = await mockV3AggregatorFactory
+//     pliEthFeed = await mockV3AggregatorFactory
 //       .connect(owner)
-//       .deploy(9, linkEth)
+//       .deploy(9, pliEth)
 //
 //     registry = await deployRegistry21(
 //       owner,
 //       0,
-//       linkToken.address,
-//       linkEthFeed.address,
+//       pliToken.address,
+//       pliEthFeed.address,
 //       gasPriceFeed.address,
 //     )
 //
@@ -131,7 +131,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //     )
 //     registrar = await registrarFactory
 //       .connect(registrarOwner)
-//       .deploy(linkToken.address, registry.address, minUpkeepSpend, [
+//       .deploy(pliToken.address, registry.address, minUpkeepSpend, [
 //         {
 //           triggerType: Trigger.CONDITION,
 //           autoApproveType: autoApproveType_DISABLED,
@@ -144,7 +144,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         },
 //       ])
 //
-//     await linkToken
+//     await pliToken
 //       .connect(owner)
 //       .transfer(await requestSender.getAddress(), toWei('1000'))
 //
@@ -156,7 +156,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //     ]
 //     const onchainConfig = {
 //       paymentPremiumPPB,
-//       flatFeeMicroLink,
+//       flatFeeMicroPli,
 //       checkGasLimit,
 //       stalenessSeconds,
 //       gasCeilingMultiplier,
@@ -166,7 +166,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //       maxRevertDataSize,
 //       maxPerformGas,
 //       fallbackGasPrice,
-//       fallbackLinkPrice,
+//       fallbackPliPrice,
 //       transcoder,
 //       registrars: [registrar.address],
 //       upkeepPrivilegeManager: upkeepManager,
@@ -201,7 +201,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //             amount,
 //             await requestSender.getAddress(),
 //           ),
-//         'OnlyLink()',
+//         'OnlyPli()',
 //       )
 //     })
 //
@@ -232,7 +232,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //       )
 //
 //       await evmRevert(
-//         linkToken
+//         pliToken
 //           .connect(requestSender)
 //           .transferAndCall(registrar.address, amount, abiEncodedBytes),
 //         'AmountMismatch()',
@@ -257,7 +257,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         ],
 //       )
 //       await evmRevert(
-//         linkToken
+//         pliToken
 //           .connect(requestSender)
 //           .transferAndCall(registrar.address, amount, abiEncodedBytes),
 //         'SenderMismatch()',
@@ -283,7 +283,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //       )
 //
 //       await evmRevert(
-//         linkToken
+//         pliToken
 //           .connect(requestSender)
 //           .transferAndCall(registrar.address, amount, abiEncodedBytes),
 //         'RegistrationRequestFailed()',
@@ -317,7 +317,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //           await requestSender.getAddress(),
 //         ],
 //       )
-//       const tx = await linkToken
+//       const tx = await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //
@@ -366,7 +366,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //           await requestSender.getAddress(),
 //         ],
 //       )
-//       const tx = await linkToken
+//       const tx = await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       const receipt = await tx.wait()
@@ -413,7 +413,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         amount,
 //         await requestSender.getAddress(),
 //       ])
-//       await linkToken
+//       await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 1) // 0 -> 1
@@ -432,7 +432,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         amount,
 //         await requestSender.getAddress(),
 //       ])
-//       await linkToken
+//       await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 1) // Still 1
@@ -451,7 +451,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         amount,
 //         await requestSender.getAddress(),
 //       ])
-//       await linkToken
+//       await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 2) // 1 -> 2
@@ -474,7 +474,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         amount,
 //         await requestSender.getAddress(),
 //       ])
-//       await linkToken
+//       await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 3) // 2 -> 3
@@ -493,7 +493,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         amount,
 //         await requestSender.getAddress(),
 //       ])
-//       await linkToken
+//       await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 3) // Still 3
@@ -533,7 +533,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //           await requestSender.getAddress(),
 //         ],
 //       )
-//       const tx = await linkToken
+//       const tx = await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //
@@ -586,7 +586,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //           await requestSender.getAddress(),
 //         ],
 //       )
-//       const tx = await linkToken
+//       const tx = await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       const receipt = await tx.wait()
@@ -665,7 +665,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //           maxAllowedAutoApprove,
 //         )
 //
-//       await linkToken.connect(requestSender).approve(registrar.address, amount)
+//       await pliToken.connect(requestSender).approve(registrar.address, amount)
 //
 //       const tx = await registrar.connect(requestSender).registerUpkeep({
 //         name: upkeepName,
@@ -781,7 +781,7 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //         ],
 //       )
 //
-//       const tx = await linkToken
+//       const tx = await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       const receipt = await tx.wait()
@@ -958,13 +958,13 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //           await requestSender.getAddress(),
 //         ],
 //       )
-//       const tx = await linkToken
+//       const tx = await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //       const receipt = await tx.wait()
 //       hash = receipt.logs[2].topics[1]
 //       // submit duplicate request (increase balance)
-//       await linkToken
+//       await pliToken
 //         .connect(requestSender)
 //         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 //     })
@@ -984,17 +984,17 @@ describe('AutomationRegistrar2_1 - Frozen [ @skip-coverage ]', () => {
 //     })
 //
 //     it('refunds the total request balance to the admin address if owner cancels', async () => {
-//       const before = await linkToken.balanceOf(await admin.getAddress())
+//       const before = await pliToken.balanceOf(await admin.getAddress())
 //       const tx = await registrar.connect(registrarOwner).cancel(hash)
-//       const after = await linkToken.balanceOf(await admin.getAddress())
+//       const after = await pliToken.balanceOf(await admin.getAddress())
 //       assert.isTrue(after.sub(before).eq(amount.mul(BigNumber.from(2))))
 //       await expect(tx).to.emit(registrar, 'RegistrationRejected')
 //     })
 //
 //     it('refunds the total request balance to the admin address if admin cancels', async () => {
-//       const before = await linkToken.balanceOf(await admin.getAddress())
+//       const before = await pliToken.balanceOf(await admin.getAddress())
 //       const tx = await registrar.connect(admin).cancel(hash)
-//       const after = await linkToken.balanceOf(await admin.getAddress())
+//       const after = await pliToken.balanceOf(await admin.getAddress())
 //       assert.isTrue(after.sub(before).eq(amount.mul(BigNumber.from(2))))
 //       await expect(tx).to.emit(registrar, 'RegistrationRejected')
 //     })

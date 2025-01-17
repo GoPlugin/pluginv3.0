@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.16;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {IKeeperRegistryMaster} from "../interfaces/v2_1/IKeeperRegistryMaster.sol";
 import {TypeAndVersionInterface} from "../../interfaces/TypeAndVersionInterface.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
@@ -34,7 +34,7 @@ contract AutomationRegistrar2_1 is TypeAndVersionInterface, ConfirmedOwner, IERC
   mapping(bytes32 => PendingRequest) private s_pendingRequests;
   mapping(uint8 => TriggerRegistrationStorage) private s_triggerRegistrations;
 
-  LinkTokenInterface public immutable PLI;
+  PliTokenInterface public immutable PLI;
 
   /**
    * @notice versions:
@@ -130,15 +130,15 @@ contract AutomationRegistrar2_1 is TypeAndVersionInterface, ConfirmedOwner, IERC
   error OnlyAdminOrOwner();
   error InsufficientPayment();
   error RegistrationRequestFailed();
-  error OnlyLink();
+  error OnlyPli();
   error AmountMismatch();
   error SenderMismatch();
   error FunctionNotPermitted();
-  error LinkTransferFailed(address to);
+  error PliTransferFailed(address to);
   error InvalidDataLength();
 
   /**
-   * @param PLIAddress Address of Link token
+   * @param PLIAddress Address of Pli token
    * @param keeperRegistry keeper registry address
    * @param minPLIJuels minimum PLI that new registrations should fund their upkeep with
    * @param triggerConfigs the initial config for individual triggers
@@ -149,7 +149,7 @@ contract AutomationRegistrar2_1 is TypeAndVersionInterface, ConfirmedOwner, IERC
     uint96 minPLIJuels,
     InitialTriggerConfig[] memory triggerConfigs
   ) ConfirmedOwner(msg.sender) {
-    PLI = LinkTokenInterface(PLIAddress);
+    PLI = PliTokenInterface(PLIAddress);
     setConfig(keeperRegistry, minPLIJuels);
     for (uint256 idx = 0; idx < triggerConfigs.length; idx++) {
       setTriggerConfig(
@@ -277,7 +277,7 @@ contract AutomationRegistrar2_1 is TypeAndVersionInterface, ConfirmedOwner, IERC
     delete s_pendingRequests[hash];
     bool success = PLI.transfer(request.admin, request.balance);
     if (!success) {
-      revert LinkTransferFailed(request.admin);
+      revert PliTransferFailed(request.admin);
     }
     emit RegistrationRejected(hash);
   }
@@ -444,7 +444,7 @@ contract AutomationRegistrar2_1 is TypeAndVersionInterface, ConfirmedOwner, IERC
     );
     bool success = PLI.transferAndCall(address(keeperRegistry), params.amount, abi.encode(upkeepId));
     if (!success) {
-      revert LinkTransferFailed(address(keeperRegistry));
+      revert PliTransferFailed(address(keeperRegistry));
     }
     emit RegistrationApproved(hash, params.name, upkeepId);
     return upkeepId;
@@ -475,7 +475,7 @@ contract AutomationRegistrar2_1 is TypeAndVersionInterface, ConfirmedOwner, IERC
    */
   modifier onlyPLI() {
     if (msg.sender != address(PLI)) {
-      revert OnlyLink();
+      revert OnlyPli();
     }
     _;
   }

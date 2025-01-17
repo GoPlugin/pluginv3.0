@@ -36,7 +36,7 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
    *                       : add function to let admin change upkeep gas limit
    *                       : add minUpkeepSpend requirement
    *                       : upgrade to solidity v0.8
-   * - KeeperRegistry 1.1.0: added flatFeeMicroLink
+   * - KeeperRegistry 1.1.0: added flatFeeMicroPli
    * - KeeperRegistry 1.0.0: initial release
    */
   string public constant override typeAndVersion = "KeeperRegistry 2.1.0";
@@ -49,8 +49,8 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
   )
     KeeperRegistryBase2_1(
       logicA.getMode(),
-      logicA.getLinkAddress(),
-      logicA.getLinkNativeFeedAddress(),
+      logicA.getPliAddress(),
+      logicA.getPliNativeFeedAddress(),
       logicA.getFastGasFeedAddress(),
       logicA.getAutomationForwarderLogic()
     )
@@ -89,13 +89,13 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
     for (uint256 i = 0; i < report.upkeepIds.length; i++) {
       upkeepTransmitInfo[i].upkeep = s_upkeep[report.upkeepIds[i]];
       upkeepTransmitInfo[i].triggerType = _getTriggerType(report.upkeepIds[i]);
-      upkeepTransmitInfo[i].maxLinkPayment = _getMaxLinkPayment(
+      upkeepTransmitInfo[i].maxPliPayment = _getMaxPliPayment(
         hotVars,
         upkeepTransmitInfo[i].triggerType,
         uint32(report.gasLimits[i]),
         uint32(report.performDatas[i].length),
         report.fastGasWei,
-        report.linkNative,
+        report.pliNative,
         true
       );
       (upkeepTransmitInfo[i].earlyChecksPassed, upkeepTransmitInfo[i].dedupID) = _prePerformChecks(
@@ -156,7 +156,7 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
             report.upkeepIds[i],
             upkeepTransmitInfo[i],
             report.fastGasWei,
-            report.linkNative,
+            report.pliNative,
             numUpkeepsPassedChecks
           );
           totalPremium += premium;
@@ -208,12 +208,12 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
    * @param amount number of PLI transfer
    */
   function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
-    if (msg.sender != address(i_link)) revert OnlyCallableByPLIToken();
+    if (msg.sender != address(i_pli)) revert OnlyCallableByPLIToken();
     if (data.length != 32) revert InvalidDataLength();
     uint256 id = abi.decode(data, (uint256));
     if (s_upkeep[id].maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
     s_upkeep[id].balance = s_upkeep[id].balance + uint96(amount);
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
+    s_expectedPliBalance = s_expectedPliBalance + amount;
     emit FundsAdded(id, sender, uint96(amount));
   }
 
@@ -302,7 +302,7 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
     s_hotVars = HotVars({
       f: f,
       paymentPremiumPPB: onchainConfig.paymentPremiumPPB,
-      flatFeeMicroLink: onchainConfig.flatFeeMicroLink,
+      flatFeeMicroPli: onchainConfig.flatFeeMicroPli,
       stalenessSeconds: onchainConfig.stalenessSeconds,
       gasCeilingMultiplier: onchainConfig.gasCeilingMultiplier,
       paused: s_hotVars.paused,
@@ -323,10 +323,10 @@ contract KeeperRegistry2_1 is KeeperRegistryBase2_1, OCR2Abstract, Chainable, IE
       nonce: s_storage.nonce,
       configCount: s_storage.configCount,
       latestConfigBlockNumber: s_storage.latestConfigBlockNumber,
-      ownerLinkBalance: s_storage.ownerLinkBalance
+      ownerPliBalance: s_storage.ownerPliBalance
     });
     s_fallbackGasPrice = onchainConfig.fallbackGasPrice;
-    s_fallbackLinkPrice = onchainConfig.fallbackLinkPrice;
+    s_fallbackPliPrice = onchainConfig.fallbackPliPrice;
 
     uint32 previousConfigBlockNumber = s_storage.latestConfigBlockNumber;
     s_storage.latestConfigBlockNumber = uint32(_blockNum());

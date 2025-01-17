@@ -2,9 +2,9 @@
 pragma solidity 0.8.19;
 
 import {AuthorizedReceiver} from "./AuthorizedReceiver.sol";
-import {LinkTokenReceiver} from "./LinkTokenReceiver.sol";
+import {PliTokenReceiver} from "./PliTokenReceiver.sol";
 import {ConfirmedOwner} from "../shared/access/ConfirmedOwner.sol";
-import {LinkTokenInterface} from "../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../shared/interfaces/PliTokenInterface.sol";
 import {IAuthorizedReceiver} from "./interfaces/IAuthorizedReceiver.sol";
 import {OperatorInterface} from "../interfaces/OperatorInterface.sol";
 import {IOwnable} from "../shared/interfaces/IOwnable.sol";
@@ -15,7 +15,7 @@ import {SafeCast} from "../vendor/openzeppelin-solidity/v4.8.3/contracts/utils/m
 // @title The Plugin Operator contract
 // @notice Node operators can deploy this contract to fulfill requests sent to them
 // solhint-disable gas-custom-errors
-contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, OperatorInterface, IWithdrawal {
+contract Operator is AuthorizedReceiver, ConfirmedOwner, PliTokenReceiver, OperatorInterface, IWithdrawal {
   struct Commitment {
     bytes31 paramsHash;
     uint8 dataVersion;
@@ -35,7 +35,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
   // operatorRequest is intended for version 2, enabling multi-word responses
   bytes4 private constant OPERATOR_REQUEST_SELECTOR = this.operatorRequest.selector;
 
-  LinkTokenInterface internal immutable i_linkToken;
+  PliTokenInterface internal immutable i_pliToken;
   mapping(bytes32 => Commitment) private s_commitments;
   mapping(address => bool) private s_owned;
   // Tokens sent for requests that have not been fulfilled yet
@@ -62,11 +62,11 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
   event TargetsUpdatedAuthorizedSenders(address[] targets, address[] senders, address changedBy);
 
   // @notice Deploy with the address of the PLI token
-  // @dev Sets the LinkToken address for the imported LinkTokenInterface
-  // @param link The address of the PLI token
+  // @dev Sets the PliToken address for the imported PliTokenInterface
+  // @param pli The address of the PLI token
   // @param owner The address of the owner
-  constructor(address link, address owner) ConfirmedOwner(owner) {
-    i_linkToken = LinkTokenInterface(link); // external but already deployed and unalterable
+  constructor(address pli, address owner) ConfirmedOwner(owner) {
+    i_pliToken = PliTokenInterface(pli); // external but already deployed and unalterable
   }
 
   string public constant typeAndVersion = "Operator 1.0.0";
@@ -267,7 +267,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
     address recipient,
     uint256 amount
   ) external override(OracleInterface, IWithdrawal) onlyOwner validateAvailableFunds(amount) {
-    assert(i_linkToken.transfer(recipient, amount));
+    assert(i_pliToken.transfer(recipient, amount));
   }
 
   // @notice Displays the amount of PLI that is available for the node operator to withdraw
@@ -288,7 +288,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
     require(status, "Forwarded call failed");
   }
 
-  // @notice Interact with other LinkTokenReceiver contracts by calling transferAndCall
+  // @notice Interact with other PliTokenReceiver contracts by calling transferAndCall
   // @param to The address to transfer to.
   // @param value The amount to be transferred.
   // @param data The extra data to be passed to the receiving contract.
@@ -298,7 +298,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
     uint256 value,
     bytes calldata data
   ) external override onlyOwner validateAvailableFunds(value) returns (bool success) {
-    return i_linkToken.transferAndCall(to, value, data);
+    return i_pliToken.transferAndCall(to, value, data);
   }
 
   // @notice Distribute funds to multiple addresses using ETH send
@@ -344,7 +344,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
 
     // Free up the escrowed funds, as we're sending them back to the requester
     s_tokensInEscrow -= payment;
-    i_linkToken.transfer(msg.sender, payment);
+    i_pliToken.transfer(msg.sender, payment);
   }
 
   // @notice Allows requester to cancel requests sent to this oracle contract.
@@ -368,7 +368,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
   // @dev This is the public implementation for pluginTokenAddress, which is
   // an internal method of the PluginClient contract
   function getPluginToken() public view override returns (address) {
-    return address(i_linkToken);
+    return address(i_pliToken);
   }
 
   // @notice Require that the token transfer action is valid
@@ -444,7 +444,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
   // @notice Returns the PLI available in this contract, not locked in escrow
   // @return uint256 PLI tokens available
   function _fundsAvailable() private view returns (uint256) {
-    return i_linkToken.balanceOf(address(this)) - (s_tokensInEscrow - ONE_FOR_CONSISTENT_GAS_COST);
+    return i_pliToken.balanceOf(address(this)) - (s_tokensInEscrow - ONE_FOR_CONSISTENT_GAS_COST);
   }
 
   // @notice concrete implementation of AuthorizedReceiver
@@ -485,7 +485,7 @@ contract Operator is AuthorizedReceiver, ConfirmedOwner, LinkTokenReceiver, Oper
   // @dev Reverts if the callback address is the PLI token
   // @param to The callback address
   modifier validateNotToPLI(address to) {
-    require(to != address(i_linkToken), "Cannot call to PLI");
+    require(to != address(i_pliToken), "Cannot call to PLI");
     _;
   }
 

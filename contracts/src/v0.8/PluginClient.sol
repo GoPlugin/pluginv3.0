@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Plugin} from "./Plugin.sol";
 import {ENSInterface} from "./interfaces/ENSInterface.sol";
-import {LinkTokenInterface} from "./shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "./shared/interfaces/PliTokenInterface.sol";
 import {PluginRequestInterface} from "./interfaces/PluginRequestInterface.sol";
 import {OperatorInterface} from "./interfaces/OperatorInterface.sol";
 import {PointerInterface} from "./interfaces/PointerInterface.sol";
@@ -23,13 +23,13 @@ abstract contract PluginClient {
   address private constant SENDER_OVERRIDE = address(0);
   uint256 private constant ORACLE_ARGS_VERSION = 1;
   uint256 private constant OPERATOR_ARGS_VERSION = 2;
-  bytes32 private constant ENS_TOKEN_SUBNAME = keccak256("link");
+  bytes32 private constant ENS_TOKEN_SUBNAME = keccak256("pli");
   bytes32 private constant ENS_ORACLE_SUBNAME = keccak256("oracle");
   address private constant PLI_TOKEN_POINTER = 0xC89bD4E1632D3A43CB03AAAd5262cbe4038Bc571;
 
   ENSInterface private s_ens;
   bytes32 private s_ensNode;
-  LinkTokenInterface private s_link;
+  PliTokenInterface private s_pli;
   OperatorInterface private s_oracle;
   uint256 private s_requestCount = 1;
   mapping(bytes32 => address) private s_pendingRequests;
@@ -170,7 +170,7 @@ abstract contract PluginClient {
     requestId = keccak256(abi.encodePacked(this, nonce));
     s_pendingRequests[requestId] = oracleAddress;
     emit PluginRequested(requestId);
-    require(s_link.transferAndCall(oracleAddress, payment, encodedRequest), "unable to transferAndCall to oracle");
+    require(s_pli.transferAndCall(oracleAddress, payment, encodedRequest), "unable to transferAndCall to oracle");
     return requestId;
   }
 
@@ -215,10 +215,10 @@ abstract contract PluginClient {
 
   /**
    * @notice Sets the PLI token address
-   * @param linkAddress The address of the PLI token contract
+   * @param pliAddress The address of the PLI token contract
    */
-  function _setPluginToken(address linkAddress) internal {
-    s_link = LinkTokenInterface(linkAddress);
+  function _setPluginToken(address pliAddress) internal {
+    s_pli = PliTokenInterface(pliAddress);
   }
 
   /**
@@ -234,7 +234,7 @@ abstract contract PluginClient {
    * @return The address of the PLI token
    */
   function _pluginTokenAddress() internal view returns (address) {
-    return address(s_link);
+    return address(s_pli);
   }
 
   /**
@@ -267,9 +267,9 @@ abstract contract PluginClient {
   function _usePluginWithENS(address ensAddress, bytes32 node) internal {
     s_ens = ENSInterface(ensAddress);
     s_ensNode = node;
-    bytes32 linkSubnode = keccak256(abi.encodePacked(s_ensNode, ENS_TOKEN_SUBNAME));
-    ENSResolver_Plugin resolver = ENSResolver_Plugin(s_ens.resolver(linkSubnode));
-    _setPluginToken(resolver.addr(linkSubnode));
+    bytes32 pliSubnode = keccak256(abi.encodePacked(s_ensNode, ENS_TOKEN_SUBNAME));
+    ENSResolver_Plugin resolver = ENSResolver_Plugin(s_ens.resolver(pliSubnode));
+    _setPluginToken(resolver.addr(pliSubnode));
     _updatePluginOracleWithENS();
   }
 

@@ -6,7 +6,7 @@ import {ExposedVRFCoordinatorV2_5} from "../dev/testhelpers/ExposedVRFCoordinato
 import {VRFCoordinatorV2_5} from "../dev/VRFCoordinatorV2_5.sol";
 import {SubscriptionAPI} from "../dev/SubscriptionAPI.sol";
 import {VRFV2PlusConsumerExample} from "../dev/testhelpers/VRFV2PlusConsumerExample.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {VRFV2PlusMaliciousMigrator} from "../dev/testhelpers/VRFV2PlusMaliciousMigrator.sol";
 
@@ -27,19 +27,19 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
 
   ExposedVRFCoordinatorV2_5 v1Coordinator;
   VRFCoordinatorV2Plus_V2Example v2Coordinator;
-  ExposedVRFCoordinatorV2_5 v1Coordinator_noLink;
-  VRFCoordinatorV2Plus_V2Example v2Coordinator_noLink;
+  ExposedVRFCoordinatorV2_5 v1Coordinator_noPli;
+  VRFCoordinatorV2Plus_V2Example v2Coordinator_noPli;
   uint256 subId;
-  uint256 subId_noLink;
+  uint256 subId_noPli;
   VRFV2PlusConsumerExample testConsumer;
-  VRFV2PlusConsumerExample testConsumer_noLink;
-  MockLinkToken linkToken;
-  address linkTokenAddr;
-  MockV3Aggregator linkNativeFeed;
+  VRFV2PlusConsumerExample testConsumer_noPli;
+  MockPliToken pliToken;
+  address pliTokenAddr;
+  MockV3Aggregator pliNativeFeed;
   address v1CoordinatorAddr;
   address v2CoordinatorAddr;
-  address v1CoordinatorAddr_noLink;
-  address v2CoordinatorAddr_noLink;
+  address v1CoordinatorAddr_noPli;
+  address v2CoordinatorAddr_noPli;
 
   event CoordinatorRegistered(address coordinatorAddress);
   event CoordinatorDeregistered(address coordinatorAddress);
@@ -50,19 +50,19 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
     vm.deal(OWNER, 100 ether);
     address bhs = makeAddr("bhs");
     v1Coordinator = new ExposedVRFCoordinatorV2_5(bhs);
-    v1Coordinator_noLink = new ExposedVRFCoordinatorV2_5(bhs);
+    v1Coordinator_noPli = new ExposedVRFCoordinatorV2_5(bhs);
     subId = v1Coordinator.createSubscription();
-    subId_noLink = v1Coordinator_noLink.createSubscription();
-    linkToken = new MockLinkToken();
-    linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
-    v1Coordinator.setPLIAndPLINativeFeed(address(linkToken), address(linkNativeFeed));
-    linkTokenAddr = address(linkToken);
-    v2Coordinator = new VRFCoordinatorV2Plus_V2Example(address(linkToken), address(v1Coordinator));
-    v2Coordinator_noLink = new VRFCoordinatorV2Plus_V2Example(address(0), address(v1Coordinator_noLink));
+    subId_noPli = v1Coordinator_noPli.createSubscription();
+    pliToken = new MockPliToken();
+    pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    v1Coordinator.setPLIAndPLINativeFeed(address(pliToken), address(pliNativeFeed));
+    pliTokenAddr = address(pliToken);
+    v2Coordinator = new VRFCoordinatorV2Plus_V2Example(address(pliToken), address(v1Coordinator));
+    v2Coordinator_noPli = new VRFCoordinatorV2Plus_V2Example(address(0), address(v1Coordinator_noPli));
     v1CoordinatorAddr = address(v1Coordinator);
     v2CoordinatorAddr = address(v2Coordinator);
-    v1CoordinatorAddr_noLink = address(v1Coordinator_noLink);
-    v2CoordinatorAddr_noLink = address(v2Coordinator_noLink);
+    v1CoordinatorAddr_noPli = address(v1Coordinator_noPli);
+    v2CoordinatorAddr_noPli = address(v2Coordinator_noPli);
 
     vm.expectEmit(
       false, // no first indexed topic
@@ -80,12 +80,12 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
       false, // no third indexed topic
       true // check data (target coordinator address)
     );
-    emit CoordinatorRegistered(v2CoordinatorAddr_noLink);
-    v1Coordinator_noLink.registerMigratableCoordinator(v2CoordinatorAddr_noLink);
-    assertTrue(v1Coordinator_noLink.isTargetRegisteredExternal(v2CoordinatorAddr_noLink));
+    emit CoordinatorRegistered(v2CoordinatorAddr_noPli);
+    v1Coordinator_noPli.registerMigratableCoordinator(v2CoordinatorAddr_noPli);
+    assertTrue(v1Coordinator_noPli.isTargetRegisteredExternal(v2CoordinatorAddr_noPli));
 
-    testConsumer = new VRFV2PlusConsumerExample(address(v1Coordinator), address(linkToken));
-    testConsumer_noLink = new VRFV2PlusConsumerExample(address(v1Coordinator_noLink), address(0));
+    testConsumer = new VRFV2PlusConsumerExample(address(v1Coordinator), address(pliToken));
+    testConsumer_noPli = new VRFV2PlusConsumerExample(address(v1Coordinator_noPli), address(0));
     v1Coordinator.setConfig(
       DEFAULT_REQUEST_CONFIRMATIONS,
       DEFAULT_CALLBACK_GAS_LIMIT,
@@ -93,24 +93,24 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
       10_000,
       20_000,
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
-    v1Coordinator_noLink.setConfig(
+    v1Coordinator_noPli.setConfig(
       DEFAULT_REQUEST_CONFIRMATIONS,
       DEFAULT_CALLBACK_GAS_LIMIT,
       600,
       10_000,
       20_000,
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
     registerProvingKey();
     testConsumer.setCoordinator(v1CoordinatorAddr);
-    testConsumer_noLink.setCoordinator(v1CoordinatorAddr_noLink);
+    testConsumer_noPli.setCoordinator(v1CoordinatorAddr_noPli);
   }
 
   function testDeregister() public {
@@ -152,7 +152,7 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
   }
 
   function testMigration() public {
-    linkToken.transferAndCall(v1CoordinatorAddr, DEFAULT_PLI_FUNDING, abi.encode(subId));
+    pliToken.transferAndCall(v1CoordinatorAddr, DEFAULT_PLI_FUNDING, abi.encode(subId));
     v1Coordinator.fundSubscriptionWithNative{value: DEFAULT_NATIVE_FUNDING}(subId);
     v1Coordinator.addConsumer(subId, address(testConsumer));
 
@@ -183,7 +183,7 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
     v1Coordinator.getSubscription(subId);
     assertEq(v1Coordinator.s_totalBalance(), 0);
     assertEq(v1Coordinator.s_totalNativeBalance(), 0);
-    assertEq(linkToken.balanceOf(v1CoordinatorAddr), 0);
+    assertEq(pliToken.balanceOf(v1CoordinatorAddr), 0);
     assertEq(v1CoordinatorAddr.balance, 0);
 
     // subscription exists in v2 coordinator
@@ -194,9 +194,9 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
     assertEq(reqCount, 0);
     assertEq(balance, DEFAULT_PLI_FUNDING);
     assertEq(nativeBalance, DEFAULT_NATIVE_FUNDING);
-    assertEq(v2Coordinator.s_totalLinkBalance(), DEFAULT_PLI_FUNDING);
+    assertEq(v2Coordinator.s_totalPliBalance(), DEFAULT_PLI_FUNDING);
     assertEq(v2Coordinator.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
-    assertEq(linkToken.balanceOf(v2CoordinatorAddr), DEFAULT_PLI_FUNDING);
+    assertEq(pliToken.balanceOf(v2CoordinatorAddr), DEFAULT_PLI_FUNDING);
     assertEq(v2CoordinatorAddr.balance, DEFAULT_NATIVE_FUNDING);
 
     // calling migrate again on V1 coordinator should fail
@@ -220,9 +220,9 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
     );
   }
 
-  function testMigrationNoLink() public {
-    v1Coordinator_noLink.fundSubscriptionWithNative{value: DEFAULT_NATIVE_FUNDING}(subId_noLink);
-    v1Coordinator_noLink.addConsumer(subId_noLink, address(testConsumer_noLink));
+  function testMigrationNoPli() public {
+    v1Coordinator_noPli.fundSubscriptionWithNative{value: DEFAULT_NATIVE_FUNDING}(subId_noPli);
+    v1Coordinator_noPli.addConsumer(subId_noPli, address(testConsumer_noPli));
 
     // subscription exists in V1 coordinator before migration
     (
@@ -231,15 +231,15 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
       uint64 reqCount,
       address owner,
       address[] memory consumers
-    ) = v1Coordinator_noLink.getSubscription(subId_noLink);
+    ) = v1Coordinator_noPli.getSubscription(subId_noPli);
     assertEq(balance, 0);
     assertEq(nativeBalance, DEFAULT_NATIVE_FUNDING);
     assertEq(owner, address(OWNER));
     assertEq(consumers.length, 1);
-    assertEq(consumers[0], address(testConsumer_noLink));
+    assertEq(consumers[0], address(testConsumer_noPli));
 
-    assertEq(v1Coordinator_noLink.s_totalBalance(), 0);
-    assertEq(v1Coordinator_noLink.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
+    assertEq(v1Coordinator_noPli.s_totalBalance(), 0);
+    assertEq(v1Coordinator_noPli.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
 
     // Update consumer to point to the new coordinator
     vm.expectEmit(
@@ -248,48 +248,48 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
       false, // no third indexed field
       true // check data fields
     );
-    emit MigrationCompleted(v2CoordinatorAddr_noLink, subId_noLink);
-    v1Coordinator_noLink.migrate(subId_noLink, v2CoordinatorAddr_noLink);
+    emit MigrationCompleted(v2CoordinatorAddr_noPli, subId_noPli);
+    v1Coordinator_noPli.migrate(subId_noPli, v2CoordinatorAddr_noPli);
 
     // subscription no longer exists in v1 coordinator after migration
     vm.expectRevert(SubscriptionAPI.InvalidSubscription.selector);
-    v1Coordinator_noLink.getSubscription(subId);
-    assertEq(v1Coordinator_noLink.s_totalBalance(), 0);
-    assertEq(v1Coordinator_noLink.s_totalNativeBalance(), 0);
-    assertEq(linkToken.balanceOf(v1CoordinatorAddr_noLink), 0);
-    assertEq(v1CoordinatorAddr_noLink.balance, 0);
+    v1Coordinator_noPli.getSubscription(subId);
+    assertEq(v1Coordinator_noPli.s_totalBalance(), 0);
+    assertEq(v1Coordinator_noPli.s_totalNativeBalance(), 0);
+    assertEq(pliToken.balanceOf(v1CoordinatorAddr_noPli), 0);
+    assertEq(v1CoordinatorAddr_noPli.balance, 0);
 
     // subscription exists in v2 coordinator
-    (balance, nativeBalance, reqCount, owner, consumers) = v2Coordinator_noLink.getSubscription(subId_noLink);
+    (balance, nativeBalance, reqCount, owner, consumers) = v2Coordinator_noPli.getSubscription(subId_noPli);
     assertEq(owner, address(OWNER));
     assertEq(consumers.length, 1);
-    assertEq(consumers[0], address(testConsumer_noLink));
+    assertEq(consumers[0], address(testConsumer_noPli));
     assertEq(reqCount, 0);
     assertEq(balance, 0);
     assertEq(nativeBalance, DEFAULT_NATIVE_FUNDING);
-    assertEq(v2Coordinator_noLink.s_totalLinkBalance(), 0);
-    assertEq(v2Coordinator_noLink.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
-    assertEq(linkToken.balanceOf(v2CoordinatorAddr_noLink), 0);
-    assertEq(v2CoordinatorAddr_noLink.balance, DEFAULT_NATIVE_FUNDING);
+    assertEq(v2Coordinator_noPli.s_totalPliBalance(), 0);
+    assertEq(v2Coordinator_noPli.s_totalNativeBalance(), DEFAULT_NATIVE_FUNDING);
+    assertEq(pliToken.balanceOf(v2CoordinatorAddr_noPli), 0);
+    assertEq(v2CoordinatorAddr_noPli.balance, DEFAULT_NATIVE_FUNDING);
 
     // calling migrate again on V1 coordinator should fail
     vm.expectRevert(SubscriptionAPI.InvalidSubscription.selector);
-    v1Coordinator_noLink.migrate(subId_noLink, v2CoordinatorAddr_noLink);
+    v1Coordinator_noPli.migrate(subId_noPli, v2CoordinatorAddr_noPli);
 
     // test request still works after migration
-    testConsumer_noLink.requestRandomWords(
+    testConsumer_noPli.requestRandomWords(
       DEFAULT_CALLBACK_GAS_LIMIT,
       DEFAULT_REQUEST_CONFIRMATIONS,
       DEFAULT_NUM_WORDS,
       KEY_HASH,
       false
     );
-    assertEq(testConsumer_noLink.s_recentRequestId(), 1);
+    assertEq(testConsumer_noPli.s_recentRequestId(), 1);
 
-    v2Coordinator_noLink.fulfillRandomWords(testConsumer_noLink.s_recentRequestId());
+    v2Coordinator_noPli.fulfillRandomWords(testConsumer_noPli.s_recentRequestId());
     assertEq(
-      testConsumer_noLink.getRandomness(testConsumer_noLink.s_recentRequestId(), 0),
-      v2Coordinator_noLink.generateFakeRandomness(testConsumer_noLink.s_recentRequestId())[0]
+      testConsumer_noPli.getRandomness(testConsumer_noPli.s_recentRequestId(), 0),
+      v2Coordinator_noPli.generateFakeRandomness(testConsumer_noPli.s_recentRequestId())[0]
     );
   }
 
@@ -339,7 +339,7 @@ contract VRFCoordinatorV2Plus_Migration is BaseTest {
   function registerProvingKey() public {
     uint256[2] memory uncompressedKeyParts = this.getProvingKeyParts(UNCOMPRESSED_PUBLIC_KEY);
     v1Coordinator.registerProvingKey(uncompressedKeyParts, GAS_LANE_MAX_GAS);
-    v1Coordinator_noLink.registerProvingKey(uncompressedKeyParts, GAS_LANE_MAX_GAS);
+    v1Coordinator_noPli.registerProvingKey(uncompressedKeyParts, GAS_LANE_MAX_GAS);
   }
 
   // note: Call this function via this.getProvingKeyParts to be able to pass memory as calldata and

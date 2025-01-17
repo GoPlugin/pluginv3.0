@@ -4,7 +4,7 @@ import type { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ReceiveEmitter } from '../../../typechain/ReceiveEmitter'
 import { ReceiveFallbackEmitter } from '../../../typechain/ReceiveFallbackEmitter'
 import * as h from '../../test-helpers/helpers'
-import { ERC20BalanceMonitorExposed, LinkToken } from '../../../typechain'
+import { ERC20BalanceMonitorExposed, PliToken } from '../../../typechain'
 import { BigNumber } from 'ethers'
 
 const OWNABLE_ERR = 'Only callable by owner'
@@ -30,7 +30,7 @@ let watchAddress5: string
 let watchAddress6: string
 
 let bm: ERC20BalanceMonitorExposed
-let lt: LinkToken
+let lt: PliToken
 let receiveEmitter: ReceiveEmitter
 let receiveFallbackEmitter: ReceiveFallbackEmitter
 let owner: SignerWithAddress
@@ -45,12 +45,12 @@ async function assertWatchlistBalances(
   balance5: BigNumber,
   balance6: BigNumber,
 ) {
-  await h.assertLinkTokenBalance(lt, watchAddress1, balance1, 'address 1')
-  await h.assertLinkTokenBalance(lt, watchAddress2, balance2, 'address 2')
-  await h.assertLinkTokenBalance(lt, watchAddress3, balance3, 'address 3')
-  await h.assertLinkTokenBalance(lt, watchAddress4, balance4, 'address 4')
-  await h.assertLinkTokenBalance(lt, watchAddress5, balance5, 'address 5')
-  await h.assertLinkTokenBalance(lt, watchAddress6, balance6, 'address 6')
+  await h.assertPliTokenBalance(lt, watchAddress1, balance1, 'address 1')
+  await h.assertPliTokenBalance(lt, watchAddress2, balance2, 'address 2')
+  await h.assertPliTokenBalance(lt, watchAddress3, balance3, 'address 3')
+  await h.assertPliTokenBalance(lt, watchAddress4, balance4, 'address 4')
+  await h.assertPliTokenBalance(lt, watchAddress5, balance5, 'address 5')
+  await h.assertPliTokenBalance(lt, watchAddress6, balance6, 'address 6')
 }
 
 describe('ERC20BalanceMonitor', () => {
@@ -67,7 +67,7 @@ describe('ERC20BalanceMonitor', () => {
       owner,
     )
     const ltFactory = await ethers.getContractFactory(
-      'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+      'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
       owner,
     )
     const reFactory = await ethers.getContractFactory('ReceiveEmitter', owner)
@@ -649,12 +649,12 @@ describe('ERC20BalanceMonitor', () => {
         const performTx = await bm
           .connect(keeperRegistry)
           .performUpkeep(payload, { gasLimit: 2_500_000 })
-        await h.assertLinkTokenBalance(
+        await h.assertPliTokenBalance(
           lt,
           receiveEmitter.address,
           reBalanceBefore.add(twoPLI),
         )
-        await h.assertLinkTokenBalance(
+        await h.assertPliTokenBalance(
           lt,
           receiveFallbackEmitter.address,
           rfeBalanceBefore.add(twoPLI),

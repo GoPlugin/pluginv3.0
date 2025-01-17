@@ -48,8 +48,8 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   error InvalidSubscription();
   error UnauthorizedSender();
   error MustBeSubOwner(address owner);
-  error InvalidLinkWeiPrice(int256 linkWei);
-  error InvalidUsdLinkPrice(int256 usdLink);
+  error InvalidPliWeiPrice(int256 pliWei);
+  error InvalidUsdPliPrice(int256 usdPli);
   error PaymentTooLarge();
   error NoTransmittersSet();
   error InvalidCalldata();
@@ -58,13 +58,13 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   // |                        Balance state                         |
   // ================================================================
 
-  mapping(address transmitter => uint96 balanceJuelsLink) private s_withdrawableTokens;
+  mapping(address transmitter => uint96 balanceJuelsPli) private s_withdrawableTokens;
   // Pool together collected DON fees
   // Disperse them on withdrawal or change in OCR configuration
   uint96 internal s_feePool;
 
-  AggregatorV3Interface private s_linkToNativeFeed;
-  AggregatorV3Interface private s_linkToUsdFeed;
+  AggregatorV3Interface private s_pliToNativeFeed;
+  AggregatorV3Interface private s_pliToUsdFeed;
 
   // ================================================================
   // |                       Initialization                         |
@@ -72,11 +72,11 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   constructor(
     address router,
     FunctionsBillingConfig memory config,
-    address linkToNativeFeed,
-    address linkToUsdFeed
+    address pliToNativeFeed,
+    address pliToUsdFeed
   ) Routable(router) {
-    s_linkToNativeFeed = AggregatorV3Interface(linkToNativeFeed);
-    s_linkToUsdFeed = AggregatorV3Interface(linkToUsdFeed);
+    s_pliToNativeFeed = AggregatorV3Interface(pliToNativeFeed);
+    s_pliToUsdFeed = AggregatorV3Interface(pliToUsdFeed);
 
     updateConfig(config);
   }
@@ -122,42 +122,42 @@ abstract contract FunctionsBilling is Routable, IFunctionsBilling {
   }
 
   /// @inheritdoc IFunctionsBilling
-  function getWeiPerUnitLink() public view returns (uint256) {
-    (, int256 weiPerUnitLink, , uint256 timestamp, ) = s_linkToNativeFeed.latestRoundData();
+  function getWeiPerUnitPli() public view returns (uint256) {
+    (, int256 weiPerUnitPli, , uint256 timestamp, ) = s_pliToNativeFeed.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     if (s_config.feedStalenessSeconds < block.timestamp - timestamp && s_config.feedStalenessSeconds > 0) {
-      return s_config.fallbackNativePerUnitLink;
+      return s_config.fallbackNativePerUnitPli;
     }
-    if (weiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(weiPerUnitLink);
+    if (weiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(weiPerUnitPli);
     }
-    return uint256(weiPerUnitLink);
+    return uint256(weiPerUnitPli);
   }
 
   function _getJuelsFromWei(uint256 amountWei) private view returns (uint96) {
-    // (1e18 juels/link) * wei / (wei/link) = juels
+    // (1e18 juels/pli) * wei / (wei/pli) = juels
     // There are only 1e9*1e18 = 1e27 juels in existence, should not exceed uint96 (2^96 ~ 7e28)
-    return SafeCast.toUint96((1e18 * amountWei) / getWeiPerUnitLink());
+    return SafeCast.toUint96((1e18 * amountWei) / getWeiPerUnitPli());
   }
 
   /// @inheritdoc IFunctionsBilling
-  function getUsdPerUnitLink() public view returns (uint256, uint8) {
-    (, int256 usdPerUnitLink, , uint256 timestamp, ) = s_linkToUsdFeed.latestRoundData();
+  function getUsdPerUnitPli() public view returns (uint256, uint8) {
+    (, int256 usdPerUnitPli, , uint256 timestamp, ) = s_pliToUsdFeed.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     if (s_config.feedStalenessSeconds < block.timestamp - timestamp && s_config.feedStalenessSeconds > 0) {
-      return (s_config.fallbackUsdPerUnitLink, s_config.fallbackUsdPerUnitLinkDecimals);
+      return (s_config.fallbackUsdPerUnitPli, s_config.fallbackUsdPerUnitPliDecimals);
     }
-    if (usdPerUnitLink <= 0) {
-      revert InvalidUsdLinkPrice(usdPerUnitLink);
+    if (usdPerUnitPli <= 0) {
+      revert InvalidUsdPliPrice(usdPerUnitPli);
     }
-    return (uint256(usdPerUnitLink), s_linkToUsdFeed.decimals());
+    return (uint256(usdPerUnitPli), s_pliToUsdFeed.decimals());
   }
 
   function _getJuelsFromUsd(uint256 amountUsd) private view returns (uint96) {
-    (uint256 usdPerLink, uint8 decimals) = getUsdPerUnitLink();
-    // (usd) * (10**18 juels/link) * (10**decimals) / (link / usd) = juels
+    (uint256 usdPerPli, uint8 decimals) = getUsdPerUnitPli();
+    // (usd) * (10**18 juels/pli) * (10**decimals) / (pli / usd) = juels
     // There are only 1e9*1e18 = 1e27 juels in existence, should not exceed uint96 (2^96 ~ 7e28)
-    return SafeCast.toUint96((amountUsd * 10 ** (18 + decimals)) / usdPerLink);
+    return SafeCast.toUint96((amountUsd * 10 ** (18 + decimals)) / usdPerPli);
   }
 
   // ================================================================

@@ -4,8 +4,8 @@ pragma solidity ^0.8.19;
 /// @title Plugin Functions DON billing interface.
 interface IFunctionsBilling {
   /// @notice Return the current conversion from WEI of ETH to PLI from the configured Plugin data feed
-  /// @return weiPerUnitLink - The amount of WEI in one PLI
-  function getWeiPerUnitLink() external view returns (uint256);
+  /// @return weiPerUnitPli - The amount of WEI in one PLI
+  function getWeiPerUnitPli() external view returns (uint256);
 
   /// @notice Determine the fee that will be split between Node Operators for servicing a request
   /// @param requestCBOR - CBOR encoded Plugin Functions request data, use FunctionsRequest library to encode a request

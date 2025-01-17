@@ -23,11 +23,11 @@ contract ExposedVRFCoordinatorV2_5_Arbitrum is VRFCoordinatorV2_5_Arbitrum {
     return _calculatePaymentAmountNative(startGas, weiPerUnitGas, onlyPremium);
   }
 
-  function calculatePaymentAmountLinkExternal(
+  function calculatePaymentAmountPliExternal(
     uint256 startGas,
     uint256 weiPerUnitGas,
     bool onlyPremium
   ) external returns (uint96, bool) {
-    return _calculatePaymentAmountLink(startGas, weiPerUnitGas, onlyPremium);
+    return _calculatePaymentAmountPli(startGas, weiPerUnitGas, onlyPremium);
   }
 }

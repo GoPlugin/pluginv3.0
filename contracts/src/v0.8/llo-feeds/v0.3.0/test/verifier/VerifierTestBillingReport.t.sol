@@ -11,28 +11,28 @@ contract VerifierTestWithConfiguredVerifierAndFeeManager is BaseTestWithConfigur
     super.setUp();
 
     //mint some tokens to the user
-    link.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(USER, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(USER, DEFAULT_NATIVE_MINT_QUANTITY);
 
-    //mint some link tokens to the feeManager pool
-    link.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //mint some pli tokens to the feeManager pool
+    pli.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
   }
 }
 
 contract VerifierTestBillingReport is VerifierTestWithConfiguredVerifierAndFeeManager {
-  function test_verifyWithLink() public {
+  function test_verifyWithPli() public {
     bytes memory signedReport = _generateV3EncodedBlob(
       _generateV3Report(),
       _generateReportContext(v3ConfigDigest),
       _getSigners(FAULT_TOLERANCE + 1)
     );
 
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
 
-    _verify(signedReport, address(link), 0, USER);
+    _verify(signedReport, address(pli), 0, USER);
 
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
   }
 
   function test_verifyWithNative() public {
@@ -47,7 +47,7 @@ contract VerifierTestBillingReport is VerifierTestWithConfiguredVerifierAndFeeMa
     _verify(signedReport, address(native), 0, USER);
 
     assertEq(native.balanceOf(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
   }
 
   function test_verifyWithNativeUnwrapped() public {
@@ -80,7 +80,7 @@ contract VerifierTestBillingReport is VerifierTestWithConfiguredVerifierAndFeeMa
 contract VerifierBulkVerifyBillingReport is VerifierTestWithConfiguredVerifierAndFeeManager {
   uint256 internal constant NUMBERS_OF_REPORTS = 5;
 
-  function test_verifyWithBulkLink() public {
+  function test_verifyWithBulkPli() public {
     bytes memory signedReport = _generateV3EncodedBlob(
       _generateV3Report(),
       _generateReportContext(v3ConfigDigest),
@@ -92,12 +92,12 @@ contract VerifierBulkVerifyBillingReport is VerifierTestWithConfiguredVerifierAn
       signedReports[i] = signedReport;
     }
 
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS, USER);
 
-    _verifyBulk(signedReports, address(link), 0, USER);
+    _verifyBulk(signedReports, address(pli), 0, USER);
 
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * NUMBERS_OF_REPORTS);
   }
 
   function test_verifyWithBulkNative() public {
@@ -174,13 +174,13 @@ contract VerifierBulkVerifyBillingReport is VerifierTestWithConfiguredVerifierAn
     signedReports[1] = signedReportV3;
     signedReports[2] = signedReportV3;
 
-    _approveLink(address(rewardManager), 2 * DEFAULT_REPORT_PLI_FEE, USER);
+    _approvePli(address(rewardManager), 2 * DEFAULT_REPORT_PLI_FEE, USER);
 
-    _verifyBulk(signedReports, address(link), 0, USER);
+    _verifyBulk(signedReports, address(pli), 0, USER);
 
-    assertEq(link.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - 2 * DEFAULT_REPORT_PLI_FEE);
+    assertEq(pli.balanceOf(USER), DEFAULT_PLI_MINT_QUANTITY - 2 * DEFAULT_REPORT_PLI_FEE);
     assertEq(native.balanceOf(USER), DEFAULT_NATIVE_MINT_QUANTITY);
-    assertEq(link.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 2);
+    assertEq(pli.balanceOf(address(rewardManager)), DEFAULT_REPORT_PLI_FEE * 2);
   }
 
   function test_verifyMultiVersionsReturnsVerifiedReports() public {
@@ -202,12 +202,12 @@ contract VerifierBulkVerifyBillingReport is VerifierTestWithConfiguredVerifierAn
     signedReports[1] = signedReportV3;
     signedReports[2] = signedReportV3;
 
-    _approveLink(address(rewardManager), 2 * DEFAULT_REPORT_PLI_FEE, USER);
+    _approvePli(address(rewardManager), 2 * DEFAULT_REPORT_PLI_FEE, USER);
 
     address originalAddr = msg.sender;
     changePrank(USER);
 
-    bytes[] memory verifierReports = s_verifierProxy.verifyBulk{value: 0}(signedReports, abi.encode(link));
+    bytes[] memory verifierReports = s_verifierProxy.verifyBulk{value: 0}(signedReports, abi.encode(pli));
 
     changePrank(originalAddr);
 

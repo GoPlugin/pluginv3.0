@@ -32,8 +32,8 @@ contract AutomationRegistryLogicA2_3 is AutomationRegistryBase2_3, Chainable, IE
     AutomationRegistryLogicB2_3 logicB
   )
     AutomationRegistryBase2_3(
-      AutomationRegistryLogicC2_3(address(logicB)).getLinkAddress(),
-      AutomationRegistryLogicC2_3(address(logicB)).getLinkUSDFeedAddress(),
+      AutomationRegistryLogicC2_3(address(logicB)).getPliAddress(),
+      AutomationRegistryLogicC2_3(address(logicB)).getPliUSDFeedAddress(),
       AutomationRegistryLogicC2_3(address(logicB)).getNativeUSDFeedAddress(),
       AutomationRegistryLogicC2_3(address(logicB)).getFastGasFeedAddress(),
       AutomationRegistryLogicC2_3(address(logicB)).getAutomationForwarderLogic(),
@@ -51,13 +51,13 @@ contract AutomationRegistryLogicA2_3 is AutomationRegistryBase2_3, Chainable, IE
    * @param amount number of PLI transfer
    */
   function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
-    if (msg.sender != address(i_link)) revert OnlyCallableByPLIToken();
+    if (msg.sender != address(i_pli)) revert OnlyCallableByPLIToken();
     if (data.length != 32) revert InvalidDataLength();
     uint256 id = abi.decode(data, (uint256));
     if (s_upkeep[id].maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
-    if (address(s_upkeep[id].billingToken) != address(i_link)) revert InvalidToken();
+    if (address(s_upkeep[id].billingToken) != address(i_pli)) revert InvalidToken();
     s_upkeep[id].balance = s_upkeep[id].balance + uint96(amount);
-    s_reserveAmounts[IERC20(address(i_link))] = s_reserveAmounts[IERC20(address(i_link))] + amount;
+    s_reserveAmounts[IERC20(address(i_pli))] = s_reserveAmounts[IERC20(address(i_pli))] + amount;
     emit FundsAdded(id, sender, uint96(amount));
   }
 

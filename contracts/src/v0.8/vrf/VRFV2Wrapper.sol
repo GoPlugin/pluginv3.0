@@ -5,7 +5,7 @@ pragma solidity ^0.8.6;
 import {ConfirmedOwner} from "../shared/access/ConfirmedOwner.sol";
 import {TypeAndVersionInterface} from "../interfaces/TypeAndVersionInterface.sol";
 import {VRFConsumerBaseV2} from "./VRFConsumerBaseV2.sol";
-import {LinkTokenInterface} from "../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../shared/interfaces/PliTokenInterface.sol";
 import {AggregatorV3Interface} from "../shared/interfaces/AggregatorV3Interface.sol";
 import {VRFCoordinatorV2Interface} from "./interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFV2WrapperInterface} from "./interfaces/VRFV2WrapperInterface.sol";
@@ -20,7 +20,7 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
   event WrapperFulfillmentFailed(uint256 indexed requestId, address indexed consumer);
 
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
-  LinkTokenInterface public immutable PLI;
+  PliTokenInterface public immutable PLI;
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
   AggregatorV3Interface public immutable PLI_ETH_FEED;
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
@@ -53,17 +53,17 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
   // but existing ones can still be fulfilled.
   bool public s_disabled;
 
-  // s_fallbackWeiPerUnitLink is the backup PLI exchange rate used when the PLI/NATIVE feed is
+  // s_fallbackWeiPerUnitPli is the backup PLI exchange rate used when the PLI/NATIVE feed is
   // stale.
-  int256 private s_fallbackWeiPerUnitLink;
+  int256 private s_fallbackWeiPerUnitPli;
 
   // s_stalenessSeconds is the number of seconds before we consider the feed price to be stale and
-  // fallback to fallbackWeiPerUnitLink.
+  // fallback to fallbackWeiPerUnitPli.
   uint32 private s_stalenessSeconds;
 
-  // s_fulfillmentFlatFeeLinkPPM is the flat fee in millionths of PLI that VRFCoordinatorV2
+  // s_fulfillmentFlatFeePliPPM is the flat fee in millionths of PLI that VRFCoordinatorV2
   // charges.
-  uint32 private s_fulfillmentFlatFeeLinkPPM;
+  uint32 private s_fulfillmentFlatFeePliPPM;
 
   // Other configuration
 
@@ -92,18 +92,18 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
     address callbackAddress;
     uint32 callbackGasLimit;
     uint256 requestGasPrice;
-    int256 requestWeiPerUnitLink;
+    int256 requestWeiPerUnitPli;
     uint256 juelsPaid;
   }
   mapping(uint256 => Callback) /* requestID */ /* callback */ public s_callbacks;
 
   constructor(
-    address _link,
-    address _linkEthFeed,
+    address _pli,
+    address _pliEthFeed,
     address _coordinator
   ) ConfirmedOwner(msg.sender) VRFConsumerBaseV2(_coordinator) {
-    PLI = LinkTokenInterface(_link);
-    PLI_ETH_FEED = AggregatorV3Interface(_linkEthFeed);
+    PLI = PliTokenInterface(_pli);
+    PLI_ETH_FEED = AggregatorV3Interface(_pliEthFeed);
     COORDINATOR = ExtendedVRFCoordinatorV2Interface(_coordinator);
 
     // Create this wrapper's subscription and add itself as a consumer.
@@ -152,20 +152,20 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
 
     // Get other configuration from coordinator
     (, , s_stalenessSeconds, ) = COORDINATOR.getConfig();
-    s_fallbackWeiPerUnitLink = COORDINATOR.getFallbackWeiPerUnitLink();
-    (s_fulfillmentFlatFeeLinkPPM, , , , , , , , ) = COORDINATOR.getFeeConfig();
+    s_fallbackWeiPerUnitPli = COORDINATOR.getFallbackWeiPerUnitPli();
+    (s_fulfillmentFlatFeePliPPM, , , , , , , , ) = COORDINATOR.getFeeConfig();
   }
 
   /**
    * @notice getConfig returns the current VRFV2Wrapper configuration.
    *
-   * @return fallbackWeiPerUnitLink is the backup PLI exchange rate used when the PLI/NATIVE feed
+   * @return fallbackWeiPerUnitPli is the backup PLI exchange rate used when the PLI/NATIVE feed
    *         is stale.
    *
    * @return stalenessSeconds is the number of seconds before we consider the feed price to be stale
-   *         and fallback to fallbackWeiPerUnitLink.
+   *         and fallback to fallbackWeiPerUnitPli.
    *
-   * @return fulfillmentFlatFeeLinkPPM is the flat fee in millionths of PLI that VRFCoordinatorV2
+   * @return fulfillmentFlatFeePliPPM is the flat fee in millionths of PLI that VRFCoordinatorV2
    *         charges.
    *
    * @return wrapperGasOverhead reflects the gas overhead of the wrapper's fulfillRandomWords
@@ -187,9 +187,9 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
     external
     view
     returns (
-      int256 fallbackWeiPerUnitLink,
+      int256 fallbackWeiPerUnitPli,
       uint32 stalenessSeconds,
-      uint32 fulfillmentFlatFeeLinkPPM,
+      uint32 fulfillmentFlatFeePliPPM,
       uint32 wrapperGasOverhead,
       uint32 coordinatorGasOverhead,
       uint8 wrapperPremiumPercentage,
@@ -198,9 +198,9 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
     )
   {
     return (
-      s_fallbackWeiPerUnitLink,
+      s_fallbackWeiPerUnitPli,
       s_stalenessSeconds,
-      s_fulfillmentFlatFeeLinkPPM,
+      s_fulfillmentFlatFeePliPPM,
       s_wrapperGasOverhead,
       s_coordinatorGasOverhead,
       s_wrapperPremiumPercentage,
@@ -221,8 +221,8 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
   function calculateRequestPrice(
     uint32 _callbackGasLimit
   ) external view override onlyConfiguredNotDisabled returns (uint256) {
-    int256 weiPerUnitLink = _getFeedData();
-    return _calculateRequestPrice(_callbackGasLimit, tx.gasprice, weiPerUnitLink);
+    int256 weiPerUnitPli = _getFeedData();
+    return _calculateRequestPrice(_callbackGasLimit, tx.gasprice, weiPerUnitPli);
   }
 
   /**
@@ -238,14 +238,14 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
     uint32 _callbackGasLimit,
     uint256 _requestGasPriceWei
   ) external view override onlyConfiguredNotDisabled returns (uint256) {
-    int256 weiPerUnitLink = _getFeedData();
-    return _calculateRequestPrice(_callbackGasLimit, _requestGasPriceWei, weiPerUnitLink);
+    int256 weiPerUnitPli = _getFeedData();
+    return _calculateRequestPrice(_callbackGasLimit, _requestGasPriceWei, weiPerUnitPli);
   }
 
   function _calculateRequestPrice(
     uint256 _gas,
     uint256 _requestGasPrice,
-    int256 _weiPerUnitLink
+    int256 _weiPerUnitPli
   ) internal view returns (uint256) {
     // costWei is the base fee denominated in wei (native)
     // costWei takes into account the L1 posting costs of the VRF fulfillment
@@ -253,19 +253,19 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
     uint256 costWei = (_requestGasPrice *
       (_gas + s_wrapperGasOverhead + s_coordinatorGasOverhead) +
       ChainSpecificUtil._getL1CalldataGasCost(s_fulfillmentTxSizeBytes));
-    // (1e18 juels/link) * ((wei/gas * (gas)) + l1wei) / (wei/link) == 1e18 juels * wei/link / (wei/link) == 1e18 juels * wei/link * link/wei == juels
-    // baseFee is the base fee denominated in juels (link)
-    uint256 baseFee = (1e18 * costWei) / uint256(_weiPerUnitLink);
+    // (1e18 juels/pli) * ((wei/gas * (gas)) + l1wei) / (wei/pli) == 1e18 juels * wei/pli / (wei/pli) == 1e18 juels * wei/pli * pli/wei == juels
+    // baseFee is the base fee denominated in juels (pli)
+    uint256 baseFee = (1e18 * costWei) / uint256(_weiPerUnitPli);
     // feeWithPremium is the fee after the percentage premium is applied
     uint256 feeWithPremium = (baseFee * (s_wrapperPremiumPercentage + 100)) / 100;
     // feeWithFlatFee is the fee after the flat fee is applied on top of the premium
-    uint256 feeWithFlatFee = feeWithPremium + (1e12 * uint256(s_fulfillmentFlatFeeLinkPPM));
+    uint256 feeWithFlatFee = feeWithPremium + (1e12 * uint256(s_fulfillmentFlatFeePliPPM));
 
     return feeWithFlatFee;
   }
 
   /**
-   * @notice onTokenTransfer is called by LinkToken upon payment for a VRF request.
+   * @notice onTokenTransfer is called by PliToken upon payment for a VRF request.
    *
    * @dev Reverts if payment is too low.
    *
@@ -286,8 +286,8 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
       (uint32, uint16, uint32)
     );
     uint32 eip150Overhead = _getEIP150Overhead(callbackGasLimit);
-    int256 weiPerUnitLink = _getFeedData();
-    uint256 price = _calculateRequestPrice(callbackGasLimit, tx.gasprice, weiPerUnitLink);
+    int256 weiPerUnitPli = _getFeedData();
+    uint256 price = _calculateRequestPrice(callbackGasLimit, tx.gasprice, weiPerUnitPli);
     // solhint-disable-next-line gas-custom-errors
     require(_amount >= price, "fee too low");
     // solhint-disable-next-line gas-custom-errors
@@ -304,7 +304,7 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
       callbackAddress: _sender,
       callbackGasLimit: callbackGasLimit,
       requestGasPrice: tx.gasprice,
-      requestWeiPerUnitLink: weiPerUnitLink,
+      requestWeiPerUnitPli: weiPerUnitPli,
       juelsPaid: _amount
     });
     lastRequestId = requestId;
@@ -355,15 +355,15 @@ contract VRFV2Wrapper is ConfirmedOwner, TypeAndVersionInterface, VRFConsumerBas
   function _getFeedData() private view returns (int256) {
     bool staleFallback = s_stalenessSeconds > 0;
     uint256 timestamp;
-    int256 weiPerUnitLink;
-    (, weiPerUnitLink, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
+    int256 weiPerUnitPli;
+    (, weiPerUnitPli, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     if (staleFallback && s_stalenessSeconds < block.timestamp - timestamp) {
-      weiPerUnitLink = s_fallbackWeiPerUnitLink;
+      weiPerUnitPli = s_fallbackWeiPerUnitPli;
     }
     // solhint-disable-next-line gas-custom-errors
-    require(weiPerUnitLink >= 0, "Invalid PLI wei price");
-    return weiPerUnitLink;
+    require(weiPerUnitPli >= 0, "Invalid PLI wei price");
+    return weiPerUnitPli;
   }
 
   /**
@@ -431,17 +431,17 @@ interface ExtendedVRFCoordinatorV2Interface is VRFCoordinatorV2Interface {
       uint32 gasAfterPaymentCalculation
     );
 
-  function getFallbackWeiPerUnitLink() external view returns (int256);
+  function getFallbackWeiPerUnitPli() external view returns (int256);
 
   function getFeeConfig()
     external
     view
     returns (
-      uint32 fulfillmentFlatFeeLinkPPMTier1,
-      uint32 fulfillmentFlatFeeLinkPPMTier2,
-      uint32 fulfillmentFlatFeeLinkPPMTier3,
-      uint32 fulfillmentFlatFeeLinkPPMTier4,
-      uint32 fulfillmentFlatFeeLinkPPMTier5,
+      uint32 fulfillmentFlatFeePliPPMTier1,
+      uint32 fulfillmentFlatFeePliPPMTier2,
+      uint32 fulfillmentFlatFeePliPPMTier3,
+      uint32 fulfillmentFlatFeePliPPMTier4,
+      uint32 fulfillmentFlatFeePliPPMTier5,
       uint24 reqsForTier2,
       uint24 reqsForTier3,
       uint24 reqsForTier4,

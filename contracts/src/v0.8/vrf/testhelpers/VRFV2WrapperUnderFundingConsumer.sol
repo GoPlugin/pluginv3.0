@@ -2,15 +2,15 @@
 pragma solidity ^0.8.0;
 
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFV2WrapperInterface} from "../interfaces/VRFV2WrapperInterface.sol";
 
 contract VRFV2WrapperUnderFundingConsumer is ConfirmedOwner {
-  LinkTokenInterface internal immutable PLI;
+  PliTokenInterface internal immutable PLI;
   VRFV2WrapperInterface internal immutable VRF_V2_WRAPPER;
 
-  constructor(address _link, address _vrfV2Wrapper) ConfirmedOwner(msg.sender) {
-    PLI = LinkTokenInterface(_link);
+  constructor(address _pli, address _vrfV2Wrapper) ConfirmedOwner(msg.sender) {
+    PLI = PliTokenInterface(_pli);
     VRF_V2_WRAPPER = VRFV2WrapperInterface(_vrfV2Wrapper);
   }
 

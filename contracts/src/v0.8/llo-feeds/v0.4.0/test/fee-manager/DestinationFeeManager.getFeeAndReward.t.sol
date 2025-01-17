@@ -18,9 +18,9 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     assertEq(fee.amount, DEFAULT_REPORT_NATIVE_FEE);
   }
 
-  function test_baseFeeIsAppliedForLink() public view {
+  function test_baseFeeIsAppliedForPli() public view {
     //get the fee required by the feeManager
-    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be the default
     assertEq(fee.amount, DEFAULT_REPORT_PLI_FEE);
@@ -28,7 +28,7 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
 
   function test_discountAIsNotAppliedWhenSetForOtherUsers() public {
     //set the subscriber discount for another user
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the fee required by the feeManager
     Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getNativeQuote(), INVALID_ADDRESS);
@@ -45,12 +45,12 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, INVALID_ADDRESS, FEE_SCALAR / 2, ADMIN);
   }
 
-  function test_discountIsAppliedForLink() public {
+  function test_discountIsAppliedForPli() public {
     //set the subscriber discount to 50%
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(fee.amount, DEFAULT_REPORT_PLI_FEE / 2);
@@ -69,19 +69,19 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
 
   function test_discountIsNoLongerAppliedAfterRemoving() public {
     //set the subscriber discount to 50%
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(fee.amount, DEFAULT_REPORT_PLI_FEE / 2);
 
     //remove the discount
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), 0, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), 0, ADMIN);
 
     //get the fee required by the feeManager
-    fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be the default
     assertEq(fee.amount, DEFAULT_REPORT_PLI_FEE);
@@ -104,7 +104,7 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     assertEq(fee.amount, DEFAULT_REPORT_NATIVE_FEE + expectedSurcharge);
   }
 
-  function test_surchargeIsNotAppliedForLinkFee() public {
+  function test_surchargeIsNotAppliedForPliFee() public {
     //native surcharge
     uint256 nativeSurcharge = FEE_SCALAR / 5;
 
@@ -112,7 +112,7 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     setNativeSurcharge(nativeSurcharge, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be the default
     assertEq(fee.amount, DEFAULT_REPORT_PLI_FEE);
@@ -388,19 +388,19 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
 
   function test_correctDiscountIsAppliedWhenBothTokensAreDiscounted() public {
     //set the subscriber and native discounts
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 4, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 4, ADMIN);
     setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(native), FEE_SCALAR / 2, ADMIN);
 
     //get the fee required by the feeManager for both tokens
-    Common.Asset memory linkFee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory pliFee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
     Common.Asset memory nativeFee = getFee(getV3Report(DEFAULT_FEED_1_V3), getNativeQuote(), USER);
 
     //calculate the expected discount quantity for each token
-    uint256 expectedDiscountLink = (DEFAULT_REPORT_PLI_FEE * FEE_SCALAR) / 4 / FEE_SCALAR;
+    uint256 expectedDiscountPli = (DEFAULT_REPORT_PLI_FEE * FEE_SCALAR) / 4 / FEE_SCALAR;
     uint256 expectedDiscountNative = (DEFAULT_REPORT_NATIVE_FEE * FEE_SCALAR) / 2 / FEE_SCALAR;
 
     //check the fee calculation for each token
-    assertEq(linkFee.amount, DEFAULT_REPORT_PLI_FEE - expectedDiscountLink);
+    assertEq(pliFee.amount, DEFAULT_REPORT_PLI_FEE - expectedDiscountPli);
     assertEq(nativeFee.amount, DEFAULT_REPORT_NATIVE_FEE - expectedDiscountNative);
   }
 
@@ -462,20 +462,20 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     setNativeSurcharge(nativeSurcharge, ADMIN);
   }
 
-  function test_getBaseRewardWithLinkQuote() public view {
+  function test_getBaseRewardWithPliQuote() public view {
     //get the fee required by the feeManager
-    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //the reward should equal the base fee
     assertEq(reward.amount, DEFAULT_REPORT_PLI_FEE);
   }
 
-  function test_getRewardWithLinkQuoteAndLinkDiscount() public {
-    //set the link discount
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 2, ADMIN);
+  function test_getRewardWithPliQuoteAndPliDiscount() public {
+    //set the pli discount
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //the reward should equal the discounted base fee
     assertEq(reward.amount, DEFAULT_REPORT_PLI_FEE / 2);
@@ -485,7 +485,7 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     //get the fee required by the feeManager
     Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getNativeQuote(), USER);
 
-    //the reward should equal the base fee in link
+    //the reward should equal the base fee in pli
     assertEq(reward.amount, DEFAULT_REPORT_PLI_FEE);
   }
 
@@ -496,58 +496,58 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     //get the fee required by the feeManager
     Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getNativeQuote(), USER);
 
-    //the reward should equal the base fee in link regardless of the surcharge
+    //the reward should equal the base fee in pli regardless of the surcharge
     assertEq(reward.amount, DEFAULT_REPORT_PLI_FEE);
   }
 
-  function test_getRewardWithLinkDiscount() public {
-    //set the link discount
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 2, ADMIN);
+  function test_getRewardWithPliDiscount() public {
+    //set the pli discount
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //the reward should equal the discounted base fee
     assertEq(reward.amount, DEFAULT_REPORT_PLI_FEE / 2);
   }
 
-  function test_getLinkFeeIsRoundedUp() public {
-    //set the link discount
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 3, ADMIN);
+  function test_getPliFeeIsRoundedUp() public {
+    //set the pli discount
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 3, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //the reward should equal .66% + 1 of the base fee due to a 33% discount rounded up
     assertEq(fee.amount, (DEFAULT_REPORT_PLI_FEE * 2) / 3 + 1);
   }
 
-  function test_getLinkRewardIsSameAsFee() public {
-    //set the link discount
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 3, ADMIN);
+  function test_getPliRewardIsSameAsFee() public {
+    //set the pli discount
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 3, ADMIN);
 
     //get the fee required by the feeManager
-    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
-    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    Common.Asset memory fee = getFee(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
+    Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
-    //check the reward is in link
-    assertEq(fee.assetAddress, address(link));
+    //check the reward is in pli
+    assertEq(fee.assetAddress, address(pli));
 
     //the reward should equal .66% of the base fee due to a 33% discount rounded down
     assertEq(reward.amount, fee.amount);
   }
 
-  function test_getLinkRewardWithNativeQuoteAndSurchargeWithLinkDiscount() public {
+  function test_getPliRewardWithNativeQuoteAndSurchargeWithPliDiscount() public {
     //set the native surcharge
     setNativeSurcharge(FEE_SCALAR / 2, ADMIN);
 
-    //set the link discount
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 3, ADMIN);
+    //set the pli discount
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 3, ADMIN);
 
     //get the fee required by the feeManager
     Common.Asset memory reward = getReward(getV3Report(DEFAULT_FEED_1_V3), getNativeQuote(), USER);
 
-    //the reward should equal the base fee in link regardless of the surcharge
+    //the reward should equal the base fee in pli regardless of the surcharge
     assertEq(reward.amount, DEFAULT_REPORT_PLI_FEE);
   }
 
@@ -568,12 +568,12 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     );
   }
 
-  function test_discountIsReturnedForLink() public {
+  function test_discountIsReturnedForPli() public {
     //set the subscriber discount to 50%
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the fee applied
-    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(discount, FEE_SCALAR / 2);
@@ -615,24 +615,24 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     assertEq(discount, FEE_SCALAR / 2);
   }
 
-  function test_GlobalDiscountWithLink() public {
+  function test_GlobalDiscountWithPli() public {
     //set the global discount to 50%
-    setSubscriberGlobalDiscount(USER, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberGlobalDiscount(USER, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the discount applied
-    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(discount, FEE_SCALAR / 2);
   }
 
-  function test_GlobalDiscountWithNativeAndLink() public {
+  function test_GlobalDiscountWithNativeAndPli() public {
     //set the global discount to 50%
     setSubscriberGlobalDiscount(USER, address(native), FEE_SCALAR / 2, ADMIN);
-    setSubscriberGlobalDiscount(USER, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberGlobalDiscount(USER, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the discount applied
-    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(discount, FEE_SCALAR / 2);
@@ -650,33 +650,33 @@ contract DestinationFeeManagerProcessFeeTest is BaseDestinationFeeManagerTest {
     assertEq(discount, FEE_SCALAR / 4);
   }
 
-  function test_GlobalDiscountIsOverridenByIndividualDiscountLink() public {
+  function test_GlobalDiscountIsOverridenByIndividualDiscountPli() public {
     //set the global discount to 50%
-    setSubscriberGlobalDiscount(USER, address(link), FEE_SCALAR / 2, ADMIN);
-    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(link), FEE_SCALAR / 4, ADMIN);
+    setSubscriberGlobalDiscount(USER, address(pli), FEE_SCALAR / 2, ADMIN);
+    setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(pli), FEE_SCALAR / 4, ADMIN);
 
     //get the discount applied
-    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(discount, FEE_SCALAR / 4);
   }
 
-  function test_GlobalDiscountIsUpdatedAfterBeingSetToZeroLink() public {
+  function test_GlobalDiscountIsUpdatedAfterBeingSetToZeroPli() public {
     //set the global discount to 50%
-    setSubscriberGlobalDiscount(USER, address(link), FEE_SCALAR / 2, ADMIN);
+    setSubscriberGlobalDiscount(USER, address(pli), FEE_SCALAR / 2, ADMIN);
 
     //get the discount applied
-    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    uint256 discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be half the default
     assertEq(discount, FEE_SCALAR / 2);
 
     //set the global discount to zero
-    setSubscriberGlobalDiscount(USER, address(link), 0, ADMIN);
+    setSubscriberGlobalDiscount(USER, address(pli), 0, ADMIN);
 
     //get the discount applied
-    discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getLinkQuote(), USER);
+    discount = getAppliedDiscount(getV3Report(DEFAULT_FEED_1_V3), getPliQuote(), USER);
 
     //fee should be zero
     assertEq(discount, 0);

@@ -10,15 +10,15 @@ const describeMaybe = process.env.CI ? describe.skip : describe
 
 // registry settings
 const f = 1
-const linkEth = BigNumber.from(300000000)
+const pliEth = BigNumber.from(300000000)
 const gasWei = BigNumber.from(100)
 const minUpkeepSpend = BigNumber.from('1000000000000000000')
 const paymentPremiumPPB = BigNumber.from(250000000)
-const flatFeeMicroLink = BigNumber.from(0)
+const flatFeeMicroPli = BigNumber.from(0)
 const blockCountPerTurn = 20
 const checkGasLimit = BigNumber.from(20000000)
 const fallbackGasPrice = BigNumber.from(200)
-const fallbackLinkPrice = BigNumber.from(200000000)
+const fallbackPliPrice = BigNumber.from(200000000)
 const maxCheckDataSize = BigNumber.from(10000)
 const maxPerformDataSize = BigNumber.from(10000)
 const maxRevertDataSize = BigNumber.from(1000)
@@ -67,7 +67,7 @@ describeMaybe('Automation Gas Analysis', () => {
 
     // factories
     const getFact = ethers.getContractFactory
-    const linkTokenFactory = await getFact('LinkToken')
+    const pliTokenFactory = await getFact('PliToken')
     const mockV3AggregatorFactory = await getFact(
       'src/v0.8/tests/MockV3Aggregator.sol:MockV3Aggregator',
     )
@@ -81,18 +81,18 @@ describeMaybe('Automation Gas Analysis', () => {
     const forwarderLogicFactory = await getFact('AutomationForwarderLogic')
 
     // deploy dependancy contracts
-    const linkToken = await linkTokenFactory.connect(owner).deploy()
+    const pliToken = await pliTokenFactory.connect(owner).deploy()
     const gasPriceFeed = await mockV3AggregatorFactory
       .connect(owner)
       .deploy(0, gasWei)
-    const linkEthFeed = await mockV3AggregatorFactory
+    const pliEthFeed = await mockV3AggregatorFactory
       .connect(owner)
-      .deploy(9, linkEth)
+      .deploy(9, pliEth)
     const upkeep = await upkeepMockFactory.connect(owner).deploy()
 
     // deploy v1.2
     const registrar12 = await registrar12Factory.connect(owner).deploy(
-      linkToken.address,
+      pliToken.address,
       autoApproveType,
       autoApproveMaxAllowed,
       ethers.constants.AddressZero, // set later
@@ -100,9 +100,9 @@ describeMaybe('Automation Gas Analysis', () => {
     )
     const registry12 = await registry12Factory
       .connect(owner)
-      .deploy(linkToken.address, linkEthFeed.address, gasPriceFeed.address, {
+      .deploy(pliToken.address, pliEthFeed.address, gasPriceFeed.address, {
         paymentPremiumPPB,
-        flatFeeMicroLink,
+        flatFeeMicroPli,
         blockCountPerTurn,
         checkGasLimit,
         stalenessSeconds,
@@ -110,7 +110,7 @@ describeMaybe('Automation Gas Analysis', () => {
         minUpkeepSpend,
         maxPerformGas,
         fallbackGasPrice,
-        fallbackLinkPrice,
+        fallbackPliPrice,
         transcoder,
         registrar: registrar12.address,
       })
@@ -124,14 +124,14 @@ describeMaybe('Automation Gas Analysis', () => {
     // deploy v2.0
     const registryLogic20 = await registryLogic20Factory
       .connect(owner)
-      .deploy(0, linkToken.address, linkEthFeed.address, gasPriceFeed.address)
+      .deploy(0, pliToken.address, pliEthFeed.address, gasPriceFeed.address)
     const registry20 = await registry20Factory
       .connect(owner)
       .deploy(registryLogic20.address)
     const registrar20 = await registrar20Factory
       .connect(owner)
       .deploy(
-        linkToken.address,
+        pliToken.address,
         autoApproveType,
         autoApproveMaxAllowed,
         registry20.address,
@@ -139,7 +139,7 @@ describeMaybe('Automation Gas Analysis', () => {
       )
     const config20 = {
       paymentPremiumPPB,
-      flatFeeMicroLink,
+      flatFeeMicroPli,
       checkGasLimit,
       stalenessSeconds,
       gasCeilingMultiplier,
@@ -148,15 +148,15 @@ describeMaybe('Automation Gas Analysis', () => {
       maxPerformDataSize,
       maxPerformGas,
       fallbackGasPrice,
-      fallbackLinkPrice,
+      fallbackPliPrice,
       transcoder,
       registrar: registrar20.address,
     }
     const onchainConfig20 = ethers.utils.defaultAbiCoder.encode(
       [
-        'tuple(uint32 paymentPremiumPPB,uint32 flatFeeMicroLink,uint32 checkGasLimit,uint24 stalenessSeconds\
+        'tuple(uint32 paymentPremiumPPB,uint32 flatFeeMicroPli,uint32 checkGasLimit,uint24 stalenessSeconds\
             ,uint16 gasCeilingMultiplier,uint96 minUpkeepSpend,uint32 maxPerformGas,uint32 maxCheckDataSize,\
-            uint32 maxPerformDataSize,uint256 fallbackGasPrice,uint256 fallbackLinkPrice,address transcoder,\
+            uint32 maxPerformDataSize,uint256 fallbackGasPrice,uint256 fallbackPliPrice,address transcoder,\
             address registrar)',
       ],
       [config20],
@@ -170,14 +170,14 @@ describeMaybe('Automation Gas Analysis', () => {
     const registry21 = await deployRegistry21(
       owner,
       0,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
       forwarderLogic.address,
     )
     const registrar21 = await registrar21Factory
       .connect(owner)
-      .deploy(linkToken.address, registry21.address, minUpkeepSpend, [
+      .deploy(pliToken.address, registry21.address, minUpkeepSpend, [
         {
           triggerType,
           autoApproveType,
@@ -186,7 +186,7 @@ describeMaybe('Automation Gas Analysis', () => {
       ])
     const onchainConfig21 = {
       paymentPremiumPPB,
-      flatFeeMicroLink,
+      flatFeeMicroPli,
       checkGasLimit,
       stalenessSeconds,
       gasCeilingMultiplier,
@@ -196,7 +196,7 @@ describeMaybe('Automation Gas Analysis', () => {
       maxRevertDataSize,
       maxPerformGas,
       fallbackGasPrice,
-      fallbackLinkPrice,
+      fallbackPliPrice,
       transcoder,
       registrars: [registrar21.address],
       upkeepPrivilegeManager: randomAddress(),
@@ -206,8 +206,8 @@ describeMaybe('Automation Gas Analysis', () => {
       .setConfigTypeSafe(signers, transmitters, f, onchainConfig21, 1, '0x')
 
     // approve PLI
-    await linkToken.connect(owner).approve(registrar20.address, amount)
-    await linkToken.connect(owner).approve(registrar21.address, amount)
+    await pliToken.connect(owner).approve(registrar20.address, amount)
+    await pliToken.connect(owner).approve(registrar21.address, amount)
 
     const abiEncodedBytes = registrar12.interface.encodeFunctionData(
       'register',
@@ -224,7 +224,7 @@ describeMaybe('Automation Gas Analysis', () => {
       ],
     )
 
-    let tx = await linkToken
+    let tx = await pliToken
       .connect(owner)
       .transferAndCall(registrar12.address, amount, abiEncodedBytes)
     await expect(tx).to.emit(registry12, 'UpkeepRegistered')

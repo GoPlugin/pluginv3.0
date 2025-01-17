@@ -14,7 +14,7 @@ contract VRFLoadTestOwnerlessConsumer is VRFConsumerBase, IERC677Receiver {
 
   uint256 public s_responseCount;
 
-  constructor(address _vrfCoordinator, address _link, uint256 _price) VRFConsumerBase(_vrfCoordinator, _link) {
+  constructor(address _vrfCoordinator, address _pli, uint256 _price) VRFConsumerBase(_vrfCoordinator, _pli) {
     PRICE = _price;
   }
 
@@ -25,7 +25,7 @@ contract VRFLoadTestOwnerlessConsumer is VRFConsumerBase, IERC677Receiver {
   /**
    * @dev Creates as many randomness requests as can be made with the funds transferred.
    * @param _amount The amount of PLI transferred to pay for these requests.
-   * @param _data The data passed to transferAndCall on LinkToken. Must be an abi-encoded key hash.
+   * @param _data The data passed to transferAndCall on PliToken. Must be an abi-encoded key hash.
    */
   function onTokenTransfer(address, uint256 _amount, bytes calldata _data) external override {
     if (msg.sender != address(PLI)) {

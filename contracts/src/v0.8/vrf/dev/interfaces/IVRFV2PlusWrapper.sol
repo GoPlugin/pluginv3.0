@@ -78,6 +78,6 @@ interface IVRFV2PlusWrapper {
     bytes calldata extraArgs
   ) external payable returns (uint256 requestId);
 
-  function link() external view returns (address);
-  function linkNativeFeed() external view returns (address);
+  function pli() external view returns (address);
+  function pliNativeFeed() external view returns (address);
 }

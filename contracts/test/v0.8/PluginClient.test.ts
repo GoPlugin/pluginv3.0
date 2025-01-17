@@ -15,7 +15,7 @@ let concretePluginClientFactory: ContractFactory
 let emptyOracleFactory: ContractFactory
 let getterSetterFactory: ContractFactory
 let operatorFactory: ContractFactory
-let linkTokenFactory: ContractFactory
+let pliTokenFactory: ContractFactory
 
 let roles: Roles
 
@@ -38,8 +38,8 @@ before(async () => {
     'src/v0.8/operatorforwarder/Operator.sol:Operator',
     roles.defaultAccount,
   )
-  linkTokenFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+  pliTokenFactory = await ethers.getContractFactory(
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
     roles.defaultAccount,
   )
 })
@@ -51,24 +51,24 @@ describe('PluginClientTestHelper', () => {
   let gs: Contract
   let oc: Contract
   let newoc: Contract
-  let link: Contract
+  let pli: Contract
 
   beforeEach(async () => {
-    link = await linkTokenFactory.connect(roles.defaultAccount).deploy()
+    pli = await pliTokenFactory.connect(roles.defaultAccount).deploy()
     oc = await operatorFactory
       .connect(roles.defaultAccount)
-      .deploy(link.address, await roles.defaultAccount.getAddress())
+      .deploy(pli.address, await roles.defaultAccount.getAddress())
     newoc = await operatorFactory
       .connect(roles.defaultAccount)
-      .deploy(link.address, await roles.defaultAccount.getAddress())
+      .deploy(pli.address, await roles.defaultAccount.getAddress())
     gs = await getterSetterFactory.connect(roles.defaultAccount).deploy()
     cc = await concretePluginClientFactory
       .connect(roles.defaultAccount)
-      .deploy(link.address, oc.address)
+      .deploy(pli.address, oc.address)
   })
 
   describe('#newRequest', () => {
-    it('forwards the information to the oracle contract through the link token', async () => {
+    it('forwards the information to the oracle contract through the pli token', async () => {
       const tx = await cc.publicNewRequest(
         specId,
         gs.address,
@@ -220,7 +220,7 @@ describe('PluginClientTestHelper', () => {
         .deploy()
       ecc = await concretePluginClientFactory
         .connect(roles.defaultAccount)
-        .deploy(link.address, emptyOracle.address)
+        .deploy(pli.address, emptyOracle.address)
 
       const tx = await ecc.publicRequest(
         specId,
@@ -406,9 +406,9 @@ describe('PluginClientTestHelper', () => {
   })
 
   describe('#pluginToken', () => {
-    it('returns the Link Token address', async () => {
+    it('returns the Pli Token address', async () => {
       const addr = await cc.publicPluginToken()
-      assert.equal(addr, link.address)
+      assert.equal(addr, pli.address)
     })
   })
 
@@ -419,7 +419,7 @@ describe('PluginClientTestHelper', () => {
     beforeEach(async () => {
       mock = await concretePluginClientFactory
         .connect(roles.defaultAccount)
-        .deploy(link.address, oc.address)
+        .deploy(pli.address, oc.address)
 
       const tx = await cc.publicRequest(
         specId,

@@ -3,7 +3,7 @@ import { assert, expect } from 'chai'
 import { UpkeepTranscoder30__factory as UpkeepTranscoderFactory } from '../../../typechain/factories/UpkeepTranscoder30__factory'
 import { UpkeepTranscoder30 as UpkeepTranscoder } from '../../../typechain/UpkeepTranscoder30'
 import { KeeperRegistry2_0__factory as KeeperRegistry2_0Factory } from '../../../typechain/factories/KeeperRegistry2_0__factory'
-import { LinkToken__factory as LinkTokenFactory } from '../../../typechain/factories/LinkToken__factory'
+import { PliToken__factory as PliTokenFactory } from '../../../typechain/factories/PliToken__factory'
 import { MockV3Aggregator__factory as MockV3AggregatorFactory } from '../../../typechain/factories/MockV3Aggregator__factory'
 import { UpkeepMock__factory as UpkeepMockFactory } from '../../../typechain/factories/UpkeepMock__factory'
 import { evmRevert } from '../../test-helpers/matchers'
@@ -13,12 +13,12 @@ import { KeeperRegistryLogic2_0__factory as KeeperRegistryLogic20Factory } from 
 import { KeeperRegistry1_3__factory as KeeperRegistry1_3Factory } from '../../../typechain/factories/KeeperRegistry1_3__factory'
 import { KeeperRegistryLogic1_3__factory as KeeperRegistryLogicFactory } from '../../../typechain/factories/KeeperRegistryLogic1_3__factory'
 import { toWei } from '../../test-helpers/helpers'
-import { LinkToken } from '../../../typechain'
+import { PliToken } from '../../../typechain'
 
 let upkeepMockFactory: UpkeepMockFactory
 let upkeepTranscoderFactory: UpkeepTranscoderFactory
 let transcoder: UpkeepTranscoder
-let linkTokenFactory: LinkTokenFactory
+let pliTokenFactory: PliTokenFactory
 let mockV3AggregatorFactory: MockV3AggregatorFactory
 let keeperRegistryFactory20: KeeperRegistry2_0Factory
 let keeperRegistryFactory13: KeeperRegistry1_3Factory
@@ -34,20 +34,20 @@ let admin0: Signer
 let admin1: Signer
 const executeGas = BigNumber.from('100000')
 const paymentPremiumPPB = BigNumber.from('250000000')
-const flatFeeMicroLink = BigNumber.from(0)
+const flatFeeMicroPli = BigNumber.from(0)
 const blockCountPerTurn = BigNumber.from(3)
 const randomBytes = '0x1234abcd'
 const stalenessSeconds = BigNumber.from(43820)
 const gasCeilingMultiplier = BigNumber.from(1)
 const checkGasLimit = BigNumber.from(20000000)
 const fallbackGasPrice = BigNumber.from(200)
-const fallbackLinkPrice = BigNumber.from(200000000)
+const fallbackPliPrice = BigNumber.from(200000000)
 const maxPerformGas = BigNumber.from(5000000)
 const minUpkeepSpend = BigNumber.from(0)
 const maxCheckDataSize = BigNumber.from(1000)
 const maxPerformDataSize = BigNumber.from(1000)
 const mode = BigNumber.from(0)
-const linkEth = BigNumber.from(300000000)
+const pliEth = BigNumber.from(300000000)
 const gasWei = BigNumber.from(100)
 const registryGasOverhead = BigNumber.from('80000')
 const balance = 50000000000000
@@ -72,9 +72,9 @@ async function getUpkeepID(tx: any) {
 const encodeConfig = (config: any) => {
   return ethers.utils.defaultAbiCoder.encode(
     [
-      'tuple(uint32 paymentPremiumPPB,uint32 flatFeeMicroLink,uint32 checkGasLimit,uint24 stalenessSeconds\
+      'tuple(uint32 paymentPremiumPPB,uint32 flatFeeMicroPli,uint32 checkGasLimit,uint24 stalenessSeconds\
         ,uint16 gasCeilingMultiplier,uint96 minUpkeepSpend,uint32 maxPerformGas,uint32 maxCheckDataSize,\
-        uint32 maxPerformDataSize,uint256 fallbackGasPrice,uint256 fallbackLinkPrice,address transcoder,\
+        uint32 maxPerformDataSize,uint256 fallbackGasPrice,uint256 fallbackPliPrice,address transcoder,\
         address registrar)',
     ],
     [config],
@@ -127,8 +127,8 @@ before(async () => {
   )
   personas = (await getUsers()).personas
 
-  linkTokenFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+  pliTokenFactory = await ethers.getContractFactory(
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
   )
   // need full path because there are two contracts with name MockV3Aggregator
   mockV3AggregatorFactory = (await ethers.getContractFactory(
@@ -146,21 +146,21 @@ before(async () => {
   ]
 })
 
-async function deployLinkToken() {
-  return await linkTokenFactory.connect(owner).deploy()
+async function deployPliToken() {
+  return await pliTokenFactory.connect(owner).deploy()
 }
 
 async function deployFeeds() {
   return [
     await mockV3AggregatorFactory.connect(owner).deploy(0, gasWei),
-    await mockV3AggregatorFactory.connect(owner).deploy(9, linkEth),
+    await mockV3AggregatorFactory.connect(owner).deploy(9, pliEth),
   ]
 }
 
 async function deployLegacyRegistry1_2(
-  linkToken: LinkToken,
+  pliToken: PliToken,
   gasPriceFeed: any,
-  linkEthFeed: any,
+  pliEthFeed: any,
 ) {
   const mock = await upkeepMockFactory.deploy()
   // @ts-ignore bug in autogen file
@@ -169,9 +169,9 @@ async function deployLegacyRegistry1_2(
   transcoder = await upkeepTranscoderFactory.connect(owner).deploy()
   const legacyRegistry = await keeperRegistryFactory
     .connect(owner)
-    .deploy(linkToken.address, linkEthFeed.address, gasPriceFeed.address, {
+    .deploy(pliToken.address, pliEthFeed.address, gasPriceFeed.address, {
       paymentPremiumPPB,
-      flatFeeMicroLink,
+      flatFeeMicroPli,
       blockCountPerTurn,
       checkGasLimit,
       stalenessSeconds,
@@ -179,7 +179,7 @@ async function deployLegacyRegistry1_2(
       minUpkeepSpend,
       maxPerformGas,
       fallbackGasPrice,
-      fallbackLinkPrice,
+      fallbackPliPrice,
       transcoder: transcoder.address,
       registrar: ethers.constants.AddressZero,
     })
@@ -196,9 +196,9 @@ async function deployLegacyRegistry1_2(
 }
 
 async function deployLegacyRegistry1_3(
-  linkToken: LinkToken,
+  pliToken: PliToken,
   gasPriceFeed: any,
-  linkEthFeed: any,
+  pliEthFeed: any,
 ) {
   const mock = await upkeepMockFactory.deploy()
   // @ts-ignore bug in autogen file
@@ -213,14 +213,14 @@ async function deployLegacyRegistry1_3(
     .deploy(
       0,
       registryGasOverhead,
-      linkToken.address,
-      linkEthFeed.address,
+      pliToken.address,
+      pliEthFeed.address,
       gasPriceFeed.address,
     )
 
   const config = {
     paymentPremiumPPB,
-    flatFeeMicroLink,
+    flatFeeMicroPli,
     blockCountPerTurn,
     checkGasLimit,
     stalenessSeconds,
@@ -228,7 +228,7 @@ async function deployLegacyRegistry1_3(
     minUpkeepSpend,
     maxPerformGas,
     fallbackGasPrice,
-    fallbackLinkPrice,
+    fallbackPliPrice,
     transcoder: transcoder.address,
     registrar: ethers.constants.AddressZero,
   }
@@ -248,9 +248,9 @@ async function deployLegacyRegistry1_3(
 }
 
 async function deployRegistry2_0(
-  linkToken: LinkToken,
+  pliToken: PliToken,
   gasPriceFeed: any,
-  linkEthFeed: any,
+  pliEthFeed: any,
 ) {
   // @ts-ignore bug in autogen file
   keeperRegistryFactory20 = await ethers.getContractFactory('KeeperRegistry2_0')
@@ -261,7 +261,7 @@ async function deployRegistry2_0(
 
   const config = {
     paymentPremiumPPB,
-    flatFeeMicroLink,
+    flatFeeMicroPli,
     checkGasLimit,
     stalenessSeconds,
     gasCeilingMultiplier,
@@ -270,14 +270,14 @@ async function deployRegistry2_0(
     maxPerformDataSize,
     maxPerformGas,
     fallbackGasPrice,
-    fallbackLinkPrice,
+    fallbackPliPrice,
     transcoder: transcoder.address,
     registrar: ethers.constants.AddressZero,
   }
 
   const registryLogic = await keeperRegistryLogicFactory20
     .connect(owner)
-    .deploy(mode, linkToken.address, linkEthFeed.address, gasPriceFeed.address)
+    .deploy(mode, pliToken.address, pliEthFeed.address, gasPriceFeed.address)
 
   const Registry2_0 = await keeperRegistryFactory20
     .connect(owner)
@@ -455,20 +455,20 @@ describe('UpkeepTranscoder3_0', () => {
       })
 
       it('migrates upkeeps from 1.2 registry to 2.0', async () => {
-        const linkToken = await deployLinkToken()
-        const [gasPriceFeed, linkEthFeed] = await deployFeeds()
+        const pliToken = await deployPliToken()
+        const [gasPriceFeed, pliEthFeed] = await deployFeeds()
         const [id, legacyRegistry] = await deployLegacyRegistry1_2(
-          linkToken,
+          pliToken,
           gasPriceFeed,
-          linkEthFeed,
+          pliEthFeed,
         )
         const Registry2_0 = await deployRegistry2_0(
-          linkToken,
+          pliToken,
           gasPriceFeed,
-          linkEthFeed,
+          pliEthFeed,
         )
 
-        await linkToken
+        await pliToken
           .connect(owner)
           .approve(legacyRegistry.address, toWei('1000'))
         await legacyRegistry.connect(owner).addFunds(id, toWei('1000'))
@@ -503,9 +503,9 @@ describe('UpkeepTranscoder3_0', () => {
           toWei('1000'),
         )
         expect(
-          (await Registry2_0.getState()).state.expectedLinkBalance,
+          (await Registry2_0.getState()).state.expectedPliBalance,
         ).to.equal(toWei('1000'))
-        expect(await linkToken.balanceOf(Registry2_0.address)).to.equal(
+        expect(await pliToken.balanceOf(Registry2_0.address)).to.equal(
           toWei('1000'),
         )
         expect((await Registry2_0.getUpkeep(id)).checkData).to.equal(
@@ -514,20 +514,20 @@ describe('UpkeepTranscoder3_0', () => {
       })
 
       it('migrates upkeeps from 1.3 registry to 2.0', async () => {
-        const linkToken = await deployLinkToken()
-        const [gasPriceFeed, linkEthFeed] = await deployFeeds()
+        const pliToken = await deployPliToken()
+        const [gasPriceFeed, pliEthFeed] = await deployFeeds()
         const [id, legacyRegistry] = await deployLegacyRegistry1_3(
-          linkToken,
+          pliToken,
           gasPriceFeed,
-          linkEthFeed,
+          pliEthFeed,
         )
         const Registry2_0 = await deployRegistry2_0(
-          linkToken,
+          pliToken,
           gasPriceFeed,
-          linkEthFeed,
+          pliEthFeed,
         )
 
-        await linkToken
+        await pliToken
           .connect(owner)
           .approve(legacyRegistry.address, toWei('1000'))
         await legacyRegistry.connect(owner).addFunds(id, toWei('1000'))
@@ -562,9 +562,9 @@ describe('UpkeepTranscoder3_0', () => {
           toWei('1000'),
         )
         expect(
-          (await Registry2_0.getState()).state.expectedLinkBalance,
+          (await Registry2_0.getState()).state.expectedPliBalance,
         ).to.equal(toWei('1000'))
-        expect(await linkToken.balanceOf(Registry2_0.address)).to.equal(
+        expect(await pliToken.balanceOf(Registry2_0.address)).to.equal(
           toWei('1000'),
         )
         expect((await Registry2_0.getUpkeep(id)).checkData).to.equal(

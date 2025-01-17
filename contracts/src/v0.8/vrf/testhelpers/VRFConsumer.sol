@@ -9,10 +9,10 @@ contract VRFConsumer is VRFConsumerBase {
 
   constructor(
     address vrfCoordinator,
-    address link
+    address pli
   )
     // solhint-disable-next-line no-empty-blocks
-    VRFConsumerBase(vrfCoordinator, link)
+    VRFConsumerBase(vrfCoordinator, pli)
   {
     /* empty */
   }

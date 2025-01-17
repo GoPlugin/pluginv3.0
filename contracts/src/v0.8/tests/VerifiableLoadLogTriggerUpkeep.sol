@@ -102,8 +102,8 @@ contract VerifiableLoadLogTriggerUpkeep is VerifiableLoadBase, StreamsLookupComp
     previousPerformBlocks[upkeepId] = currentBlockNum;
 
     // for every upkeepTopUpCheckInterval (5), check if the upkeep balance is at least
-    // minBalanceThresholdMultiplier (20) * min balance. If not, add addLinkAmount (0.2) to the upkeep
-    // upkeepTopUpCheckInterval, minBalanceThresholdMultiplier, and addLinkAmount are configurable
+    // minBalanceThresholdMultiplier (20) * min balance. If not, add addPliAmount (0.2) to the upkeep
+    // upkeepTopUpCheckInterval, minBalanceThresholdMultiplier, and addPliAmount are configurable
     topUpFund(upkeepId, currentBlockNum);
     emit LogEmitted(upkeepId, currentBlockNum, address(this));
     burnPerformGas(upkeepId, startGas, currentBlockNum);

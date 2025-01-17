@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {IAutomationRegistryConsumer} from "../interfaces/IAutomationRegistryConsumer.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -39,7 +39,7 @@ contract UpkeepBalanceMonitor is ConfirmedOwner, Pausable {
   // |                           STORAGE                            |
   // ================================================================
 
-  LinkTokenInterface private immutable PLI_TOKEN;
+  PliTokenInterface private immutable PLI_TOKEN;
 
   mapping(address => uint256[]) s_registryWatchLists;
   EnumerableSet.AddressSet s_registries;
@@ -50,11 +50,11 @@ contract UpkeepBalanceMonitor is ConfirmedOwner, Pausable {
   // |                         CONSTRUCTOR                          |
   // ================================================================
 
-  /// @param linkToken the Link token address
+  /// @param pliToken the Pli token address
   /// @param config the initial config for the contract
-  constructor(LinkTokenInterface linkToken, Config memory config) ConfirmedOwner(msg.sender) {
-    require(address(linkToken) != address(0));
-    PLI_TOKEN = linkToken;
+  constructor(PliTokenInterface pliToken, Config memory config) ConfirmedOwner(msg.sender) {
+    require(address(pliToken) != address(0));
+    PLI_TOKEN = pliToken;
     setConfig(config);
   }
 

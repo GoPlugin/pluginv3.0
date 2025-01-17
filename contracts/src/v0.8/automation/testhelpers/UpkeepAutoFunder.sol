@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {AutomationCompatible} from "../AutomationCompatible.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {AutomationRegistryBaseInterface} from "../interfaces/v2_0/AutomationRegistryInterface2_0.sol";
 
@@ -10,18 +10,18 @@ contract UpkeepAutoFunder is AutomationCompatible, ConfirmedOwner {
   bool public s_isEligible;
   bool public s_shouldCancel;
   uint256 public s_upkeepId;
-  uint96 public s_autoFundLink;
-  LinkTokenInterface public immutable PLI;
+  uint96 public s_autoFundPli;
+  PliTokenInterface public immutable PLI;
   AutomationRegistryBaseInterface public immutable s_keeperRegistry;
 
-  constructor(address linkAddress, address registryAddress) ConfirmedOwner(msg.sender) {
-    PLI = LinkTokenInterface(linkAddress);
+  constructor(address pliAddress, address registryAddress) ConfirmedOwner(msg.sender) {
+    PLI = PliTokenInterface(pliAddress);
     s_keeperRegistry = AutomationRegistryBaseInterface(registryAddress);
 
     s_isEligible = false;
     s_shouldCancel = false;
     s_upkeepId = 0;
-    s_autoFundLink = 0;
+    s_autoFundPli = 0;
   }
 
   function setShouldCancel(bool value) external onlyOwner {
@@ -32,8 +32,8 @@ contract UpkeepAutoFunder is AutomationCompatible, ConfirmedOwner {
     s_isEligible = value;
   }
 
-  function setAutoFundLink(uint96 value) external onlyOwner {
-    s_autoFundLink = value;
+  function setAutoFundPli(uint96 value) external onlyOwner {
+    s_autoFundPli = value;
   }
 
   function setUpkeepId(uint256 value) external onlyOwner {
@@ -51,7 +51,7 @@ contract UpkeepAutoFunder is AutomationCompatible, ConfirmedOwner {
     s_isEligible = false; // Allow upkeep only once until it is set again
 
     // Topup upkeep so it can be called again
-    PLI.transferAndCall(address(s_keeperRegistry), s_autoFundLink, abi.encode(s_upkeepId));
+    PLI.transferAndCall(address(s_keeperRegistry), s_autoFundPli, abi.encode(s_upkeepId));
 
     if (s_shouldCancel) {
       s_keeperRegistry.cancelUpkeep(s_upkeepId);

@@ -78,7 +78,7 @@
 
 - [#13352](https://github.com/goplugin/pluginv3.0/pull/13352) [`33a9cdf`](https://github.com/goplugin/pluginv3.0/commit/33a9cdf8d7c42cab4682121b50d5fa12d9b5ff27) Thanks [@shileiwill](https://github.com/shileiwill)! - check data size #bugfix
 
-- [#13177](https://github.com/goplugin/pluginv3.0/pull/13177) [`0d58a8d`](https://github.com/goplugin/pluginv3.0/commit/0d58a8d5db24f42720226e73328e501637ba59c5) Thanks [@shileiwill](https://github.com/shileiwill)! - link transfer status check #bugfix
+- [#13177](https://github.com/goplugin/pluginv3.0/pull/13177) [`0d58a8d`](https://github.com/goplugin/pluginv3.0/commit/0d58a8d5db24f42720226e73328e501637ba59c5) Thanks [@shileiwill](https://github.com/shileiwill)! - pli transfer status check #bugfix
 
 - [#13183](https://github.com/goplugin/pluginv3.0/pull/13183) [`9630475`](https://github.com/goplugin/pluginv3.0/commit/96304756a77cdb2acf251d21d59b6aa8b55bf61a) Thanks [@cds95](https://github.com/cds95)! - update node signer type
 
@@ -93,7 +93,7 @@
 - [#13676](https://github.com/goplugin/pluginv3.0/pull/13676) [`ed6b9ad`](https://github.com/goplugin/pluginv3.0/commit/ed6b9ad7909e09d0ff9850b7a1e34a0137762642) Thanks [@RyanRHall](https://github.com/RyanRHall)! - remove stale automation HH tests
 
 - [#13364](https://github.com/goplugin/pluginv3.0/pull/13364) [`fc007a9`](https://github.com/goplugin/pluginv3.0/commit/fc007a94846c178bc9d5203dbff6b6b8c7546a71) Thanks [@FelixFan1992](https://github.com/FelixFan1992)! - #bugfix
-  fix a funding bug in LinkAvailableBalanceMonitor
+  fix a funding bug in PliAvailableBalanceMonitor
 
 - [#13569](https://github.com/goplugin/pluginv3.0/pull/13569) [`f5a70eb`](https://github.com/goplugin/pluginv3.0/commit/f5a70eb09abc9a4d859442c9bd062a74a7ec9c54) Thanks [@DeividasK](https://github.com/DeividasK)! - #internal
 
@@ -210,7 +210,7 @@
 
 - [#12598](https://github.com/goplugin/pluginv3.0/pull/12598) [`e753637e01`](https://github.com/goplugin/pluginv3.0/commit/e753637e01fabb8ea3760eb14204124c8d3b88e1) Thanks [@RyanRHall](https://github.com/RyanRHall)! - small gas fix
 
-- [#12540](https://github.com/goplugin/pluginv3.0/pull/12540) [`17c037678d`](https://github.com/goplugin/pluginv3.0/commit/17c037678d05c88f28a28a3ac760c742f549d5ec) Thanks [@RyanRHall](https://github.com/RyanRHall)! - change auto 2.3 flat fees from link to USD
+- [#12540](https://github.com/goplugin/pluginv3.0/pull/12540) [`17c037678d`](https://github.com/goplugin/pluginv3.0/commit/17c037678d05c88f28a28a3ac760c742f549d5ec) Thanks [@RyanRHall](https://github.com/RyanRHall)! - change auto 2.3 flat fees from pli to USD
 
 - [#12592](https://github.com/goplugin/pluginv3.0/pull/12592) [`b512ef5a7d`](https://github.com/goplugin/pluginv3.0/commit/b512ef5a7d1bc87d0cbd5357c5c47cc0dcb75e0b) Thanks [@ibrajer](https://github.com/ibrajer)! - Set PLI native feed in VRFV2PlusWrapper to immutable
 
@@ -386,7 +386,7 @@
 
 ### Changed:
 
-- Move `Operator` and associated contracts (`AuthorizedForwarder`, `AuthorizedReceiver`, `LinkTokenReceiver`, `OperatorFactory`) from `./src/v0.7/dev/` to `./src/v0.7/`.
+- Move `Operator` and associated contracts (`AuthorizedForwarder`, `AuthorizedReceiver`, `PliTokenReceiver`, `OperatorFactory`) from `./src/v0.7/dev/` to `./src/v0.7/`.
 - Updated `Denominations` in `./src/<version>` to include additional fiat currencies.
 - Updated `./src/v0.8/vender/BufferPlugin.sol` with latest unchecked math version.
 

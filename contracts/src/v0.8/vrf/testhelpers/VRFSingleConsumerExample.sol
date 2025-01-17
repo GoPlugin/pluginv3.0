@@ -2,13 +2,13 @@
 // Example of a single consumer contract which owns the subscription.
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFCoordinatorV2Interface} from "../interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "../VRFConsumerBaseV2.sol";
 
 contract VRFSingleConsumerExample is VRFConsumerBaseV2 {
   VRFCoordinatorV2Interface internal COORDINATOR;
-  LinkTokenInterface internal PLITOKEN;
+  PliTokenInterface internal PLITOKEN;
 
   struct RequestConfig {
     uint64 subId;
@@ -24,14 +24,14 @@ contract VRFSingleConsumerExample is VRFConsumerBaseV2 {
 
   constructor(
     address vrfCoordinator,
-    address link,
+    address pli,
     uint32 callbackGasLimit,
     uint16 requestConfirmations,
     uint32 numWords,
     bytes32 keyHash
   ) VRFConsumerBaseV2(vrfCoordinator) {
     COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
-    PLITOKEN = LinkTokenInterface(link);
+    PLITOKEN = PliTokenInterface(pli);
     s_owner = msg.sender;
     s_requestConfig = RequestConfig({
       subId: 0, // Unset initially
@@ -61,10 +61,10 @@ contract VRFSingleConsumerExample is VRFConsumerBaseV2 {
     );
   }
 
-  // Assumes this contract owns link
+  // Assumes this contract owns pli
   // This method is analogous to VRFv1, except the amount
   // should be selected based on the keyHash (each keyHash functions like a "gas lane"
-  // with different link costs).
+  // with different pli costs).
   function fundAndRequestRandomWords(uint256 amount) external onlyOwner {
     RequestConfig memory rc = s_requestConfig;
     PLITOKEN.transferAndCall(address(COORDINATOR), amount, abi.encode(s_requestConfig.subId));
@@ -78,7 +78,7 @@ contract VRFSingleConsumerExample is VRFConsumerBaseV2 {
     );
   }
 
-  // Assumes this contract owns link
+  // Assumes this contract owns pli
   function topUpSubscription(uint256 amount) external onlyOwner {
     PLITOKEN.transferAndCall(address(COORDINATOR), amount, abi.encode(s_requestConfig.subId));
   }

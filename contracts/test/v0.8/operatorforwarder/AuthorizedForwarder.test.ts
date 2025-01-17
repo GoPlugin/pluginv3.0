@@ -8,7 +8,7 @@ import { evmRevert } from '../../test-helpers/matchers'
 let getterSetterFactory: ContractFactory
 let forwarderFactory: ContractFactory
 let brokenFactory: ContractFactory
-let linkTokenFactory: ContractFactory
+let pliTokenFactory: ContractFactory
 
 let roles: Roles
 const zeroAddress = ethers.constants.AddressZero
@@ -29,22 +29,22 @@ before(async () => {
     'src/v0.8/operatorforwarder/AuthorizedForwarder.sol:AuthorizedForwarder',
     roles.defaultAccount,
   )
-  linkTokenFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+  pliTokenFactory = await ethers.getContractFactory(
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
     roles.defaultAccount,
   )
 })
 
 describe('AuthorizedForwarder', () => {
-  let link: Contract
+  let pli: Contract
   let forwarder: Contract
 
   beforeEach(async () => {
-    link = await linkTokenFactory.connect(roles.defaultAccount).deploy()
+    pli = await pliTokenFactory.connect(roles.defaultAccount).deploy()
     forwarder = await forwarderFactory
       .connect(roles.defaultAccount)
       .deploy(
-        link.address,
+        pli.address,
         await roles.defaultAccount.getAddress(),
         zeroAddress,
         '0x',
@@ -56,7 +56,7 @@ describe('AuthorizedForwarder', () => {
       'forward',
       'multiForward',
       'getAuthorizedSenders',
-      'linkToken',
+      'pliToken',
       'isAuthorizedSender',
       'ownerForward',
       'setAuthorizedSenders',
@@ -79,14 +79,14 @@ describe('AuthorizedForwarder', () => {
   })
 
   describe('deployment', () => {
-    it('sets the correct link token', async () => {
-      assert.equal(await forwarder.linkToken(), link.address)
+    it('sets the correct pli token', async () => {
+      assert.equal(await forwarder.pliToken(), pli.address)
     })
 
-    it('reverts on zeroAddress value for link token', async () => {
+    it('reverts on zeroAddress value for pli token', async () => {
       await evmRevert(
         forwarderFactory.connect(roles.defaultAccount).deploy(
-          zeroAddress, // Link Address
+          zeroAddress, // Pli Address
           await roles.defaultAccount.getAddress(),
           zeroAddress,
           '0x',
@@ -282,13 +282,13 @@ describe('AuthorizedForwarder', () => {
         })
       })
 
-      describe('when attempting to forward to the link token', () => {
+      describe('when attempting to forward to the pli token', () => {
         it('reverts', async () => {
-          const sighash = linkTokenFactory.interface.getSighash('name') // any Link Token function
+          const sighash = pliTokenFactory.interface.getSighash('name') // any Pli Token function
           await evmRevert(
             forwarder
               .connect(roles.defaultAccount)
-              .forward(link.address, sighash),
+              .forward(pli.address, sighash),
           )
         })
       })
@@ -399,13 +399,13 @@ describe('AuthorizedForwarder', () => {
         })
       })
 
-      describe('when attempting to forward to the link token', () => {
+      describe('when attempting to forward to the pli token', () => {
         it('reverts', async () => {
-          const sighash = linkTokenFactory.interface.getSighash('name') // any Link Token function
+          const sighash = pliTokenFactory.interface.getSighash('name') // any Pli Token function
           await evmRevert(
             forwarder
               .connect(roles.defaultAccount)
-              .multiForward([link.address], [sighash]),
+              .multiForward([pli.address], [sighash]),
           )
         })
       })
@@ -561,13 +561,13 @@ describe('AuthorizedForwarder', () => {
         })
       })
 
-      describe('when attempting to forward to the link token', () => {
+      describe('when attempting to forward to the pli token', () => {
         it('reverts', async () => {
-          const sighash = linkTokenFactory.interface.getSighash('name') // any Link Token function
+          const sighash = pliTokenFactory.interface.getSighash('name') // any Pli Token function
           await evmRevert(
             forwarder
               .connect(roles.defaultAccount)
-              .multiForward([link.address], [sighash]),
+              .multiForward([pli.address], [sighash]),
           )
         })
       })
@@ -682,13 +682,13 @@ describe('AuthorizedForwarder', () => {
     })
 
     describe('when called by owner', () => {
-      describe('when attempting to forward to the link token', () => {
+      describe('when attempting to forward to the pli token', () => {
         it('does not revert', async () => {
-          const sighash = linkTokenFactory.interface.getSighash('name') // any Link Token function
+          const sighash = pliTokenFactory.interface.getSighash('name') // any Pli Token function
 
           await forwarder
             .connect(roles.defaultAccount)
-            .ownerForward(link.address, sighash)
+            .ownerForward(pli.address, sighash)
         })
       })
 

@@ -19,17 +19,17 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
   // ================================================================
   // |                         Balance state                        |
   // ================================================================
-  // link token address
-  IERC20 internal immutable i_linkToken;
+  // pli token address
+  IERC20 internal immutable i_pliToken;
 
-  // s_totalLinkBalance tracks the total PLI sent to/from
+  // s_totalPliBalance tracks the total PLI sent to/from
   // this contract through onTokenTransfer, cancelSubscription and oracleWithdraw.
   // A discrepancy with this contract's PLI balance indicates that someone
   // sent tokens using transfer and so we may need to use recoverFunds.
-  uint96 private s_totalLinkBalance;
+  uint96 private s_totalPliBalance;
 
   /// @dev NOP balances are held as a single amount. The breakdown is held by the Coordinator.
-  mapping(address coordinator => uint96 balanceJuelsLink) private s_withdrawableTokens;
+  mapping(address coordinator => uint96 balanceJuelsPli) private s_withdrawableTokens;
 
   // ================================================================
   // |                      Subscription state                      |
@@ -61,7 +61,7 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
   error InvalidConsumer();
   error CannotRemoveWithPendingRequests();
   error InvalidSubscription();
-  error OnlyCallableFromLink();
+  error OnlyCallableFromPli();
   error InvalidCalldata();
   error MustBeSubscriptionOwner();
   error TimeoutNotExceeded();
@@ -84,8 +84,8 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
   // ================================================================
   // |                       Initialization                         |
   // ================================================================
-  constructor(address link) {
-    i_linkToken = IERC20(link);
+  constructor(address pli) {
+    i_pliToken = IERC20(pli);
   }
 
   // ================================================================
@@ -155,11 +155,11 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
   /// @inheritdoc IFunctionsSubscriptions
   function recoverFunds(address to) external override {
     _onlyRouterOwner();
-    uint256 externalBalance = i_linkToken.balanceOf(address(this));
-    uint256 internalBalance = uint256(s_totalLinkBalance);
+    uint256 externalBalance = i_pliToken.balanceOf(address(this));
+    uint256 internalBalance = uint256(s_totalPliBalance);
     if (internalBalance < externalBalance) {
       uint256 amount = externalBalance - internalBalance;
-      i_linkToken.safeTransfer(to, amount);
+      i_pliToken.safeTransfer(to, amount);
       emit FundsRecovered(to, amount);
     }
     // If the balances are equal, nothing to be done.
@@ -181,8 +181,8 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
       revert InsufficientBalance(currentBalance);
     }
     s_withdrawableTokens[msg.sender] -= amount;
-    s_totalLinkBalance -= amount;
-    i_linkToken.safeTransfer(recipient, amount);
+    s_totalPliBalance -= amount;
+    i_pliToken.safeTransfer(recipient, amount);
   }
 
   /// @notice Owner withdraw PLI earned through admin fees
@@ -199,9 +199,9 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
       revert InsufficientBalance(currentBalance);
     }
     s_withdrawableTokens[address(this)] -= amount;
-    s_totalLinkBalance -= amount;
+    s_totalPliBalance -= amount;
 
-    i_linkToken.safeTransfer(recipient, amount);
+    i_pliToken.safeTransfer(recipient, amount);
   }
 
   // ================================================================
@@ -216,8 +216,8 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
   /// @dev    abi.encode(subscriptionId));
   function onTokenTransfer(address /* sender */, uint256 amount, bytes calldata data) external override {
     _whenNotPaused();
-    if (msg.sender != address(i_linkToken)) {
-      revert OnlyCallableFromLink();
+    if (msg.sender != address(i_pliToken)) {
+      revert OnlyCallableFromPli();
     }
     if (data.length != 32) {
       revert InvalidCalldata();
@@ -230,7 +230,7 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
     // anyone can fund a subscription.
     uint256 oldBalance = s_subscriptions[subscriptionId].balance;
     s_subscriptions[subscriptionId].balance += uint96(amount);
-    s_totalLinkBalance += uint96(amount);
+    s_totalPliBalance += uint96(amount);
     emit SubscriptionFunded(subscriptionId, oldBalance, oldBalance + amount);
   }
 
@@ -240,7 +240,7 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
 
   /// @inheritdoc IFunctionsSubscriptions
   function getTotalBalance() external view override returns (uint96) {
-    return s_totalLinkBalance;
+    return s_totalPliBalance;
   }
 
   /// @inheritdoc IFunctionsSubscriptions
@@ -448,8 +448,8 @@ abstract contract FunctionsSubscriptions is IFunctionsSubscriptions, IERC677Rece
     }
 
     if (balance > 0) {
-      s_totalLinkBalance -= balance;
-      i_linkToken.safeTransfer(toAddress, uint256(balance));
+      s_totalPliBalance -= balance;
+      i_pliToken.safeTransfer(toAddress, uint256(balance));
     }
     emit SubscriptionCanceled(subscriptionId, toAddress, balance);
   }

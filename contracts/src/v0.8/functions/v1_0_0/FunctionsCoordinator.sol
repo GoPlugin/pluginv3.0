@@ -42,8 +42,8 @@ contract FunctionsCoordinator is OCR2Base, IFunctionsCoordinator, FunctionsBilli
   constructor(
     address router,
     Config memory config,
-    address linkToNativeFeed
-  ) OCR2Base(true) FunctionsBilling(router, config, linkToNativeFeed) {}
+    address pliToNativeFeed
+  ) OCR2Base(true) FunctionsBilling(router, config, pliToNativeFeed) {}
 
   /// @inheritdoc IFunctionsCoordinator
   function getThresholdPublicKey() external view override returns (bytes memory) {

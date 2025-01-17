@@ -4,7 +4,7 @@ import "./BaseTest.t.sol";
 import {ExposedVRFCoordinatorV2_5} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5.sol";
 import {VRFV2PlusLoadTestWithMetrics} from "../dev/testhelpers/VRFV2PlusLoadTestWithMetrics.sol";
 import {SubscriptionAPI} from "../dev/SubscriptionAPI.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import "@openzeppelin/contracts/utils/Strings.sol"; // for Strings.toString
 import {VmSafe} from "forge-std/Vm.sol";
@@ -12,8 +12,8 @@ import {VmSafe} from "forge-std/Vm.sol";
 contract VRFV2PlusSubscriptionAPITest is BaseTest {
   event SubscriptionFunded(uint256 indexed subId, uint256 oldBalance, uint256 newBalance);
   event SubscriptionFundedWithNative(uint256 indexed subId, uint256 oldNativeBalance, uint256 newNativeBalance);
-  event SubscriptionCanceled(uint256 indexed subId, address to, uint256 amountLink, uint256 amountNative);
-  event FundsRecovered(address to, uint256 amountLink);
+  event SubscriptionCanceled(uint256 indexed subId, address to, uint256 amountPli, uint256 amountNative);
+  event FundsRecovered(address to, uint256 amountPli);
   event NativeFundsRecovered(address to, uint256 amountNative);
   event SubscriptionOwnerTransferRequested(uint256 indexed subId, address from, address to);
   event SubscriptionOwnerTransferred(uint256 indexed subId, address from, address to);
@@ -38,22 +38,22 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
   }
 
   function testSetPLIAndPLINativeFeed() public {
-    address link = makeAddr("link");
-    address linkNativeFeed = makeAddr("linkNativeFeed");
-    s_subscriptionAPI.setPLIAndPLINativeFeed(link, linkNativeFeed);
-    assertEq(address(s_subscriptionAPI.PLI()), link);
-    assertEq(address(s_subscriptionAPI.PLI_NATIVE_FEED()), linkNativeFeed);
+    address pli = makeAddr("pli");
+    address pliNativeFeed = makeAddr("pliNativeFeed");
+    s_subscriptionAPI.setPLIAndPLINativeFeed(pli, pliNativeFeed);
+    assertEq(address(s_subscriptionAPI.PLI()), pli);
+    assertEq(address(s_subscriptionAPI.PLI_NATIVE_FEED()), pliNativeFeed);
 
     // try setting it again, should revert
-    vm.expectRevert(SubscriptionAPI.LinkAlreadySet.selector);
-    s_subscriptionAPI.setPLIAndPLINativeFeed(link, linkNativeFeed);
+    vm.expectRevert(SubscriptionAPI.PliAlreadySet.selector);
+    s_subscriptionAPI.setPLIAndPLINativeFeed(pli, pliNativeFeed);
   }
 
   function testOwnerCancelSubscriptionNoFunds() public {
     // CASE: new subscription w/ no funds at all
     // Should cancel trivially
 
-    // Note that the link token is not set, but this should still
+    // Note that the pli token is not set, but this should still
     // not fail in that case.
 
     // Create the subscription from a separate address
@@ -78,7 +78,7 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
 
   function testOwnerCancelSubscriptionNativeFundsOnly() public {
     // CASE: new subscription with native funds only
-    // no link funds.
+    // no pli funds.
     // should cancel and return the native funds
 
     // Create the subscription from a separate address
@@ -97,7 +97,7 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     // change back to owner and cancel the subscription
     changePrank(OWNER);
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionCanceled(subId, subOwner, 0 /* link balance */, 5 ether /* native balance */);
+    emit SubscriptionCanceled(subId, subOwner, 0 /* pli balance */, 5 ether /* native balance */);
     s_subscriptionAPI.ownerCancelSubscription(subId);
 
     // assert that the subscription no longer exists
@@ -109,15 +109,15 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     assertEq(address(subOwner).balance, 10 ether);
   }
 
-  function testOwnerCancelSubscriptionLinkFundsOnly() public {
-    // CASE: new subscription with link funds only
+  function testOwnerCancelSubscriptionPliFundsOnly() public {
+    // CASE: new subscription with pli funds only
     // no native funds.
-    // should cancel and return the link funds
+    // should cancel and return the pli funds
 
-    // Create link token and set the link token on the subscription api object
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // Create pli token and set the pli token on the subscription api object
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // Create the subscription from a separate address
     address subOwner = makeAddr("subOwner");
@@ -126,17 +126,17 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     uint256 subId = s_subscriptionAPI.createSubscription();
     assertEq(s_subscriptionAPI.s_currentSubNonce(), nonceBefore + 1);
 
-    // fund the subscription with link
+    // fund the subscription with pli
     // can do it from the owner acct because anyone can fund a subscription
     changePrank(OWNER);
     vm.expectEmit(true, false, false, true);
     emit SubscriptionFunded(subId, 0, 5 ether);
-    bool success = linkToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
-    assertTrue(success, "failed link transfer and call");
+    bool success = pliToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
+    assertTrue(success, "failed pli transfer and call");
 
     // change back to owner and cancel the subscription
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionCanceled(subId, subOwner, 5 ether /* link balance */, 0 /* native balance */);
+    emit SubscriptionCanceled(subId, subOwner, 5 ether /* pli balance */, 0 /* native balance */);
     s_subscriptionAPI.ownerCancelSubscription(subId);
 
     // assert that the subscription no longer exists
@@ -144,18 +144,18 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     assertEq(s_subscriptionAPI.getSubscriptionConfig(subId).owner, address(0));
     assertEq(s_subscriptionAPI.getSubscriptionStruct(subId).balance, 0);
 
-    // check the link balance of the sub owner, should be 5 PLI
-    assertEq(linkToken.balanceOf(subOwner), 5 ether);
+    // check the pli balance of the sub owner, should be 5 PLI
+    assertEq(pliToken.balanceOf(subOwner), 5 ether);
   }
 
-  function testOwnerCancelSubscriptionNativeAndLinkFunds() public {
-    // CASE: new subscription with link and native funds
-    // should cancel and return both link and native funds
+  function testOwnerCancelSubscriptionNativeAndPliFunds() public {
+    // CASE: new subscription with pli and native funds
+    // should cancel and return both pli and native funds
 
-    // Create link token and set the link token on the subscription api object
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // Create pli token and set the pli token on the subscription api object
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // Create the subscription from a separate address
     address subOwner = makeAddr("subOwner");
@@ -164,12 +164,12 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     uint256 subId = s_subscriptionAPI.createSubscription();
     assertEq(s_subscriptionAPI.s_currentSubNonce(), nonceBefore + 1);
 
-    // fund the subscription with link
+    // fund the subscription with pli
     changePrank(OWNER);
     vm.expectEmit(true, false, false, true);
     emit SubscriptionFunded(subId, 0, 5 ether);
-    bool success = linkToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
-    assertTrue(success, "failed link transfer and call");
+    bool success = pliToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
+    assertTrue(success, "failed pli transfer and call");
 
     // fund the subscription with ether
     vm.deal(subOwner, 10 ether);
@@ -181,7 +181,7 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     // change back to owner and cancel the subscription
     changePrank(OWNER);
     vm.expectEmit(true, false, false, true);
-    emit SubscriptionCanceled(subId, subOwner, 5 ether /* link balance */, 5 ether /* native balance */);
+    emit SubscriptionCanceled(subId, subOwner, 5 ether /* pli balance */, 5 ether /* native balance */);
     s_subscriptionAPI.ownerCancelSubscription(subId);
 
     // assert that the subscription no longer exists
@@ -190,29 +190,29 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     assertEq(s_subscriptionAPI.getSubscriptionStruct(subId).balance, 0);
     assertEq(s_subscriptionAPI.getSubscriptionStruct(subId).nativeBalance, 0);
 
-    // check the link balance of the sub owner, should be 5 PLI
-    assertEq(linkToken.balanceOf(subOwner), 5 ether, "link balance incorrect");
+    // check the pli balance of the sub owner, should be 5 PLI
+    assertEq(pliToken.balanceOf(subOwner), 5 ether, "pli balance incorrect");
     // check the ether balance of the sub owner, should be 10 ether
     assertEq(address(subOwner).balance, 10 ether, "native balance incorrect");
   }
 
   function testRecoverFundsPLINotSet() public {
-    // CASE: link token not set
-    // should revert with error LinkNotSet
+    // CASE: pli token not set
+    // should revert with error PliNotSet
 
     // call recoverFunds
-    vm.expectRevert(SubscriptionAPI.LinkNotSet.selector);
+    vm.expectRevert(SubscriptionAPI.PliNotSet.selector);
     s_subscriptionAPI.recoverFunds(OWNER);
   }
 
   function testRecoverFundsBalanceInvariantViolated() public {
-    // CASE: link token set
+    // CASE: pli token set
     // and internal balance is greater than external balance
 
-    // Create link token and set the link token on the subscription api object
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // Create pli token and set the pli token on the subscription api object
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // set the total balance to be greater than the external balance
     // so that we trigger the invariant violation
@@ -226,19 +226,19 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
   }
 
   function testRecoverFundsAmountToTransfer() public {
-    // CASE: link token set
+    // CASE: pli token set
     // and internal balance is less than external balance
     // (i.e invariant is not violated)
     // should recover funds successfully
 
-    // Create link token and set the link token on the subscription api object
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // Create pli token and set the pli token on the subscription api object
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // transfer 10 PLI to the contract to recover
-    bool success = linkToken.transfer(address(s_subscriptionAPI), 10 ether);
-    assertTrue(success, "failed link transfer");
+    bool success = pliToken.transfer(address(s_subscriptionAPI), 10 ether);
+    assertTrue(success, "failed pli transfer");
 
     // call recoverFunds
     vm.expectEmit(true, false, false, true);
@@ -247,14 +247,14 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
   }
 
   function testRecoverFundsNothingToTransfer() public {
-    // CASE: link token set
+    // CASE: pli token set
     // and there is nothing to transfer
     // should do nothing at all
 
-    // Create link token and set the link token on the subscription api object
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // Create pli token and set the pli token on the subscription api object
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // create a subscription and fund it with 5 PLI
     address subOwner = makeAddr("subOwner");
@@ -263,16 +263,16 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     uint256 subId = s_subscriptionAPI.createSubscription();
     assertEq(s_subscriptionAPI.s_currentSubNonce(), nonceBefore + 1);
 
-    // fund the subscription with link
+    // fund the subscription with pli
     changePrank(OWNER);
     vm.expectEmit(true, false, false, true);
     emit SubscriptionFunded(subId, 0, 5 ether);
-    bool success = linkToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
-    assertTrue(success, "failed link transfer and call");
+    bool success = pliToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
+    assertTrue(success, "failed pli transfer and call");
 
     // call recoverFunds, nothing should happen because external balance == internal balance
     s_subscriptionAPI.recoverFunds(OWNER);
-    assertEq(linkToken.balanceOf(address(s_subscriptionAPI)), s_subscriptionAPI.s_totalBalance());
+    assertEq(pliToken.balanceOf(address(s_subscriptionAPI)), s_subscriptionAPI.s_totalBalance());
   }
 
   function testRecoverNativeFundsBalanceInvariantViolated() public {
@@ -318,49 +318,49 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     assertEq(address(s_subscriptionAPI).balance, s_subscriptionAPI.s_totalNativeBalance());
   }
 
-  function testWithdrawNoLink() public {
-    // CASE: no link token set
-    vm.expectRevert(SubscriptionAPI.LinkNotSet.selector);
+  function testWithdrawNoPli() public {
+    // CASE: no pli token set
+    vm.expectRevert(SubscriptionAPI.PliNotSet.selector);
     s_subscriptionAPI.withdraw(OWNER);
   }
 
   function testWithdrawInsufficientBalance() public {
-    // CASE: link token set, trying to withdraw
+    // CASE: pli token set, trying to withdraw
     // more than balance
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // call withdraw
     vm.expectRevert(SubscriptionAPI.InsufficientBalance.selector);
     s_subscriptionAPI.withdraw(OWNER);
   }
 
-  function testWithdrawSufficientBalanceLinkSet() public {
-    // CASE: link token set, trying to withdraw
+  function testWithdrawSufficientBalancePliSet() public {
+    // CASE: pli token set, trying to withdraw
     // less than balance
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // transfer 10 PLI to the contract to withdraw
-    bool success = linkToken.transfer(address(s_subscriptionAPI), 10 ether);
-    assertTrue(success, "failed link transfer");
+    bool success = pliToken.transfer(address(s_subscriptionAPI), 10 ether);
+    assertTrue(success, "failed pli transfer");
 
     // set the withdrawable tokens of the contract to be 1 ether
     s_subscriptionAPI.setWithdrawableTokensTestingOnlyXXX(1 ether);
     assertEq(s_subscriptionAPI.getWithdrawableTokensTestingOnlyXXX(), 1 ether);
 
-    // set the total balance to be the same as the link balance for consistency
+    // set the total balance to be the same as the pli balance for consistency
     // (this is not necessary for the test, but just to be sane)
     s_subscriptionAPI.setTotalBalanceTestingOnlyXXX(10 ether);
 
     // call Withdraw from owner address
-    uint256 ownerBalance = linkToken.balanceOf(OWNER);
+    uint256 ownerBalance = pliToken.balanceOf(OWNER);
     changePrank(OWNER);
     s_subscriptionAPI.withdraw(OWNER);
-    // assert link balance of owner
-    assertEq(linkToken.balanceOf(OWNER) - ownerBalance, 1 ether, "owner link balance incorrect");
+    // assert pli balance of owner
+    assertEq(pliToken.balanceOf(OWNER) - ownerBalance, 1 ether, "owner pli balance incorrect");
     // assert state of subscription api
     assertEq(s_subscriptionAPI.getWithdrawableTokensTestingOnlyXXX(), 0, "owner withdrawable tokens incorrect");
     // assert that total balance is changed by the withdrawn amount
@@ -377,7 +377,7 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     s_subscriptionAPI.withdrawNative(payable(OWNER));
   }
 
-  function testWithdrawLinkInvalidOwner() public {
+  function testWithdrawPliInvalidOwner() public {
     address invalidAddress = makeAddr("invalidAddress");
     changePrank(invalidAddress);
     vm.expectRevert("Only callable by owner");
@@ -417,42 +417,42 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     assertEq(s_subscriptionAPI.s_totalNativeBalance(), 9 ether, "total native balance incorrect");
   }
 
-  function testOnTokenTransferCallerNotLink() public {
-    vm.expectRevert(SubscriptionAPI.OnlyCallableFromLink.selector);
+  function testOnTokenTransferCallerNotPli() public {
+    vm.expectRevert(SubscriptionAPI.OnlyCallableFromPli.selector);
     s_subscriptionAPI.onTokenTransfer(makeAddr("someaddress"), 1 ether, abi.encode(uint256(1)));
   }
 
   function testOnTokenTransferInvalidCalldata() public {
-    // create and set link token on subscription api
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // create and set pli token on subscription api
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
-    // call link.transferAndCall with invalid calldata
+    // call pli.transferAndCall with invalid calldata
     vm.expectRevert(SubscriptionAPI.InvalidCalldata.selector);
-    linkToken.transferAndCall(address(s_subscriptionAPI), 1 ether, abi.encode(uint256(1), address(1)));
+    pliToken.transferAndCall(address(s_subscriptionAPI), 1 ether, abi.encode(uint256(1), address(1)));
   }
 
   function testOnTokenTransferInvalidSubscriptionId() public {
-    // create and set link token on subscription api
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // create and set pli token on subscription api
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // generate bogus sub id
     uint256 subId = uint256(keccak256("idontexist"));
 
     // try to fund bogus sub id
     vm.expectRevert(SubscriptionAPI.InvalidSubscription.selector);
-    linkToken.transferAndCall(address(s_subscriptionAPI), 1 ether, abi.encode(subId));
+    pliToken.transferAndCall(address(s_subscriptionAPI), 1 ether, abi.encode(subId));
   }
 
   function testOnTokenTransferSuccess() public {
-    // happy path link funding test
-    // create and set link token on subscription api
-    MockLinkToken linkToken = new MockLinkToken();
-    s_subscriptionAPI.setPLIAndPLINativeFeed(address(linkToken), address(0));
-    assertEq(address(s_subscriptionAPI.PLI()), address(linkToken));
+    // happy path pli funding test
+    // create and set pli token on subscription api
+    MockPliToken pliToken = new MockPliToken();
+    s_subscriptionAPI.setPLIAndPLINativeFeed(address(pliToken), address(0));
+    assertEq(address(s_subscriptionAPI.PLI()), address(pliToken));
 
     // create a subscription and fund it with 5 PLI
     address subOwner = makeAddr("subOwner");
@@ -461,12 +461,12 @@ contract VRFV2PlusSubscriptionAPITest is BaseTest {
     uint256 subId = s_subscriptionAPI.createSubscription();
     assertEq(s_subscriptionAPI.s_currentSubNonce(), nonceBefore + 1);
 
-    // fund the subscription with link
+    // fund the subscription with pli
     changePrank(OWNER);
     vm.expectEmit(true, false, false, true);
     emit SubscriptionFunded(subId, 0, 5 ether);
-    bool success = linkToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
-    assertTrue(success, "failed link transfer and call");
+    bool success = pliToken.transferAndCall(address(s_subscriptionAPI), 5 ether, abi.encode(subId));
+    assertTrue(success, "failed pli transfer and call");
 
     // assert that the subscription is funded
     assertEq(s_subscriptionAPI.getSubscriptionStruct(subId).balance, 5 ether);

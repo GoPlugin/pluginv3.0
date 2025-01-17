@@ -13,7 +13,7 @@ import "../interfaces/v1_2/KeeperRegistryInterface1_2.sol";
 import "../interfaces/MigratableKeeperRegistryInterface.sol";
 import "../interfaces/UpkeepTranscoderInterface.sol";
 import "../../shared/interfaces/IERC677Receiver.sol";
-import "../../shared/interfaces/LinkTokenInterface.sol";
+import "../../shared/interfaces/PliTokenInterface.sol";
 import "../../shared/access/ConfirmedOwner.sol";
 
 struct Upkeep {
@@ -64,13 +64,13 @@ contract KeeperRegistry1_2 is
   mapping(address => MigrationPermission) private s_peerRegistryMigrationPermission;
   Storage private s_storage;
   uint256 private s_fallbackGasPrice; // not in config object for gas savings
-  uint256 private s_fallbackLinkPrice; // not in config object for gas savings
-  uint96 private s_ownerLinkBalance;
-  uint256 private s_expectedLinkBalance;
+  uint256 private s_fallbackPliPrice; // not in config object for gas savings
+  uint96 private s_ownerPliBalance;
+  uint256 private s_expectedPliBalance;
   address private s_transcoder;
   address private s_registrar;
 
-  LinkTokenInterface public immutable PLI;
+  PliTokenInterface public immutable PLI;
   AggregatorV3Interface public immutable PLI_ETH_FEED;
   AggregatorV3Interface public immutable FAST_GAS_FEED;
 
@@ -81,7 +81,7 @@ contract KeeperRegistry1_2 is
    *                       : add function to let admin change upkeep gas limit
    *                       : add minUpkeepSpend requirement
                            : upgrade to solidity v0.8
-   * - KeeperRegistry 1.1.0: added flatFeeMicroLink
+   * - KeeperRegistry 1.1.0: added flatFeeMicroPli
    * - KeeperRegistry 1.0.0: initial release
    */
   string public constant override typeAndVersion = "KeeperRegistry 1.2.0";
@@ -127,7 +127,7 @@ contract KeeperRegistry1_2 is
    */
   struct Storage {
     uint32 paymentPremiumPPB;
-    uint32 flatFeeMicroLink;
+    uint32 flatFeeMicroPli;
     uint24 blockCountPerTurn;
     uint32 checkGasLimit;
     uint24 stalenessSeconds;
@@ -147,10 +147,10 @@ contract KeeperRegistry1_2 is
     address from;
     uint256 id;
     bytes performData;
-    uint256 maxLinkPayment;
+    uint256 maxPliPayment;
     uint256 gasLimit;
     uint256 adjustedGasWei;
-    uint256 linkEth;
+    uint256 pliEth;
   }
 
   event UpkeepRegistered(uint256 indexed id, uint32 executeGas, address admin);
@@ -175,14 +175,14 @@ contract KeeperRegistry1_2 is
   event UpkeepGasLimitSet(uint256 indexed id, uint96 gasLimit);
 
   /**
-   * @param link address of the PLI Token
-   * @param linkEthFeed address of the PLI/ETH price feed
+   * @param pli address of the PLI Token
+   * @param pliEthFeed address of the PLI/ETH price feed
    * @param fastGasFeed address of the Fast Gas price feed
    * @param config registry config settings
    */
-  constructor(address link, address linkEthFeed, address fastGasFeed, Config memory config) ConfirmedOwner(msg.sender) {
-    PLI = LinkTokenInterface(link);
-    PLI_ETH_FEED = AggregatorV3Interface(linkEthFeed);
+  constructor(address pli, address pliEthFeed, address fastGasFeed, Config memory config) ConfirmedOwner(msg.sender) {
+    PLI = PliTokenInterface(pli);
+    PLI_ETH_FEED = AggregatorV3Interface(pliEthFeed);
     FAST_GAS_FEED = AggregatorV3Interface(fastGasFeed);
     setConfig(config);
   }
@@ -227,10 +227,10 @@ contract KeeperRegistry1_2 is
     cannotExecute
     returns (
       bytes memory performData,
-      uint256 maxLinkPayment,
+      uint256 maxPliPayment,
       uint256 gasLimit,
       uint256 adjustedGasWei,
-      uint256 linkEth
+      uint256 pliEth
     )
   {
     Upkeep memory upkeep = s_upkeep[id];
@@ -244,9 +244,9 @@ contract KeeperRegistry1_2 is
     if (!success) revert UpkeepNotNeeded();
 
     PerformParams memory params = _generatePerformParams(from, id, performData, false);
-    _prePerformUpkeep(upkeep, params.from, params.maxLinkPayment);
+    _prePerformUpkeep(upkeep, params.from, params.maxPliPayment);
 
-    return (performData, params.maxLinkPayment, params.gasLimit, params.adjustedGasWei, params.linkEth);
+    return (performData, params.maxPliPayment, params.gasLimit, params.adjustedGasWei, params.pliEth);
   }
 
   /**
@@ -292,7 +292,7 @@ contract KeeperRegistry1_2 is
    */
   function addFunds(uint256 id, uint96 amount) external override onlyActiveUpkeep(id) {
     s_upkeep[id].balance = s_upkeep[id].balance + amount;
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
+    s_expectedPliBalance = s_expectedPliBalance + amount;
     PLI.transferFrom(msg.sender, address(this), amount);
     emit FundsAdded(id, msg.sender, amount);
   }
@@ -310,7 +310,7 @@ contract KeeperRegistry1_2 is
     if (s_upkeep[id].maxValidBlocknumber != UINT64_MAX) revert UpkeepNotActive();
 
     s_upkeep[id].balance = s_upkeep[id].balance + uint96(amount);
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
+    s_expectedPliBalance = s_expectedPliBalance + amount;
 
     emit FundsAdded(id, sender, uint96(amount));
   }
@@ -338,9 +338,9 @@ contract KeeperRegistry1_2 is
     uint96 amountToWithdraw = amountLeft - cancellationFee;
 
     s_upkeep[id].balance = 0;
-    s_ownerLinkBalance = s_ownerLinkBalance + cancellationFee;
+    s_ownerPliBalance = s_ownerPliBalance + cancellationFee;
 
-    s_expectedLinkBalance = s_expectedLinkBalance - amountToWithdraw;
+    s_expectedPliBalance = s_expectedPliBalance - amountToWithdraw;
     emit FundsWithdrawn(id, amountToWithdraw, to);
 
     PLI.transfer(to, amountToWithdraw);
@@ -350,10 +350,10 @@ contract KeeperRegistry1_2 is
    * @notice withdraws PLI funds collected through cancellation fees
    */
   function withdrawOwnerFunds() external onlyOwner {
-    uint96 amount = s_ownerLinkBalance;
+    uint96 amount = s_ownerPliBalance;
 
-    s_expectedLinkBalance = s_expectedLinkBalance - amount;
-    s_ownerLinkBalance = 0;
+    s_expectedPliBalance = s_expectedPliBalance - amount;
+    s_ownerPliBalance = 0;
 
     emit OwnerFundsWithdrawn(amount);
     PLI.transfer(msg.sender, amount);
@@ -380,7 +380,7 @@ contract KeeperRegistry1_2 is
    */
   function recoverFunds() external onlyOwner {
     uint256 total = PLI.balanceOf(address(this));
-    PLI.transfer(msg.sender, total - s_expectedLinkBalance);
+    PLI.transfer(msg.sender, total - s_expectedPliBalance);
   }
 
   /**
@@ -393,7 +393,7 @@ contract KeeperRegistry1_2 is
     if (keeper.payee != msg.sender) revert OnlyCallableByPayee();
 
     s_keeperInfo[from].balance = 0;
-    s_expectedLinkBalance = s_expectedLinkBalance - keeper.balance;
+    s_expectedPliBalance = s_expectedPliBalance - keeper.balance;
     emit PaymentWithdrawn(from, keeper.balance, to, msg.sender);
 
     PLI.transfer(to, keeper.balance);
@@ -453,7 +453,7 @@ contract KeeperRegistry1_2 is
     if (config.maxPerformGas < s_storage.maxPerformGas) revert GasLimitCanOnlyIncrease();
     s_storage = Storage({
       paymentPremiumPPB: config.paymentPremiumPPB,
-      flatFeeMicroLink: config.flatFeeMicroLink,
+      flatFeeMicroPli: config.flatFeeMicroPli,
       blockCountPerTurn: config.blockCountPerTurn,
       checkGasLimit: config.checkGasLimit,
       stalenessSeconds: config.stalenessSeconds,
@@ -463,7 +463,7 @@ contract KeeperRegistry1_2 is
       nonce: s_storage.nonce
     });
     s_fallbackGasPrice = config.fallbackGasPrice;
-    s_fallbackLinkPrice = config.fallbackLinkPrice;
+    s_fallbackPliPrice = config.fallbackPliPrice;
     s_transcoder = config.transcoder;
     s_registrar = config.registrar;
     emit ConfigSet(config);
@@ -573,11 +573,11 @@ contract KeeperRegistry1_2 is
   {
     Storage memory store = s_storage;
     state.nonce = store.nonce;
-    state.ownerLinkBalance = s_ownerLinkBalance;
-    state.expectedLinkBalance = s_expectedLinkBalance;
+    state.ownerPliBalance = s_ownerPliBalance;
+    state.expectedPliBalance = s_expectedPliBalance;
     state.numUpkeeps = s_upkeepIDs.length();
     config.paymentPremiumPPB = store.paymentPremiumPPB;
-    config.flatFeeMicroLink = store.flatFeeMicroLink;
+    config.flatFeeMicroPli = store.flatFeeMicroPli;
     config.blockCountPerTurn = store.blockCountPerTurn;
     config.checkGasLimit = store.checkGasLimit;
     config.stalenessSeconds = store.stalenessSeconds;
@@ -585,7 +585,7 @@ contract KeeperRegistry1_2 is
     config.minUpkeepSpend = store.minUpkeepSpend;
     config.maxPerformGas = store.maxPerformGas;
     config.fallbackGasPrice = s_fallbackGasPrice;
-    config.fallbackLinkPrice = s_fallbackLinkPrice;
+    config.fallbackPliPrice = s_fallbackPliPrice;
     config.transcoder = s_transcoder;
     config.registrar = s_registrar;
     return (state, config, s_keeperList);
@@ -604,9 +604,9 @@ contract KeeperRegistry1_2 is
    * @param gasLimit the gas to calculate payment for
    */
   function getMaxPaymentForGas(uint256 gasLimit) public view returns (uint96 maxPayment) {
-    (uint256 gasWei, uint256 linkEth) = _getFeedData();
+    (uint256 gasWei, uint256 pliEth) = _getFeedData();
     uint256 adjustedGasWei = _adjustGasPrice(gasWei, false);
-    return _calculatePaymentAmount(gasLimit, adjustedGasWei, linkEth);
+    return _calculatePaymentAmount(gasLimit, adjustedGasWei, pliEth);
   }
 
   /**
@@ -651,7 +651,7 @@ contract KeeperRegistry1_2 is
       s_upkeepIDs.remove(id);
       emit UpkeepMigrated(id, upkeep.balance, destination);
     }
-    s_expectedLinkBalance = s_expectedLinkBalance - totalBalanceRemaining;
+    s_expectedPliBalance = s_expectedPliBalance - totalBalanceRemaining;
     bytes memory encodedUpkeeps = abi.encode(ids, upkeeps, checkDatas);
     MigratableKeeperRegistryInterface(destination).receiveUpkeeps(
       UpkeepTranscoderInterface(s_transcoder).transcodeUpkeeps(
@@ -720,18 +720,18 @@ contract KeeperRegistry1_2 is
       lastKeeper: ZERO_ADDRESS,
       amountSpent: 0
     });
-    s_expectedLinkBalance = s_expectedLinkBalance + balance;
+    s_expectedPliBalance = s_expectedPliBalance + balance;
     s_checkData[id] = checkData;
     s_upkeepIDs.add(id);
   }
 
   /**
-   * @dev retrieves feed data for fast gas/eth and link/eth prices. if the feed
+   * @dev retrieves feed data for fast gas/eth and pli/eth prices. if the feed
    * data is stale it uses the configured fallback price. Once a price is picked
    * for gas it takes the min of gas price in the transaction or the fast gas
    * price in order to reduce costs for the upkeep clients.
    */
-  function _getFeedData() private view returns (uint256 gasWei, uint256 linkEth) {
+  function _getFeedData() private view returns (uint256 gasWei, uint256 pliEth) {
     uint32 stalenessSeconds = s_storage.stalenessSeconds;
     bool staleFallback = stalenessSeconds > 0;
     uint256 timestamp;
@@ -744,11 +744,11 @@ contract KeeperRegistry1_2 is
     }
     (, feedValue, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
     if ((staleFallback && stalenessSeconds < block.timestamp - timestamp) || feedValue <= 0) {
-      linkEth = s_fallbackLinkPrice;
+      pliEth = s_fallbackPliPrice;
     } else {
-      linkEth = uint256(feedValue);
+      pliEth = uint256(feedValue);
     }
-    return (gasWei, linkEth);
+    return (gasWei, pliEth);
   }
 
   /**
@@ -757,11 +757,11 @@ contract KeeperRegistry1_2 is
   function _calculatePaymentAmount(
     uint256 gasLimit,
     uint256 gasWei,
-    uint256 linkEth
+    uint256 pliEth
   ) private view returns (uint96 payment) {
     uint256 weiForGas = gasWei * (gasLimit + REGISTRY_GAS_OVERHEAD);
     uint256 premium = PPB_BASE + s_storage.paymentPremiumPPB;
-    uint256 total = ((weiForGas * (1e9) * (premium)) / (linkEth)) + (uint256(s_storage.flatFeeMicroLink) * (1e12));
+    uint256 total = ((weiForGas * (1e9) * (premium)) / (pliEth)) + (uint256(s_storage.flatFeeMicroPli) * (1e12));
     if (total > PLI_TOTAL_SUPPLY) revert PaymentGreaterThanAllPLI();
     return uint96(total); // PLI_TOTAL_SUPPLY < UINT96_MAX
   }
@@ -801,14 +801,14 @@ contract KeeperRegistry1_2 is
     PerformParams memory params
   ) private nonReentrant validUpkeep(params.id) returns (bool success) {
     Upkeep memory upkeep = s_upkeep[params.id];
-    _prePerformUpkeep(upkeep, params.from, params.maxLinkPayment);
+    _prePerformUpkeep(upkeep, params.from, params.maxPliPayment);
 
     uint256 gasUsed = gasleft();
     bytes memory callData = abi.encodeWithSelector(PERFORM_SELECTOR, params.performData);
     success = _callWithExactGas(params.gasLimit, upkeep.target, callData);
     gasUsed = gasUsed - gasleft();
 
-    uint96 payment = _calculatePaymentAmount(gasUsed, params.adjustedGasWei, params.linkEth);
+    uint96 payment = _calculatePaymentAmount(gasUsed, params.adjustedGasWei, params.pliEth);
 
     s_upkeep[params.id].balance = s_upkeep[params.id].balance - payment;
     s_upkeep[params.id].amountSpent = s_upkeep[params.id].amountSpent + payment;
@@ -822,9 +822,9 @@ contract KeeperRegistry1_2 is
   /**
    * @dev ensures all required checks are passed before an upkeep is performed
    */
-  function _prePerformUpkeep(Upkeep memory upkeep, address from, uint256 maxLinkPayment) private view {
+  function _prePerformUpkeep(Upkeep memory upkeep, address from, uint256 maxPliPayment) private view {
     if (!s_keeperInfo[from].active) revert OnlyActiveKeepers();
-    if (upkeep.balance < maxLinkPayment) revert InsufficientFunds();
+    if (upkeep.balance < maxPliPayment) revert InsufficientFunds();
     if (upkeep.lastKeeper == from) revert KeepersMustTakeTurns();
   }
 
@@ -848,19 +848,19 @@ contract KeeperRegistry1_2 is
     bool useTxGasPrice
   ) private view returns (PerformParams memory) {
     uint256 gasLimit = s_upkeep[id].executeGas;
-    (uint256 gasWei, uint256 linkEth) = _getFeedData();
+    (uint256 gasWei, uint256 pliEth) = _getFeedData();
     uint256 adjustedGasWei = _adjustGasPrice(gasWei, useTxGasPrice);
-    uint96 maxLinkPayment = _calculatePaymentAmount(gasLimit, adjustedGasWei, linkEth);
+    uint96 maxPliPayment = _calculatePaymentAmount(gasLimit, adjustedGasWei, pliEth);
 
     return
       PerformParams({
         from: from,
         id: id,
         performData: performData,
-        maxLinkPayment: maxLinkPayment,
+        maxPliPayment: maxPliPayment,
         gasLimit: gasLimit,
         adjustedGasWei: adjustedGasWei,
-        linkEth: linkEth
+        pliEth: pliEth
       });
   }
 

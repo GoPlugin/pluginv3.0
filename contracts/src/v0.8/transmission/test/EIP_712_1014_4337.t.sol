@@ -1,6 +1,6 @@
 pragma solidity 0.8.19;
 
-import "../../shared/interfaces/LinkTokenInterface.sol";
+import "../../shared/interfaces/PliTokenInterface.sol";
 
 import "./BaseTest.t.sol";
 import "../dev/ERC-4337/SmartContractAccountFactory.sol";
@@ -9,7 +9,7 @@ import "../dev/ERC-4337/SCA.sol";
 import "../dev/testhelpers/Greeter.sol";
 import "../dev/ERC-4337/Paymaster.sol";
 import "../../transmission/dev/ERC-4337/SCALibrary.sol";
-import "../../mocks/MockLinkToken.sol";
+import "../../mocks/MockPliToken.sol";
 import "../../tests/MockV3Aggregator.sol";
 import "../../vrf/mocks/VRFCoordinatorMock.sol";
 import "../../vrf/testhelpers/VRFConsumer.sol";
@@ -50,7 +50,7 @@ contract EIP_712_1014_4337 is BaseTest {
 
   Greeter greeter;
   EntryPoint entryPoint;
-  MockV3Aggregator linkEthFeed;
+  MockV3Aggregator pliEthFeed;
 
   // Randomly generated private/public key pair.
   uint256 END_USER_PKEY = uint256(bytes32(hex"99d518dbfea4b4ec301390f7e26d53d711fa1ca0c1a6e4cbed89617d4c578a8e"));
@@ -73,8 +73,8 @@ contract EIP_712_1014_4337 is BaseTest {
     entryPoint = new EntryPoint();
     ENTRY_POINT = address(entryPoint);
 
-    // Deploy link/eth feed.
-    linkEthFeed = new MockV3Aggregator(18, 5000000000000000); // .005 ETH
+    // Deploy pli/eth feed.
+    pliEthFeed = new MockV3Aggregator(18, 5000000000000000); // .005 ETH
   }
 
   /// @dev Test case for user that already has a Smart Contract Account.
@@ -234,10 +234,10 @@ contract EIP_712_1014_4337 is BaseTest {
       encodedGreetingCall
     );
 
-    // Create Link token, and deposit into paymaster.
-    MockLinkToken linkToken = new MockLinkToken();
-    Paymaster paymaster = new Paymaster(LinkTokenInterface(address(linkToken)), linkEthFeed, ENTRY_POINT);
-    linkToken.transferAndCall(address(paymaster), 1000 ether, abi.encode(address(toDeployAddress)));
+    // Create Pli token, and deposit into paymaster.
+    MockPliToken pliToken = new MockPliToken();
+    Paymaster paymaster = new Paymaster(PliTokenInterface(address(pliToken)), pliEthFeed, ENTRY_POINT);
+    pliToken.transferAndCall(address(paymaster), 1000 ether, abi.encode(address(toDeployAddress)));
 
     // Construct the user opeartion.
     UserOperation memory op = UserOperation({
@@ -295,9 +295,9 @@ contract EIP_712_1014_4337 is BaseTest {
     );
 
     // Create the VRF Contracts
-    MockLinkToken linkToken = new MockLinkToken();
-    VRFCoordinatorMock vrfCoordinator = new VRFCoordinatorMock(address(linkToken));
-    VRFConsumer vrfConsumer = new VRFConsumer(address(vrfCoordinator), address(linkToken));
+    MockPliToken pliToken = new MockPliToken();
+    VRFCoordinatorMock vrfCoordinator = new VRFCoordinatorMock(address(pliToken));
+    VRFConsumer vrfConsumer = new VRFConsumer(address(vrfCoordinator), address(pliToken));
 
     // Produce the final full end-tx encoding, to be used as calldata in the user operation.
     bytes memory fullEncoding = SmartContractAccountHelper.getFullEndTxEncoding(
@@ -307,9 +307,9 @@ contract EIP_712_1014_4337 is BaseTest {
       encodedVRFRequestCallData
     );
 
-    // Create Link token, and deposit into paymaster.
-    Paymaster paymaster = new Paymaster(LinkTokenInterface(address(linkToken)), linkEthFeed, ENTRY_POINT);
-    linkToken.transferAndCall(address(paymaster), 1000 ether, abi.encode(address(toDeployAddress)));
+    // Create Pli token, and deposit into paymaster.
+    Paymaster paymaster = new Paymaster(PliTokenInterface(address(pliToken)), pliEthFeed, ENTRY_POINT);
+    pliToken.transferAndCall(address(paymaster), 1000 ether, abi.encode(address(toDeployAddress)));
 
     // Construct direct funding data.
     SCALibrary.DirectFundingData memory directFundingData = SCALibrary.DirectFundingData({

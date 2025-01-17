@@ -10,7 +10,7 @@ import {FunctionsResponse} from "../../dev/v1_X/libraries/FunctionsResponse.sol"
 import {MockV3Aggregator} from "../../../tests/MockV3Aggregator.sol";
 import {TermsOfServiceAllowList} from "../../dev/v1_X/accessControl/TermsOfServiceAllowList.sol";
 import {TermsOfServiceAllowListConfig} from "../../dev/v1_X/accessControl/interfaces/ITermsOfServiceAllowList.sol";
-import {MockLinkToken} from "../../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../../mocks/MockPliToken.sol";
 import {FunctionsBillingConfig} from "../../dev/v1_X/interfaces/IFunctionsBilling.sol";
 
 import "forge-std/Vm.sol";
@@ -19,10 +19,10 @@ import "forge-std/Vm.sol";
 contract FunctionsRouterSetup is BaseTest {
   FunctionsRouterHarness internal s_functionsRouter;
   FunctionsCoordinatorHarness internal s_functionsCoordinator;
-  MockV3Aggregator internal s_linkEthFeed;
-  MockV3Aggregator internal s_linkUsdFeed;
+  MockV3Aggregator internal s_pliEthFeed;
+  MockV3Aggregator internal s_pliUsdFeed;
   TermsOfServiceAllowList internal s_termsOfServiceAllowList;
-  MockLinkToken internal s_linkToken;
+  MockPliToken internal s_pliToken;
 
   uint16 internal s_maxConsumersPerSubscription = 3;
   uint72 internal s_adminFee = 0; // Keep as 0. Setting this to anything else will cause fulfillments to fail with INVALID_COMMITMENT
@@ -43,15 +43,15 @@ contract FunctionsRouterSetup is BaseTest {
 
   function setUp() public virtual override {
     BaseTest.setUp();
-    s_linkToken = new MockLinkToken();
-    s_functionsRouter = new FunctionsRouterHarness(address(s_linkToken), getRouterConfig());
-    s_linkEthFeed = new MockV3Aggregator(PLI_ETH_DECIMALS, PLI_ETH_RATE);
-    s_linkUsdFeed = new MockV3Aggregator(PLI_USD_DECIMALS, PLI_USD_RATE);
+    s_pliToken = new MockPliToken();
+    s_functionsRouter = new FunctionsRouterHarness(address(s_pliToken), getRouterConfig());
+    s_pliEthFeed = new MockV3Aggregator(PLI_ETH_DECIMALS, PLI_ETH_RATE);
+    s_pliUsdFeed = new MockV3Aggregator(PLI_USD_DECIMALS, PLI_USD_RATE);
     s_functionsCoordinator = new FunctionsCoordinatorHarness(
       address(s_functionsRouter),
       getCoordinatorConfig(),
-      address(s_linkEthFeed),
-      address(s_linkUsdFeed)
+      address(s_pliEthFeed),
+      address(s_pliUsdFeed)
     );
     address[] memory initialAllowedSenders;
     address[] memory initialBlockedSenders;
@@ -92,9 +92,9 @@ contract FunctionsRouterSetup is BaseTest {
         operationFeeCentsUsd: s_operationFee,
         maxSupportedRequestDataVersion: 1,
         fulfillmentGasPriceOverEstimationBP: 5000,
-        fallbackNativePerUnitLink: 5000000000000000,
-        fallbackUsdPerUnitLink: 1400000000,
-        fallbackUsdPerUnitLinkDecimals: 8,
+        fallbackNativePerUnitPli: 5000000000000000,
+        fallbackUsdPerUnitPli: 1400000000,
+        fallbackUsdPerUnitPliDecimals: 8,
         minimumEstimateGasPriceWei: 1000000000, // 1 gwei
         transmitTxSizeBytes: 1764
       });
@@ -169,10 +169,10 @@ contract FunctionsDONSetup is FunctionsRouterSetup {
 
   function _getTransmitterBalances() internal view returns (uint256[4] memory balances) {
     return [
-      s_linkToken.balanceOf(NOP_TRANSMITTER_ADDRESS_1),
-      s_linkToken.balanceOf(NOP_TRANSMITTER_ADDRESS_2),
-      s_linkToken.balanceOf(NOP_TRANSMITTER_ADDRESS_3),
-      s_linkToken.balanceOf(NOP_TRANSMITTER_ADDRESS_4)
+      s_pliToken.balanceOf(NOP_TRANSMITTER_ADDRESS_1),
+      s_pliToken.balanceOf(NOP_TRANSMITTER_ADDRESS_2),
+      s_pliToken.balanceOf(NOP_TRANSMITTER_ADDRESS_3),
+      s_pliToken.balanceOf(NOP_TRANSMITTER_ADDRESS_4)
     ];
   }
 
@@ -240,7 +240,7 @@ contract FunctionsSubscriptionSetup is FunctionsClientSetup {
     s_functionsRouter.addConsumer(s_subscriptionId, address(s_functionsClient));
 
     // Fund subscription
-    s_linkToken.transferAndCall(address(s_functionsRouter), s_subscriptionInitialFunding, abi.encode(s_subscriptionId));
+    s_pliToken.transferAndCall(address(s_functionsRouter), s_subscriptionInitialFunding, abi.encode(s_subscriptionId));
   }
 }
 

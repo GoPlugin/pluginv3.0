@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {EnumerableSet} from "../../vendor/openzeppelin-solidity/v4.7.3/contracts/utils/structs/EnumerableSet.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {AggregatorV3Interface} from "../../shared/interfaces/AggregatorV3Interface.sol";
 import {IERC677Receiver} from "../../shared/interfaces/IERC677Receiver.sol";
@@ -12,7 +12,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   using EnumerableSet for EnumerableSet.UintSet;
 
   /// @dev may not be provided upon construction on some chains due to lack of availability
-  LinkTokenInterface public PLI;
+  PliTokenInterface public PLI;
   /// @dev may not be provided upon construction on some chains due to lack of availability
   AggregatorV3Interface public PLI_NATIVE_FEED;
 
@@ -24,7 +24,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   error InsufficientBalance();
   error InvalidConsumer(uint256 subId, address consumer);
   error InvalidSubscription();
-  error OnlyCallableFromLink();
+  error OnlyCallableFromPli();
   error InvalidCalldata();
   error MustBeSubOwner(address owner);
   error PendingRequestExists();
@@ -32,17 +32,17 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   error BalanceInvariantViolated(uint256 internalBalance, uint256 externalBalance); // Should never happen
   event FundsRecovered(address to, uint256 amount);
   event NativeFundsRecovered(address to, uint256 amount);
-  error LinkAlreadySet();
+  error PliAlreadySet();
   error FailedToSendNative();
-  error FailedToTransferLink();
+  error FailedToTransferPli();
   error IndexOutOfRange();
-  error LinkNotSet();
+  error PliNotSet();
 
   // We use the subscription struct (1 word)
   // at fulfillment time.
   struct Subscription {
     // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
-    uint96 balance; // Common link balance used for all consumer requests.
+    uint96 balance; // Common pli balance used for all consumer requests.
     // a uint96 is large enough to hold around ~8e28 wei, or 80 billion ether.
     // That should be enough to cover most (if not all) subscriptions.
     uint96 nativeBalance; // Common native balance used for all consumer requests.
@@ -79,9 +79,9 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   // subscription id's are stored in this set, they cannot be retrieved in a
   // single RPC call without violating various size limits.
   EnumerableSet.UintSet internal s_subIds;
-  // s_totalBalance tracks the total link sent to/from
+  // s_totalBalance tracks the total pli sent to/from
   // this contract through onTokenTransfer, cancelSubscription and oracleWithdraw.
-  // A discrepancy with this contract's link balance indicates someone
+  // A discrepancy with this contract's pli balance indicates someone
   // sent tokens using transfer and so we may need to use recoverFunds.
   uint96 public s_totalBalance;
   // s_totalNativeBalance tracks the total native sent to/from
@@ -97,7 +97,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   event SubscriptionFundedWithNative(uint256 indexed subId, uint256 oldNativeBalance, uint256 newNativeBalance);
   event SubscriptionConsumerAdded(uint256 indexed subId, address consumer);
   event SubscriptionConsumerRemoved(uint256 indexed subId, address consumer);
-  event SubscriptionCanceled(uint256 indexed subId, address to, uint256 amountLink, uint256 amountNative);
+  event SubscriptionCanceled(uint256 indexed subId, address to, uint256 amountPli, uint256 amountNative);
   event SubscriptionOwnerTransferRequested(uint256 indexed subId, address from, address to);
   event SubscriptionOwnerTransferred(uint256 indexed subId, address from, address to);
 
@@ -107,7 +107,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
     // Reentrancy protection.
     bool reentrancyLock;
     // stalenessSeconds is how long before we consider the feed price to be stale
-    // and fallback to fallbackWeiPerUnitLink.
+    // and fallback to fallbackWeiPerUnitPli.
     uint32 stalenessSeconds;
     // Gas to cover oracle payment after we calculate the payment.
     // We make it configurable in case those operations are repriced.
@@ -123,16 +123,16 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
     // Flat fee charged per fulfillment in millionths of native.
     // So fee range is [0, 2^32/10^6].
     uint32 fulfillmentFlatFeeNativePPM;
-    // Discount relative to fulfillmentFlatFeeNativePPM for link payment in millionths of native
+    // Discount relative to fulfillmentFlatFeeNativePPM for pli payment in millionths of native
     // Should not exceed fulfillmentFlatFeeNativePPM
     // So fee range is [0, 2^32/10^6].
-    uint32 fulfillmentFlatFeeLinkDiscountPPM;
+    uint32 fulfillmentFlatFeePliDiscountPPM;
     // nativePremiumPercentage is the percentage of the total gas costs that is added to the final premium for native payment
     // nativePremiumPercentage = 10 means 10% of the total gas costs is added. only integral percentage is allowed
     uint8 nativePremiumPercentage;
-    // linkPremiumPercentage is the percentage of total gas costs that is added to the final premium for link payment
-    // linkPremiumPercentage = 10 means 10% of the total gas costs is added. only integral percentage is allowed
-    uint8 linkPremiumPercentage;
+    // pliPremiumPercentage is the percentage of total gas costs that is added to the final premium for pli payment
+    // pliPremiumPercentage = 10 means 10% of the total gas costs is added. only integral percentage is allowed
+    uint8 pliPremiumPercentage;
   }
   Config public s_config;
 
@@ -162,22 +162,22 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   constructor() ConfirmedOwner(msg.sender) {}
 
   /**
-   * @notice set the PLI token contract and link native feed to be
+   * @notice set the PLI token contract and pli native feed to be
    * used by this coordinator
-   * @param link - address of link token
-   * @param linkNativeFeed address of the link native feed
+   * @param pli - address of pli token
+   * @param pliNativeFeed address of the pli native feed
    */
-  function setPLIAndPLINativeFeed(address link, address linkNativeFeed) external onlyOwner {
-    // Disallow re-setting link token because the logic wouldn't really make sense
+  function setPLIAndPLINativeFeed(address pli, address pliNativeFeed) external onlyOwner {
+    // Disallow re-setting pli token because the logic wouldn't really make sense
     if (address(PLI) != address(0)) {
-      revert LinkAlreadySet();
+      revert PliAlreadySet();
     }
-    PLI = LinkTokenInterface(link);
-    PLI_NATIVE_FEED = AggregatorV3Interface(linkNativeFeed);
+    PLI = PliTokenInterface(pli);
+    PLI_NATIVE_FEED = AggregatorV3Interface(pliNativeFeed);
   }
 
   /**
-   * @notice Owner cancel subscription, sends remaining link directly to the subscription owner.
+   * @notice Owner cancel subscription, sends remaining pli directly to the subscription owner.
    * @param subId subscription id
    * @dev notably can be called even if there are pending requests, outstanding ones may fail onchain
    */
@@ -188,8 +188,8 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
   }
 
   /**
-   * @notice Recover link sent with transfer instead of transferAndCall.
-   * @param to address to send link to
+   * @notice Recover pli sent with transfer instead of transferAndCall.
+   * @param to address to send pli to
    */
   function recoverFunds(address to) external onlyOwner {
     // If PLI is not set, we cannot recover funds.
@@ -197,7 +197,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
     // by accident by a user but the PLI token needs to be set first
     // before we can recover it.
     if (address(PLI) == address(0)) {
-      revert LinkNotSet();
+      revert PliNotSet();
     }
 
     uint256 externalBalance = PLI.balanceOf(address(this));
@@ -208,7 +208,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
     if (internalBalance < externalBalance) {
       uint256 amount = externalBalance - internalBalance;
       if (!PLI.transfer(to, amount)) {
-        revert FailedToTransferLink();
+        revert FailedToTransferPli();
       }
       emit FundsRecovered(to, amount);
     }
@@ -243,7 +243,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
    */
   function withdraw(address recipient) external nonReentrant onlyOwner {
     if (address(PLI) == address(0)) {
-      revert LinkNotSet();
+      revert PliNotSet();
     }
     uint96 amount = s_withdrawableTokens;
     _requireSufficientBalance(amount > 0);
@@ -268,7 +268,7 @@ abstract contract SubscriptionAPI is ConfirmedOwner, IERC677Receiver, IVRFSubscr
 
   function onTokenTransfer(address /* sender */, uint256 amount, bytes calldata data) external override nonReentrant {
     if (msg.sender != address(PLI)) {
-      revert OnlyCallableFromLink();
+      revert OnlyCallableFromPli();
     }
     if (data.length != 32) {
       revert InvalidCalldata();

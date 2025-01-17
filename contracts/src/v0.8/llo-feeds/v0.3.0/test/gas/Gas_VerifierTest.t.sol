@@ -37,25 +37,25 @@ contract Verifier_verifyWithFee is BaseTestWithConfiguredVerifierAndFeeManager {
   function setUp() public virtual override {
     super.setUp();
 
-    //mint some link and eth to warm the storage
-    link.mint(address(rewardManager), DEFAULT_PLI_MINT_QUANTITY);
+    //mint some pli and eth to warm the storage
+    pli.mint(address(rewardManager), DEFAULT_PLI_MINT_QUANTITY);
     native.mint(address(feeManager), DEFAULT_NATIVE_MINT_QUANTITY);
 
     //warm the rewardManager
-    link.mint(address(this), DEFAULT_NATIVE_MINT_QUANTITY);
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, address(this));
+    pli.mint(address(this), DEFAULT_NATIVE_MINT_QUANTITY);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, address(this));
     (, , bytes32 latestConfigDigest) = s_verifier.latestConfigDetails(FEED_ID);
 
     //mint some tokens to the user
-    link.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(USER, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(USER, DEFAULT_NATIVE_MINT_QUANTITY);
 
-    //mint some link tokens to the feeManager pool
-    link.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //mint some pli tokens to the feeManager pool
+    pli.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //approve funds prior to test
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
     _approveNative(address(feeManager), DEFAULT_REPORT_NATIVE_FEE, USER);
 
     IRewardManager.FeePayment[] memory payments = new IRewardManager.FeePayment[](1);
@@ -67,14 +67,14 @@ contract Verifier_verifyWithFee is BaseTestWithConfiguredVerifierAndFeeManager {
     changePrank(USER);
   }
 
-  function testVerifyProxyWithLinkFeeSuccess_gas() public {
-    bytes memory signedLinkPayload = _generateV3EncodedBlob(
+  function testVerifyProxyWithPliFeeSuccess_gas() public {
+    bytes memory signedPliPayload = _generateV3EncodedBlob(
       _generateV3Report(),
       _generateReportContext(v3ConfigDigest),
       _getSigners(FAULT_TOLERANCE + 1)
     );
 
-    s_verifierProxy.verify(signedLinkPayload, abi.encode(link));
+    s_verifierProxy.verify(signedPliPayload, abi.encode(pli));
   }
 
   function testVerifyProxyWithNativeFeeSuccess_gas() public {
@@ -96,25 +96,25 @@ contract Verifier_bulkVerifyWithFee is BaseTestWithConfiguredVerifierAndFeeManag
   function setUp() public virtual override {
     super.setUp();
 
-    //mint some link and eth to warm the storage
-    link.mint(address(rewardManager), DEFAULT_PLI_MINT_QUANTITY);
+    //mint some pli and eth to warm the storage
+    pli.mint(address(rewardManager), DEFAULT_PLI_MINT_QUANTITY);
     native.mint(address(feeManager), DEFAULT_NATIVE_MINT_QUANTITY);
 
     //warm the rewardManager
-    link.mint(address(this), DEFAULT_NATIVE_MINT_QUANTITY);
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, address(this));
+    pli.mint(address(this), DEFAULT_NATIVE_MINT_QUANTITY);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, address(this));
     (, , bytes32 latestConfigDigest) = s_verifier.latestConfigDetails(FEED_ID);
 
     //mint some tokens to the user
-    link.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(USER, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(USER, DEFAULT_NATIVE_MINT_QUANTITY);
 
-    //mint some link tokens to the feeManager pool
-    link.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS_TO_VERIFY);
+    //mint some pli tokens to the feeManager pool
+    pli.mint(address(feeManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS_TO_VERIFY);
 
     //approve funds prior to test
-    _approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS_TO_VERIFY, USER);
+    _approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE * NUMBER_OF_REPORTS_TO_VERIFY, USER);
     _approveNative(address(feeManager), DEFAULT_REPORT_NATIVE_FEE * NUMBER_OF_REPORTS_TO_VERIFY, USER);
 
     IRewardManager.FeePayment[] memory payments = new IRewardManager.FeePayment[](1);
@@ -126,19 +126,19 @@ contract Verifier_bulkVerifyWithFee is BaseTestWithConfiguredVerifierAndFeeManag
     changePrank(USER);
   }
 
-  function testBulkVerifyProxyWithLinkFeeSuccess_gas() public {
-    bytes memory signedLinkPayload = _generateV3EncodedBlob(
+  function testBulkVerifyProxyWithPliFeeSuccess_gas() public {
+    bytes memory signedPliPayload = _generateV3EncodedBlob(
       _generateV3Report(),
       _generateReportContext(v3ConfigDigest),
       _getSigners(FAULT_TOLERANCE + 1)
     );
 
-    bytes[] memory signedLinkPayloads = new bytes[](NUMBER_OF_REPORTS_TO_VERIFY);
+    bytes[] memory signedPliPayloads = new bytes[](NUMBER_OF_REPORTS_TO_VERIFY);
     for (uint256 i = 0; i < NUMBER_OF_REPORTS_TO_VERIFY; i++) {
-      signedLinkPayloads[i] = signedLinkPayload;
+      signedPliPayloads[i] = signedPliPayload;
     }
 
-    s_verifierProxy.verifyBulk(signedLinkPayloads, abi.encode(link));
+    s_verifierProxy.verifyBulk(signedPliPayloads, abi.encode(pli));
   }
 
   function testBulkVerifyProxyWithNativeFeeSuccess_gas() public {

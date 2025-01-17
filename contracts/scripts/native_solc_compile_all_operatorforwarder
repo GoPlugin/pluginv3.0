@@ -30,7 +30,7 @@ compileContract () {
 # Contracts
 compileContract operatorforwarder/AuthorizedForwarder.sol
 compileContract operatorforwarder/AuthorizedReceiver.sol
-compileContract operatorforwarder/LinkTokenReceiver.sol
+compileContract operatorforwarder/PliTokenReceiver.sol
 compileContract operatorforwarder/Operator.sol
 compileContract operatorforwarder/OperatorFactory.sol
 

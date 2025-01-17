@@ -36,12 +36,12 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
   mapping(uint256 => uint16) public buckets;
   EnumerableSet.UintSet internal s_upkeepIDs;
   AutomationRegistrar2_1 public registrar;
-  LinkTokenInterface public linkToken;
+  PliTokenInterface public pliToken;
   IKeeperRegistryMaster public registry;
   // check if an upkeep is eligible for adding funds at this interval
   uint256 public upkeepTopUpCheckInterval = 5;
   // an upkeep will get this amount of PLI for every top up
-  uint96 public addLinkAmount = 200000000000000000; // 0.2 PLI
+  uint96 public addPliAmount = 200000000000000000; // 0.2 PLI
   // if an upkeep's balance is less than this threshold * min balance, this upkeep is eligible for adding funds
   uint8 public minBalanceThresholdMultiplier = 20;
   // if this contract is using arbitrum block number
@@ -67,7 +67,7 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
     registrar = _registrar;
     (address registryAddress, ) = registrar.getConfig();
     registry = IKeeperRegistryMaster(payable(address(registryAddress)));
-    linkToken = registrar.PLI();
+    pliToken = registrar.PLI();
     useArbitrumBlockNum = _useArb;
   }
 
@@ -85,9 +85,9 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
   /**
    * @notice withdraws PLIs from this contract to msg sender when testing is finished.
    */
-  function withdrawLinks() external onlyOwner {
-    uint256 balance = linkToken.balanceOf(address(this));
-    linkToken.transfer(msg.sender, balance);
+  function withdrawPlis() external onlyOwner {
+    uint256 balance = pliToken.balanceOf(address(this));
+    pliToken.transfer(msg.sender, balance);
   }
 
   function getBlockNumber() internal view returns (uint256) {
@@ -99,14 +99,14 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
   }
 
   /**
-   * @notice sets registrar, registry, and link token address.
+   * @notice sets registrar, registry, and pli token address.
    * @param newRegistrar the new registrar address
    */
   function setConfig(AutomationRegistrar2_1 newRegistrar) external {
     registrar = newRegistrar;
     (address registryAddress, ) = registrar.getConfig();
     registry = IKeeperRegistryMaster(payable(address(registryAddress)));
-    linkToken = registrar.PLI();
+    pliToken = registrar.PLI();
   }
 
   /**
@@ -278,7 +278,7 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
       amount: amount
     });
 
-    linkToken.approve(address(registrar), amount * number);
+    pliToken.approve(address(registrar), amount * number);
 
     uint256[] memory upkeepIds = new uint256[](number);
     for (uint8 i = 0; i < number; i++) {
@@ -294,9 +294,9 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
       IAutomationV21PlusCommon.UpkeepInfoLegacy memory info = registry.getUpkeep(upkeepId);
       uint96 minBalance = registry.getMinBalanceForUpkeep(upkeepId);
       if (info.balance < minBalanceThresholdMultiplier * minBalance) {
-        addFunds(upkeepId, addLinkAmount);
+        addFunds(upkeepId, addPliAmount);
         lastTopUpBlocks[upkeepId] = blockNum;
-        emit UpkeepTopUp(upkeepId, addLinkAmount, blockNum);
+        emit UpkeepTopUp(upkeepId, addPliAmount, blockNum);
       }
     }
   }
@@ -330,7 +330,7 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
    * @param amount the amount of PLI to be funded for the upkeep
    */
   function addFunds(uint256 upkeepId, uint96 amount) public {
-    linkToken.approve(address(registry), amount);
+    pliToken.approve(address(registry), amount);
     registry.addFunds(upkeepId, amount);
   }
 
@@ -343,14 +343,14 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
     registry.setUpkeepCheckData(upkeepId, pipelineData);
   }
 
-  function withdrawLinks(uint256 upkeepId) external {
+  function withdrawPlis(uint256 upkeepId) external {
     registry.withdrawFunds(upkeepId, address(this));
   }
 
-  function batchWithdrawLinks(uint256[] calldata upkeepIds) external {
+  function batchWithdrawPlis(uint256[] calldata upkeepIds) external {
     uint256 len = upkeepIds.length;
     for (uint32 i = 0; i < len; i++) {
-      this.withdrawLinks(upkeepIds[i]);
+      this.withdrawPlis(upkeepIds[i]);
     }
   }
 
@@ -377,8 +377,8 @@ abstract contract VerifiableLoadBase is ConfirmedOwner {
   //   * @notice set a new add PLI amount.
   //   * @param amount the new value
   //   */
-  //  function setAddLinkAmount(uint96 amount) external {
-  //    addLinkAmount = amount;
+  //  function setAddPliAmount(uint96 amount) external {
+  //    addPliAmount = amount;
   //  }
   //
   //  function setUpkeepTopUpCheckInterval(uint256 newInterval) external {

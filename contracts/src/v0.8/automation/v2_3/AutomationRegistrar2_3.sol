@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {IAutomationRegistryMaster2_3} from "../interfaces/v2_3/IAutomationRegistryMaster2_3.sol";
 import {TypeAndVersionInterface} from "../../interfaces/TypeAndVersionInterface.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
@@ -110,7 +110,7 @@ contract AutomationRegistrar2_3 is TypeAndVersionInterface, ConfirmedOwner, IERC
     bytes offchainConfig;
   }
 
-  LinkTokenInterface public immutable i_PLI;
+  PliTokenInterface public immutable i_PLI;
   IWrappedNative public immutable i_WRAPPED_NATIVE_TOKEN;
   IAutomationRegistryMaster2_3 private s_registry;
 
@@ -153,11 +153,11 @@ contract AutomationRegistrar2_3 is TypeAndVersionInterface, ConfirmedOwner, IERC
   error TransferFailed(address to);
   error DuplicateEntry();
   error OnlyAdminOrOwner();
-  error OnlyLink();
+  error OnlyPli();
   error RequestNotFound();
 
   /**
-   * @param PLIAddress Address of Link token
+   * @param PLIAddress Address of Pli token
    * @param registry keeper registry address
    * @param triggerConfigs the initial config for individual triggers
    * @param billingTokens the tokens allowed for billing
@@ -172,7 +172,7 @@ contract AutomationRegistrar2_3 is TypeAndVersionInterface, ConfirmedOwner, IERC
     uint256[] memory minRegistrationFees,
     IWrappedNative wrappedNativeToken
   ) ConfirmedOwner(msg.sender) {
-    i_PLI = LinkTokenInterface(PLIAddress);
+    i_PLI = PliTokenInterface(PLIAddress);
     i_WRAPPED_NATIVE_TOKEN = wrappedNativeToken;
     setConfig(registry, billingTokens, minRegistrationFees);
     for (uint256 idx = 0; idx < triggerConfigs.length; idx++) {
@@ -330,9 +330,9 @@ contract AutomationRegistrar2_3 is TypeAndVersionInterface, ConfirmedOwner, IERC
    * @param data Payload of the transaction
    */
   function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
-    if (msg.sender != address(i_PLI)) revert OnlyLink();
+    if (msg.sender != address(i_PLI)) revert OnlyPli();
     RegistrationParams memory params = abi.decode(data, (RegistrationParams));
-    if (address(params.billingToken) != address(i_PLI)) revert OnlyLink();
+    if (address(params.billingToken) != address(i_PLI)) revert OnlyPli();
     params.amount = uint96(amount); // ignore whatever is sent in registration params, use actual value; casting safe because max supply PLI < 2^96
     _register(params, sender);
   }

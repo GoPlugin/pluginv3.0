@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.6;
 
-import "../../shared/interfaces/LinkTokenInterface.sol";
+import "../../shared/interfaces/PliTokenInterface.sol";
 import "../interfaces/v2_0/AutomationRegistryInterface2_0.sol";
 import "../../interfaces/TypeAndVersionInterface.sol";
 import "../../shared/access/ConfirmedOwner.sol";
@@ -33,7 +33,7 @@ contract KeeperRegistrar2_0 is TypeAndVersionInterface, ConfirmedOwner, IERC677R
 
   mapping(bytes32 => PendingRequest) private s_pendingRequests;
 
-  LinkTokenInterface public immutable PLI;
+  PliTokenInterface public immutable PLI;
 
   /**
    * @notice versions:
@@ -103,15 +103,15 @@ contract KeeperRegistrar2_0 is TypeAndVersionInterface, ConfirmedOwner, IERC677R
   error OnlyAdminOrOwner();
   error InsufficientPayment();
   error RegistrationRequestFailed();
-  error OnlyLink();
+  error OnlyPli();
   error AmountMismatch();
   error SenderMismatch();
   error FunctionNotPermitted();
-  error LinkTransferFailed(address to);
+  error PliTransferFailed(address to);
   error InvalidDataLength();
 
   /*
-   * @param PLIAddress Address of Link token
+   * @param PLIAddress Address of Pli token
    * @param autoApproveConfigType setting for auto-approve registrations
    * @param autoApproveMaxAllowed max number of registrations that can be auto approved
    * @param keeperRegistry keeper registry address
@@ -124,7 +124,7 @@ contract KeeperRegistrar2_0 is TypeAndVersionInterface, ConfirmedOwner, IERC677R
     address keeperRegistry,
     uint96 minPLIJuels
   ) ConfirmedOwner(msg.sender) {
-    PLI = LinkTokenInterface(PLIAddress);
+    PLI = PliTokenInterface(PLIAddress);
     setRegistrationConfig(autoApproveConfigType, autoApproveMaxAllowed, keeperRegistry, minPLIJuels);
   }
 
@@ -233,7 +233,7 @@ contract KeeperRegistrar2_0 is TypeAndVersionInterface, ConfirmedOwner, IERC677R
     delete s_pendingRequests[hash];
     bool success = PLI.transfer(request.admin, request.balance);
     if (!success) {
-      revert LinkTransferFailed(request.admin);
+      revert PliTransferFailed(request.admin);
     }
     emit RegistrationRejected(hash);
   }
@@ -399,7 +399,7 @@ contract KeeperRegistrar2_0 is TypeAndVersionInterface, ConfirmedOwner, IERC677R
     // fund upkeep
     bool success = PLI.transferAndCall(address(keeperRegistry), params.amount, abi.encode(upkeepId));
     if (!success) {
-      revert LinkTransferFailed(address(keeperRegistry));
+      revert PliTransferFailed(address(keeperRegistry));
     }
 
     emit RegistrationApproved(hash, params.name, upkeepId);
@@ -432,7 +432,7 @@ contract KeeperRegistrar2_0 is TypeAndVersionInterface, ConfirmedOwner, IERC677R
    */
   modifier onlyPLI() {
     if (msg.sender != address(PLI)) {
-      revert OnlyLink();
+      revert OnlyPli();
     }
     _;
   }

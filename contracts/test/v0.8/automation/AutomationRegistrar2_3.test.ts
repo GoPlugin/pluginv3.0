@@ -31,7 +31,7 @@ const wrappedNativeTokenAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
 
 type OnChainConfig = Parameters<IAutomationRegistry['setConfigTypeSafe']>[3]
 
-let linkTokenFactory: ContractFactory
+let pliTokenFactory: ContractFactory
 let mockV3AggregatorFactory: MockV3AggregatorFactory
 let upkeepMockFactory: UpkeepMockFactory
 
@@ -40,8 +40,8 @@ let personas: Personas
 before(async () => {
   personas = (await getUsers()).personas
 
-  linkTokenFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+  pliTokenFactory = await ethers.getContractFactory(
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
   )
   mockV3AggregatorFactory = (await ethers.getContractFactory(
     'src/v0.8/tests/MockV3Aggregator.sol:MockV3Aggregator',
@@ -59,7 +59,7 @@ const errorMsgs = {
 describe('AutomationRegistrar2_3', () => {
   const upkeepName = 'SampleUpkeep'
 
-  const linkUSD = BigNumber.from('2000000000') // 1 PLI = $20
+  const pliUSD = BigNumber.from('2000000000') // 1 PLI = $20
   const nativeUSD = BigNumber.from('400000000000') // 1 ETH = $4000
   const gasWei = BigNumber.from(100)
   const performGas = BigNumber.from(100000)
@@ -80,7 +80,7 @@ describe('AutomationRegistrar2_3', () => {
   const gasCeilingMultiplier = BigNumber.from(1)
   const checkGasLimit = BigNumber.from(20000000)
   const fallbackGasPrice = BigNumber.from(200)
-  const fallbackLinkPrice = BigNumber.from(200000000)
+  const fallbackPliPrice = BigNumber.from(200000000)
   const fallbackNativePrice = BigNumber.from(200000000)
   const maxCheckDataSize = BigNumber.from(10000)
   const maxPerformDataSize = BigNumber.from(10000)
@@ -103,8 +103,8 @@ describe('AutomationRegistrar2_3', () => {
   let stranger: Signer
   let requestSender: Signer
 
-  let linkToken: Contract
-  let linkUSDFeed: MockV3Aggregator
+  let pliToken: Contract
+  let pliUSDFeed: MockV3Aggregator
   let nativeUSDFeed: MockV3Aggregator
   let gasPriceFeed: MockV3Aggregator
   let mock: UpkeepMock
@@ -145,13 +145,13 @@ describe('AutomationRegistrar2_3', () => {
     stranger = personas.Nancy
     requestSender = personas.Norbert
 
-    linkToken = await linkTokenFactory.connect(owner).deploy()
+    pliToken = await pliTokenFactory.connect(owner).deploy()
     gasPriceFeed = await mockV3AggregatorFactory
       .connect(owner)
       .deploy(0, gasWei)
-    linkUSDFeed = await mockV3AggregatorFactory
+    pliUSDFeed = await mockV3AggregatorFactory
       .connect(owner)
-      .deploy(8, linkUSD)
+      .deploy(8, pliUSD)
     nativeUSDFeed = await mockV3AggregatorFactory
       .connect(owner)
       .deploy(8, nativeUSD)
@@ -161,8 +161,8 @@ describe('AutomationRegistrar2_3', () => {
 
     registry = await deployRegistry23(
       owner,
-      linkToken.address,
-      linkUSDFeed.address,
+      pliToken.address,
+      pliUSDFeed.address,
       nativeUSDFeed.address,
       gasPriceFeed.address,
       zeroAddress,
@@ -176,7 +176,7 @@ describe('AutomationRegistrar2_3', () => {
       'AutomationRegistrar2_3',
     )
     registrar = await registrarFactory.connect(registrarOwner).deploy(
-      linkToken.address,
+      pliToken.address,
       registry.address,
       [
         {
@@ -190,12 +190,12 @@ describe('AutomationRegistrar2_3', () => {
           autoApproveMaxAllowed: 0,
         },
       ],
-      [linkToken.address],
+      [pliToken.address],
       [minimumRegistrationAmount],
       wrappedNativeTokenAddress,
     )
 
-    await linkToken
+    await pliToken
       .connect(owner)
       .transfer(await requestSender.getAddress(), toWei('1000'))
 
@@ -208,7 +208,7 @@ describe('AutomationRegistrar2_3', () => {
       maxRevertDataSize,
       maxPerformGas,
       fallbackGasPrice,
-      fallbackLinkPrice,
+      fallbackPliPrice,
       fallbackNativePrice,
       transcoder,
       registrars: [registrar.address],
@@ -224,12 +224,12 @@ describe('AutomationRegistrar2_3', () => {
       onchainConfig,
       1,
       '0x',
-      [linkToken.address],
+      [pliToken.address],
       [
         {
           gasFeePPB: paymentPremiumPPB,
           flatFeeMilliCents,
-          priceFeed: await registry.getLinkUSDFeedAddress(),
+          priceFeed: await registry.getPliUSDFeedAddress(),
           fallbackPrice: 200,
           minSpend: minimumRegistrationAmount,
           decimals: 18,
@@ -252,7 +252,7 @@ describe('AutomationRegistrar2_3', () => {
           .connect(someAddress)
           .onTokenTransfer(await someAddress.getAddress(), 0, '0x'),
         registrar,
-        'OnlyLink',
+        'OnlyPli',
       )
     })
 
@@ -268,11 +268,11 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
 
       await evmRevertCustomError(
-        linkToken
+        pliToken
           .connect(requestSender)
           .transferAndCall(registrar.address, amount, abiEncodedBytes),
         registrar,
@@ -302,9 +302,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      const tx = await linkToken
+      const tx = await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 
@@ -343,10 +343,10 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount: amount.mul(10), // muhahahaha 😈
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
 
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 
@@ -379,9 +379,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      const tx = await linkToken
+      const tx = await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       const receipt = await tx.wait()
@@ -426,9 +426,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 1) // 0 -> 1
@@ -445,9 +445,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 1) // Still 1
@@ -464,9 +464,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 2) // 1 -> 2
@@ -487,9 +487,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 3) // 2 -> 3
@@ -506,9 +506,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 3) // Still 3
@@ -543,9 +543,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      const tx = await linkToken
+      const tx = await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
 
@@ -593,9 +593,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      const tx = await linkToken
+      const tx = await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       const receipt = await tx.wait()
@@ -630,7 +630,7 @@ describe('AutomationRegistrar2_3', () => {
           offchainConfig: emptyBytes,
           amount,
           encryptedEmail: emptyBytes,
-          billingToken: linkToken.address,
+          billingToken: pliToken.address,
         }),
         '',
       )
@@ -639,7 +639,7 @@ describe('AutomationRegistrar2_3', () => {
     it('reverts if the amount passed in data is less than configured minimum', async () => {
       const amt = minimumRegistrationAmount.sub(1)
 
-      await linkToken.connect(requestSender).approve(registrar.address, amt)
+      await pliToken.connect(requestSender).approve(registrar.address, amt)
 
       await registrar
         .connect(registrarOwner)
@@ -661,7 +661,7 @@ describe('AutomationRegistrar2_3', () => {
           offchainConfig: emptyBytes,
           amount: amt,
           encryptedEmail: emptyBytes,
-          billingToken: linkToken.address,
+          billingToken: pliToken.address,
         }),
         registrar,
         'InsufficientPayment',
@@ -669,7 +669,7 @@ describe('AutomationRegistrar2_3', () => {
     })
 
     it('reverts if the billing token is not supported', async () => {
-      await linkToken
+      await pliToken
         .connect(requestSender)
         .approve(registrar.address, minimumRegistrationAmount)
 
@@ -697,7 +697,7 @@ describe('AutomationRegistrar2_3', () => {
           offchainConfig: emptyBytes,
           amount: minimumRegistrationAmount,
           encryptedEmail: emptyBytes,
-          billingToken: linkToken.address,
+          billingToken: pliToken.address,
         }),
         registrar,
         'InvalidBillingToken',
@@ -714,7 +714,7 @@ describe('AutomationRegistrar2_3', () => {
           maxAllowedAutoApprove,
         )
 
-      await linkToken.connect(requestSender).approve(registrar.address, amount)
+      await pliToken.connect(requestSender).approve(registrar.address, amount)
 
       const tx = await registrar.connect(requestSender).registerUpkeep({
         name: upkeepName,
@@ -727,7 +727,7 @@ describe('AutomationRegistrar2_3', () => {
         offchainConfig,
         amount,
         encryptedEmail: emptyBytes,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       assert.equal((await registry.getState()).state.numUpkeeps.toNumber(), 1) // 0 -> 1
 
@@ -824,13 +824,13 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       }
 
       //register with auto approve OFF
       const abiEncodedBytes = encodeRegistrationParams(params)
 
-      const tx = await linkToken
+      const tx = await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       await tx.wait()
@@ -848,7 +848,7 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig: emptyBytes,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       await evmRevert(tx, 'Only callable by owner')
     })
@@ -865,7 +865,7 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig: emptyBytes,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       await evmRevertCustomError(tx, registrar, errorMsgs.requestNotFound)
     })
@@ -929,7 +929,7 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       await expect(tx).to.emit(registrar, 'RegistrationApproved')
     })
@@ -946,7 +946,7 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       const tx = registrar.connect(registrarOwner).approve({
         name: upkeepName,
@@ -959,7 +959,7 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       await evmRevertCustomError(tx, registrar, errorMsgs.requestNotFound)
     })
@@ -989,9 +989,9 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
-      const tx = await linkToken
+      const tx = await pliToken
         .connect(requestSender)
         .transferAndCall(registrar.address, amount, abiEncodedBytes)
       const receipt = await tx.wait()
@@ -1013,17 +1013,17 @@ describe('AutomationRegistrar2_3', () => {
     })
 
     it('refunds the total request balance to the admin address if owner cancels', async () => {
-      const before = await linkToken.balanceOf(await admin.getAddress())
+      const before = await pliToken.balanceOf(await admin.getAddress())
       const tx = await registrar.connect(registrarOwner).cancel(hash)
-      const after = await linkToken.balanceOf(await admin.getAddress())
+      const after = await pliToken.balanceOf(await admin.getAddress())
       assert.isTrue(after.sub(before).eq(amount.mul(BigNumber.from(1))))
       await expect(tx).to.emit(registrar, 'RegistrationRejected')
     })
 
     it('refunds the total request balance to the admin address if admin cancels', async () => {
-      const before = await linkToken.balanceOf(await admin.getAddress())
+      const before = await pliToken.balanceOf(await admin.getAddress())
       const tx = await registrar.connect(admin).cancel(hash)
-      const after = await linkToken.balanceOf(await admin.getAddress())
+      const after = await pliToken.balanceOf(await admin.getAddress())
       assert.isTrue(after.sub(before).eq(amount.mul(BigNumber.from(1))))
       await expect(tx).to.emit(registrar, 'RegistrationRejected')
     })
@@ -1043,7 +1043,7 @@ describe('AutomationRegistrar2_3', () => {
         triggerConfig: trigger,
         offchainConfig: emptyBytes,
         amount,
-        billingToken: linkToken.address,
+        billingToken: pliToken.address,
       })
       await evmRevertCustomError(tx, registrar, errorMsgs.requestNotFound)
     })

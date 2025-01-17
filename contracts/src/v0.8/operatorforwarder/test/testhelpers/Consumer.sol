@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {PluginClient, PluginRequestInterface, LinkTokenInterface} from "../../../PluginClient.sol";
+import {PluginClient, PluginRequestInterface, PliTokenInterface} from "../../../PluginClient.sol";
 import {Plugin} from "../../../Plugin.sol";
 
 contract Consumer is PluginClient {
@@ -39,10 +39,10 @@ contract Consumer is PluginClient {
     requested.cancelOracleRequest(_requestId, _payment, _callbackFunctionId, _expiration);
   }
 
-  function withdrawLink() public {
-    LinkTokenInterface _link = LinkTokenInterface(_pluginTokenAddress());
+  function withdrawPli() public {
+    PliTokenInterface _pli = PliTokenInterface(_pluginTokenAddress());
     // solhint-disable-next-line gas-custom-errors
-    require(_link.transfer(msg.sender, _link.balanceOf(address(this))), "Unable to transfer");
+    require(_pli.transfer(msg.sender, _pli.balanceOf(address(this))), "Unable to transfer");
   }
 
   function addExternalRequest(address _oracle, bytes32 _requestId) external {

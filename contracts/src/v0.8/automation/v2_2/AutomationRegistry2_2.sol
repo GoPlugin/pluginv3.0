@@ -36,7 +36,7 @@ contract AutomationRegistry2_2 is AutomationRegistryBase2_2, OCR2Abstract, Chain
    *                           add function to let admin change upkeep gas limit
    *                           add minUpkeepSpend requirement
    *                           upgrade to solidity v0.8
-   * KeeperRegistry 1.1.0:     added flatFeeMicroLink
+   * KeeperRegistry 1.1.0:     added flatFeeMicroPli
    * KeeperRegistry 1.0.0:     initial release
    */
   string public constant override typeAndVersion = "AutomationRegistry 2.2.0";
@@ -48,8 +48,8 @@ contract AutomationRegistry2_2 is AutomationRegistryBase2_2, OCR2Abstract, Chain
     AutomationRegistryLogicB2_2 logicA
   )
     AutomationRegistryBase2_2(
-      logicA.getLinkAddress(),
-      logicA.getLinkNativeFeedAddress(),
+      logicA.getPliAddress(),
+      logicA.getPliNativeFeedAddress(),
       logicA.getFastGasFeedAddress(),
       logicA.getAutomationForwarderLogic(),
       logicA.getAllowedReadOnlyAddress()
@@ -176,7 +176,7 @@ contract AutomationRegistry2_2 is AutomationRegistryBase2_2, OCR2Abstract, Chain
             report.upkeepIds[i],
             upkeepTransmitInfo[i].gasUsed,
             report.fastGasWei,
-            report.linkNative,
+            report.pliNative,
             gasOverhead,
             (l1Fee * upkeepTransmitInfo[i].calldataWeight) / transmitVars.totalCalldataWeight
           );
@@ -225,12 +225,12 @@ contract AutomationRegistry2_2 is AutomationRegistryBase2_2, OCR2Abstract, Chain
    * @param amount number of PLI transfer
    */
   function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
-    if (msg.sender != address(i_link)) revert OnlyCallableByPLIToken();
+    if (msg.sender != address(i_pli)) revert OnlyCallableByPLIToken();
     if (data.length != 32) revert InvalidDataLength();
     uint256 id = abi.decode(data, (uint256));
     if (s_upkeep[id].maxValidBlocknumber != UINT32_MAX) revert UpkeepCancelled();
     s_upkeep[id].balance = s_upkeep[id].balance + uint96(amount);
-    s_expectedLinkBalance = s_expectedLinkBalance + amount;
+    s_expectedPliBalance = s_expectedPliBalance + amount;
     emit FundsAdded(id, sender, uint96(amount));
   }
 
@@ -319,7 +319,7 @@ contract AutomationRegistry2_2 is AutomationRegistryBase2_2, OCR2Abstract, Chain
     s_hotVars = HotVars({
       f: f,
       paymentPremiumPPB: onchainConfig.paymentPremiumPPB,
-      flatFeeMicroLink: onchainConfig.flatFeeMicroLink,
+      flatFeeMicroPli: onchainConfig.flatFeeMicroPli,
       stalenessSeconds: onchainConfig.stalenessSeconds,
       gasCeilingMultiplier: onchainConfig.gasCeilingMultiplier,
       paused: s_hotVars.paused,
@@ -342,10 +342,10 @@ contract AutomationRegistry2_2 is AutomationRegistryBase2_2, OCR2Abstract, Chain
       nonce: s_storage.nonce,
       configCount: s_storage.configCount,
       latestConfigBlockNumber: s_storage.latestConfigBlockNumber,
-      ownerLinkBalance: s_storage.ownerLinkBalance
+      ownerPliBalance: s_storage.ownerPliBalance
     });
     s_fallbackGasPrice = onchainConfig.fallbackGasPrice;
-    s_fallbackLinkPrice = onchainConfig.fallbackLinkPrice;
+    s_fallbackPliPrice = onchainConfig.fallbackPliPrice;
 
     uint32 previousConfigBlockNumber = s_storage.latestConfigBlockNumber;
     s_storage.latestConfigBlockNumber = uint32(onchainConfig.chainModule.blockNumber());

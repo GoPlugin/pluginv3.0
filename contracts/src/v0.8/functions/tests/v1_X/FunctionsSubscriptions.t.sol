@@ -17,10 +17,10 @@ import "forge-std/Vm.sol";
 // ================================================================
 
 contract FunctionsSubscriptions_Constructor_Helper is FunctionsSubscriptions {
-  constructor(address link) FunctionsSubscriptions(link) {}
+  constructor(address pli) FunctionsSubscriptions(pli) {}
 
-  function getLinkToken() public view returns (IERC20) {
-    return IERC20(i_linkToken);
+  function getPliToken() public view returns (IERC20) {
+    return IERC20(i_pliToken);
   }
 
   // overrides
@@ -42,15 +42,15 @@ contract FunctionsSubscriptions_Constructor_Helper is FunctionsSubscriptions {
 /// @notice #constructor
 contract FunctionsSubscriptions_Constructor is BaseTest {
   FunctionsSubscriptions_Constructor_Helper s_subscriptionsHelper;
-  address internal s_linkToken = 0x01BE23585060835E02B77ef475b0Cc51aA1e0709;
+  address internal s_pliToken = 0x01BE23585060835E02B77ef475b0Cc51aA1e0709;
 
   function setUp() public virtual override {
     BaseTest.setUp();
-    s_subscriptionsHelper = new FunctionsSubscriptions_Constructor_Helper(s_linkToken);
+    s_subscriptionsHelper = new FunctionsSubscriptions_Constructor_Helper(s_pliToken);
   }
 
   function test_Constructor_Success() public {
-    assertEq(address(s_linkToken), address(s_subscriptionsHelper.getLinkToken()));
+    assertEq(address(s_pliToken), address(s_subscriptionsHelper.getPliToken()));
   }
 }
 
@@ -82,9 +82,9 @@ contract FunctionsSubscriptions_OwnerCancelSubscription is FunctionsSubscription
   }
 
   function test_OwnerCancelSubscription_SuccessSubOwnerRefunded() public {
-    uint256 subscriptionOwnerBalanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
     s_functionsRouter.ownerCancelSubscription(s_subscriptionId);
-    uint256 subscriptionOwnerBalanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(subscriptionOwnerBalanceBefore + s_subscriptionInitialFunding, subscriptionOwnerBalanceAfter);
   }
 
@@ -109,7 +109,7 @@ contract FunctionsSubscriptions_OwnerCancelSubscription is FunctionsSubscription
   event SubscriptionCanceled(uint64 indexed subscriptionId, address fundsRecipient, uint256 fundsAmount);
 
   function test_OwnerCancelSubscription_Success() public {
-    uint256 subscriptionOwnerBalanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
 
     // topic0 (function signature, always checked), topic1 (true), NOT topic2 (false), NOT topic3 (false), and data (true).
     bool checkTopic1SubscriptionId = true;
@@ -121,7 +121,7 @@ contract FunctionsSubscriptions_OwnerCancelSubscription is FunctionsSubscription
 
     s_functionsRouter.ownerCancelSubscription(s_subscriptionId);
 
-    uint256 subscriptionOwnerBalanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(subscriptionOwnerBalanceBefore + s_subscriptionInitialFunding, subscriptionOwnerBalanceAfter);
   }
 }
@@ -132,7 +132,7 @@ contract FunctionsSubscriptions_RecoverFunds is FunctionsRouterSetup {
 
   function test_RecoverFunds_Success() public {
     uint256 fundsTransferred = 1 * 1e18; // 1 PLI
-    s_linkToken.transfer(address(s_functionsRouter), fundsTransferred);
+    s_pliToken.transfer(address(s_functionsRouter), fundsTransferred);
 
     // topic0 (function signature, always checked), NOT topic1 (false), NOT topic2 (false), NOT topic3 (false), and data (true).
     bool checkTopic1 = false;
@@ -142,9 +142,9 @@ contract FunctionsSubscriptions_RecoverFunds is FunctionsRouterSetup {
     vm.expectEmit(checkTopic1, checkTopic2, checkTopic3, checkData);
     emit FundsRecovered(OWNER_ADDRESS, fundsTransferred);
 
-    uint256 subscriptionOwnerBalanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
     s_functionsRouter.recoverFunds(OWNER_ADDRESS);
-    uint256 subscriptionOwnerBalanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(subscriptionOwnerBalanceBefore + fundsTransferred, subscriptionOwnerBalanceAfter);
   }
 
@@ -205,7 +205,7 @@ contract FunctionsSubscriptions_OracleWithdraw is FunctionsFulfillmentSetup {
     // Send as Coordinator contract
     // vm.stopPrank();
     // vm.startPrank(address(s_functionsCoordinator));
-    // TODO: Use internal function helper contract to modify s_totalLinkBalance
+    // TODO: Use internal function helper contract to modify s_totalPliBalance
     // uint96 amountToWithdraw = s_fulfillmentCoordinatorBalance;
     // vm.expectRevert(abi.encodeWithSelector(FunctionsSubscriptions.TotalBalanceInvariantViolated.selector, 0, amountToWithdraw));
     // s_functionsRouter.oracleWithdraw(NOP_TRANSMITTER_ADDRESS_1, amountToWithdraw);
@@ -217,12 +217,12 @@ contract FunctionsSubscriptions_OracleWithdraw is FunctionsFulfillmentSetup {
     vm.stopPrank();
     vm.startPrank(address(s_functionsCoordinator));
 
-    uint256 transmitterBalanceBefore = s_linkToken.balanceOf(NOP_TRANSMITTER_ADDRESS_1);
+    uint256 transmitterBalanceBefore = s_pliToken.balanceOf(NOP_TRANSMITTER_ADDRESS_1);
 
     uint96 amountToWithdraw = s_fulfillmentCoordinatorBalance;
     s_functionsRouter.oracleWithdraw(NOP_TRANSMITTER_ADDRESS_1, amountToWithdraw);
 
-    uint256 transmitterBalanceAfter = s_linkToken.balanceOf(NOP_TRANSMITTER_ADDRESS_1);
+    uint256 transmitterBalanceAfter = s_pliToken.balanceOf(NOP_TRANSMITTER_ADDRESS_1);
     assertEq(transmitterBalanceBefore + s_fulfillmentCoordinatorBalance, transmitterBalanceAfter);
   }
 
@@ -262,35 +262,35 @@ contract FunctionsSubscriptions_OwnerWithdraw is FunctionsFulfillmentSetup {
   }
 
   function test_OwnerWithdraw_RevertIfBalanceInvariant() public {
-    // TODO: Use internal function helper contract to modify s_totalLinkBalance
+    // TODO: Use internal function helper contract to modify s_totalPliBalance
     // uint96 amountToWithdraw = s_fulfillmentRouterOwnerBalance;
     // vm.expectRevert(abi.encodeWithSelector(FunctionsSubscriptions.TotalBalanceInvariantViolated.selector, 0, amountToWithdraw));
     // s_functionsRouter.ownerWithdraw(OWNER_ADDRESS, amountToWithdraw);
   }
 
   function test_OwnerWithdraw_SuccessIfRecipientAddressZero() public {
-    uint256 balanceBefore = s_linkToken.balanceOf(address(0));
+    uint256 balanceBefore = s_pliToken.balanceOf(address(0));
     uint96 amountToWithdraw = s_fulfillmentRouterOwnerBalance;
     s_functionsRouter.ownerWithdraw(address(0), amountToWithdraw);
-    uint256 balanceAfter = s_linkToken.balanceOf(address(0));
+    uint256 balanceAfter = s_pliToken.balanceOf(address(0));
     assertEq(balanceBefore + s_fulfillmentRouterOwnerBalance, balanceAfter);
   }
 
   function test_OwnerWithdraw_SuccessIfNoAmount() public {
-    uint256 balanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 balanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
     uint96 amountToWithdraw = 0;
     s_functionsRouter.ownerWithdraw(OWNER_ADDRESS, amountToWithdraw);
-    uint256 balanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 balanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(balanceBefore + s_fulfillmentRouterOwnerBalance, balanceAfter);
   }
 
   function test_OwnerWithdraw_SuccessPaysRecipient() public {
-    uint256 balanceBefore = s_linkToken.balanceOf(STRANGER_ADDRESS);
+    uint256 balanceBefore = s_pliToken.balanceOf(STRANGER_ADDRESS);
 
     uint96 amountToWithdraw = s_fulfillmentRouterOwnerBalance;
     s_functionsRouter.ownerWithdraw(STRANGER_ADDRESS, amountToWithdraw);
 
-    uint256 balanceAfter = s_linkToken.balanceOf(STRANGER_ADDRESS);
+    uint256 balanceAfter = s_pliToken.balanceOf(STRANGER_ADDRESS);
     assertEq(balanceBefore + s_fulfillmentRouterOwnerBalance, balanceAfter);
   }
 
@@ -321,13 +321,13 @@ contract FunctionsSubscriptions_OnTokenTransfer is FunctionsClientSetup {
     uint256 totalSupplyJuels = 1_000_000_000 * 1e18;
     s_functionsRouter.pause();
     vm.expectRevert("Pausable: paused");
-    s_linkToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, abi.encode(s_subscriptionId));
+    s_pliToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, abi.encode(s_subscriptionId));
   }
 
-  function test_OnTokenTransfer_RevertIfCallerIsNotLink() public {
+  function test_OnTokenTransfer_RevertIfCallerIsNotPli() public {
     // Funding amount must be less than or equal to PLI total supply
     uint256 totalSupplyJuels = 1_000_000_000 * 1e18;
-    vm.expectRevert(FunctionsSubscriptions.OnlyCallableFromLink.selector);
+    vm.expectRevert(FunctionsSubscriptions.OnlyCallableFromPli.selector);
     s_functionsRouter.onTokenTransfer(address(s_functionsRouter), totalSupplyJuels, abi.encode(s_subscriptionId));
   }
 
@@ -335,7 +335,7 @@ contract FunctionsSubscriptions_OnTokenTransfer is FunctionsClientSetup {
     // Funding amount must be less than or equal to PLI total supply
     uint256 totalSupplyJuels = 1_000_000_000 * 1e18;
     vm.expectRevert(FunctionsSubscriptions.InvalidCalldata.selector);
-    s_linkToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, new bytes(0));
+    s_pliToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, new bytes(0));
   }
 
   function test_OnTokenTransfer_RevertIfCallerIsNoSubscription() public {
@@ -343,14 +343,14 @@ contract FunctionsSubscriptions_OnTokenTransfer is FunctionsClientSetup {
     uint256 totalSupplyJuels = 1_000_000_000 * 1e18;
     vm.expectRevert(FunctionsSubscriptions.InvalidSubscription.selector);
     uint64 invalidSubscriptionId = 123456789;
-    s_linkToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, abi.encode(invalidSubscriptionId));
+    s_pliToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, abi.encode(invalidSubscriptionId));
   }
 
   function test_OnTokenTransfer_Success() public {
     // Funding amount must be less than PLI total supply
     uint256 totalSupplyJuels = 1_000_000_000 * 1e18;
     // Some of the total supply is already in the subscription account
-    s_linkToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, abi.encode(s_subscriptionId));
+    s_pliToken.transferAndCall(address(s_functionsRouter), totalSupplyJuels, abi.encode(s_subscriptionId));
     uint96 subscriptionBalanceAfter = s_functionsRouter.getSubscription(s_subscriptionId).balance;
     assertEq(totalSupplyJuels, subscriptionBalanceAfter);
   }
@@ -1052,7 +1052,7 @@ contract FunctionsSubscriptions_CancelSubscription is FunctionsSubscriptionSetup
     // Subscription balance is less than deposit amount
     assertLe(s_functionsRouter.getSubscription(s_subscriptionId).balance, s_subscriptionDepositJuels);
 
-    uint256 subscriptionOwnerBalanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
 
     uint96 expectedRefund = 0;
 
@@ -1066,7 +1066,7 @@ contract FunctionsSubscriptions_CancelSubscription is FunctionsSubscriptionSetup
 
     s_functionsRouter.cancelSubscription(s_subscriptionId, OWNER_ADDRESS);
 
-    uint256 subscriptionOwnerBalanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(subscriptionOwnerBalanceBefore + expectedRefund, subscriptionOwnerBalanceAfter);
 
     // Subscription should no longer exist
@@ -1075,9 +1075,9 @@ contract FunctionsSubscriptions_CancelSubscription is FunctionsSubscriptionSetup
 
     // Router owner should have expectedDepositWithheld to withdraw
     uint96 expectedDepositWithheld = s_subscriptionInitialFunding;
-    uint256 balanceBeforeWithdraw = s_linkToken.balanceOf(STRANGER_ADDRESS);
+    uint256 balanceBeforeWithdraw = s_pliToken.balanceOf(STRANGER_ADDRESS);
     s_functionsRouter.ownerWithdraw(STRANGER_ADDRESS, 0);
-    uint256 balanceAfterWithdraw = s_linkToken.balanceOf(STRANGER_ADDRESS);
+    uint256 balanceAfterWithdraw = s_pliToken.balanceOf(STRANGER_ADDRESS);
     assertEq(balanceBeforeWithdraw + expectedDepositWithheld, balanceAfterWithdraw);
   }
 
@@ -1085,10 +1085,10 @@ contract FunctionsSubscriptions_CancelSubscription is FunctionsSubscriptionSetup
     // No requests have been completed
     assertEq(s_functionsRouter.getConsumer(address(s_functionsClient), s_subscriptionId).completedRequests, 0);
     // Subscription balance is more than deposit amount, double fund the subscription
-    s_linkToken.transferAndCall(address(s_functionsRouter), s_subscriptionInitialFunding, abi.encode(s_subscriptionId));
+    s_pliToken.transferAndCall(address(s_functionsRouter), s_subscriptionInitialFunding, abi.encode(s_subscriptionId));
     assertGe(s_functionsRouter.getSubscription(s_subscriptionId).balance, s_subscriptionDepositJuels);
 
-    uint256 subscriptionOwnerBalanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
 
     uint96 expectedRefund = (s_subscriptionInitialFunding * 2) - s_subscriptionDepositJuels;
     // topic0 (function signature, always checked), NOT topic1 (false), NOT topic2 (false), NOT topic3 (false), and data (true).
@@ -1101,7 +1101,7 @@ contract FunctionsSubscriptions_CancelSubscription is FunctionsSubscriptionSetup
 
     s_functionsRouter.cancelSubscription(s_subscriptionId, OWNER_ADDRESS);
 
-    uint256 subscriptionOwnerBalanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(subscriptionOwnerBalanceBefore + expectedRefund, subscriptionOwnerBalanceAfter);
 
     // Subscription should no longer exist
@@ -1110,9 +1110,9 @@ contract FunctionsSubscriptions_CancelSubscription is FunctionsSubscriptionSetup
 
     // Router owner should have expectedDepositWithheld to withdraw
     uint96 expectedDepositWithheld = s_subscriptionDepositJuels;
-    uint256 balanceBeforeWithdraw = s_linkToken.balanceOf(STRANGER_ADDRESS);
+    uint256 balanceBeforeWithdraw = s_pliToken.balanceOf(STRANGER_ADDRESS);
     s_functionsRouter.ownerWithdraw(STRANGER_ADDRESS, 0);
-    uint256 balanceAfterWithdraw = s_linkToken.balanceOf(STRANGER_ADDRESS);
+    uint256 balanceAfterWithdraw = s_pliToken.balanceOf(STRANGER_ADDRESS);
     assertEq(balanceBeforeWithdraw + expectedDepositWithheld, balanceAfterWithdraw);
   }
 }
@@ -1124,7 +1124,7 @@ contract FunctionsSubscriptions_CancelSubscription_ReceiveDeposit is FunctionsFu
   function test_CancelSubscription_SuccessRecieveDeposit() public {
     uint96 totalCostJuels = s_fulfillmentRouterOwnerBalance + s_fulfillmentCoordinatorBalance;
 
-    uint256 subscriptionOwnerBalanceBefore = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceBefore = s_pliToken.balanceOf(OWNER_ADDRESS);
 
     uint96 expectedRefund = s_subscriptionInitialFunding - totalCostJuels;
     // topic0 (function signature, always checked), NOT topic1 (false), NOT topic2 (false), NOT topic3 (false), and data (true).
@@ -1137,7 +1137,7 @@ contract FunctionsSubscriptions_CancelSubscription_ReceiveDeposit is FunctionsFu
 
     s_functionsRouter.cancelSubscription(s_subscriptionId, OWNER_ADDRESS);
 
-    uint256 subscriptionOwnerBalanceAfter = s_linkToken.balanceOf(OWNER_ADDRESS);
+    uint256 subscriptionOwnerBalanceAfter = s_pliToken.balanceOf(OWNER_ADDRESS);
     assertEq(subscriptionOwnerBalanceBefore + expectedRefund, subscriptionOwnerBalanceAfter);
 
     // Subscription should no longer exist

@@ -63,9 +63,9 @@ contract VRFCoordinatorV2Mock is VRFCoordinatorV2Interface, ConfirmedOwner {
   }
   mapping(uint256 => Request) internal s_requests; /* requestId */ /* request */
 
-  constructor(uint96 _baseFee, uint96 _gasPriceLink) ConfirmedOwner(msg.sender) {
+  constructor(uint96 _baseFee, uint96 _gasPricePli) ConfirmedOwner(msg.sender) {
     BASE_FEE = _baseFee;
-    GAS_PRICE_PLI = _gasPriceLink;
+    GAS_PRICE_PLI = _gasPricePli;
     setConfig();
   }
 
@@ -274,11 +274,11 @@ contract VRFCoordinatorV2Mock is VRFCoordinatorV2Interface, ConfirmedOwner {
     external
     pure
     returns (
-      uint32 fulfillmentFlatFeeLinkPPMTier1,
-      uint32 fulfillmentFlatFeeLinkPPMTier2,
-      uint32 fulfillmentFlatFeeLinkPPMTier3,
-      uint32 fulfillmentFlatFeeLinkPPMTier4,
-      uint32 fulfillmentFlatFeeLinkPPMTier5,
+      uint32 fulfillmentFlatFeePliPPMTier1,
+      uint32 fulfillmentFlatFeePliPPMTier2,
+      uint32 fulfillmentFlatFeePliPPMTier3,
+      uint32 fulfillmentFlatFeePliPPMTier4,
+      uint32 fulfillmentFlatFeePliPPMTier5,
       uint24 reqsForTier2,
       uint24 reqsForTier3,
       uint24 reqsForTier4,
@@ -305,7 +305,7 @@ contract VRFCoordinatorV2Mock is VRFCoordinatorV2Interface, ConfirmedOwner {
     _;
   }
 
-  function getFallbackWeiPerUnitLink() external pure returns (int256) {
+  function getFallbackWeiPerUnitPli() external pure returns (int256) {
     return 4000000000000000; // 0.004 Ether
   }
 

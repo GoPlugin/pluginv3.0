@@ -65,10 +65,10 @@ contract VRFV2PlusWrapperConsumerExample is VRFV2PlusWrapperConsumerBase, Confir
     return (request.paid, request.fulfilled, request.randomWords);
   }
 
-  /// @notice withdrawLink withdraws the amount specified in amount to the owner
+  /// @notice withdrawPli withdraws the amount specified in amount to the owner
   /// @param amount the amount to withdraw, in juels
-  function withdrawLink(uint256 amount) external onlyOwner {
-    i_linkToken.transfer(owner(), amount);
+  function withdrawPli(uint256 amount) external onlyOwner {
+    i_pliToken.transfer(owner(), amount);
   }
 
   /// @notice withdrawNative withdraws the amount specified in amount to the owner

@@ -13,11 +13,11 @@ contract OperatorTest is Deployer {
 
   function setUp() public {
     _setUp();
-    s_client = new PluginClientHelper(address(s_link));
+    s_client = new PluginClientHelper(address(s_pli));
 
     address[] memory auth = new address[](1);
     auth[0] = address(this);
-    s_operator = new Operator(address(s_link), address(this));
+    s_operator = new Operator(address(s_pli), address(this));
     s_operator.setAuthorizedSenders(auth);
 
     s_callback = new Callback(address(s_operator));
@@ -25,16 +25,16 @@ contract OperatorTest is Deployer {
 
   function test_SendRequest_Success(uint96 payment) public {
     vm.assume(payment > 0);
-    deal(address(s_link), address(s_client), payment);
+    deal(address(s_pli), address(s_client), payment);
     // We're going to cancel one request and fulfill the other
     bytes32 requestIdToCancel = s_client.sendRequest(address(s_operator), payment);
 
     // Nothing withdrawable
     // 1 payment in escrow
-    // Client has zero link
+    // Client has zero pli
     assertEq(s_operator.withdrawable(), 0);
-    assertEq(s_link.balanceOf(address(s_operator)), payment);
-    assertEq(s_link.balanceOf(address(s_client)), 0);
+    assertEq(s_pli.balanceOf(address(s_operator)), payment);
+    assertEq(s_pli.balanceOf(address(s_client)), 0);
 
     // Advance time so we can cancel
     uint256 expiration = block.timestamp + s_operator.EXPIRYTIME();
@@ -43,20 +43,20 @@ contract OperatorTest is Deployer {
 
     // 1 payment has been returned due to the cancellation.
     assertEq(s_operator.withdrawable(), 0);
-    assertEq(s_link.balanceOf(address(s_operator)), 0);
-    assertEq(s_link.balanceOf(address(s_client)), payment);
+    assertEq(s_pli.balanceOf(address(s_operator)), 0);
+    assertEq(s_pli.balanceOf(address(s_client)), payment);
   }
 
   function test_SendRequestAndCancelRequest_Success(uint96 payment) public {
     vm.assume(payment > 1);
     payment /= payment;
 
-    deal(address(s_link), address(s_client), 2 * payment);
+    deal(address(s_pli), address(s_client), 2 * payment);
 
     // Initial state, client has 2 payments, zero in escrow, zero in the operator, zeero withdrawable
     assertEq(s_operator.withdrawable(), 0);
-    assertEq(s_link.balanceOf(address(s_operator)), 0);
-    assertEq(s_link.balanceOf(address(s_client)), 2 * payment);
+    assertEq(s_pli.balanceOf(address(s_operator)), 0);
+    assertEq(s_pli.balanceOf(address(s_client)), 2 * payment);
 
     // We're going to cancel one request and fulfill the other
     bytes32 requestId = s_client.sendRequest(address(s_operator), payment);
@@ -66,8 +66,8 @@ contract OperatorTest is Deployer {
     // Operator now has the 2 payments in escrow
     // Client has zero payments
     assertEq(s_operator.withdrawable(), 0);
-    assertEq(s_link.balanceOf(address(s_operator)), 2 * payment);
-    assertEq(s_link.balanceOf(address(s_client)), 0);
+    assertEq(s_pli.balanceOf(address(s_operator)), 2 * payment);
+    assertEq(s_pli.balanceOf(address(s_client)), 0);
 
     // Fulfill one request
     uint256 expiration = block.timestamp + s_operator.EXPIRYTIME();
@@ -81,8 +81,8 @@ contract OperatorTest is Deployer {
     );
     // 1 payment withdrawable from fulfilling `requestId`, 1 payment in escrow
     assertEq(s_operator.withdrawable(), payment);
-    assertEq(s_link.balanceOf(address(s_operator)), 2 * payment);
-    assertEq(s_link.balanceOf(address(s_client)), 0);
+    assertEq(s_pli.balanceOf(address(s_operator)), 2 * payment);
+    assertEq(s_pli.balanceOf(address(s_client)), 0);
 
     // Advance time so we can cancel
     vm.warp(expiration + 1);
@@ -90,16 +90,16 @@ contract OperatorTest is Deployer {
 
     // 1 payment has been returned due to the cancellation, 1 payment should be withdrawable
     assertEq(s_operator.withdrawable(), payment);
-    assertEq(s_link.balanceOf(address(s_operator)), payment);
-    assertEq(s_link.balanceOf(address(s_client)), payment);
+    assertEq(s_pli.balanceOf(address(s_operator)), payment);
+    assertEq(s_pli.balanceOf(address(s_client)), payment);
 
     // Withdraw the remaining payment
     s_operator.withdraw(address(s_client), payment);
 
     // End state is exactly the same as the initial state.
     assertEq(s_operator.withdrawable(), 0);
-    assertEq(s_link.balanceOf(address(s_operator)), 0);
-    assertEq(s_link.balanceOf(address(s_client)), 2 * payment);
+    assertEq(s_pli.balanceOf(address(s_operator)), 0);
+    assertEq(s_pli.balanceOf(address(s_client)), 2 * payment);
   }
 
   function test_OracleRequest_Success() public {
@@ -110,17 +110,17 @@ contract OperatorTest is Deployer {
     uint256 dataVersion = 1;
     bytes memory data = "";
 
-    uint256 initialLinkBalance = s_link.balanceOf(address(s_operator));
+    uint256 initialPliBalance = s_pli.balanceOf(address(s_operator));
     uint256 payment = 1 ether; // Mock payment value
 
     uint256 withdrawableBefore = s_operator.withdrawable();
 
     // Send PLI tokens to the Operator contract using `transferAndCall`
-    deal(address(s_link), ALICE, payment);
-    assertEq(s_link.balanceOf(ALICE), 1 ether, "balance update failed");
+    deal(address(s_pli), ALICE, payment);
+    assertEq(s_pli.balanceOf(ALICE), 1 ether, "balance update failed");
 
     vm.prank(ALICE);
-    s_link.transferAndCall(
+    s_pli.transferAndCall(
       address(s_operator),
       payment,
       abi.encodeWithSignature(
@@ -137,7 +137,7 @@ contract OperatorTest is Deployer {
     );
 
     // Check that the PLI tokens were transferred to the Operator contract
-    assertEq(s_link.balanceOf(address(s_operator)), initialLinkBalance + payment);
+    assertEq(s_pli.balanceOf(address(s_operator)), initialPliBalance + payment);
     // No withdrawable PLI as it's all locked
     assertEq(s_operator.withdrawable(), withdrawableBefore);
   }
@@ -166,9 +166,9 @@ contract OperatorTest is Deployer {
     bytes32 data = bytes32(keccak256(dataBytes));
 
     // Send PLI tokens to the Operator contract using `transferAndCall`
-    deal(address(s_link), BOB, payment);
+    deal(address(s_pli), BOB, payment);
     vm.prank(BOB);
-    s_link.transferAndCall(
+    s_pli.transferAndCall(
       address(s_operator),
       payment,
       abi.encodeWithSignature(
@@ -208,9 +208,9 @@ contract OperatorTest is Deployer {
     uint256 withdrawableBefore = s_operator.withdrawable();
 
     // Send PLI tokens to the Operator contract using `transferAndCall`
-    deal(address(s_link), BOB, payment);
+    deal(address(s_pli), BOB, payment);
     vm.prank(BOB);
-    s_link.transferAndCall(
+    s_pli.transferAndCall(
       address(s_operator),
       payment,
       abi.encodeWithSignature(
@@ -243,7 +243,7 @@ contract OperatorTest is Deployer {
     s_operator.cancelOracleRequest(requestId, payment, callbackFunctionId, expiration);
 
     // Check if the PLI tokens were refunded to the sender (bob in this case)
-    assertEq(s_link.balanceOf(BOB), 1 ether, "Oracle request was not canceled properly");
+    assertEq(s_pli.balanceOf(BOB), 1 ether, "Oracle request was not canceled properly");
 
     assertEq(s_operator.withdrawable(), withdrawableBefore, "Internal accounting not updated correctly");
   }
@@ -257,9 +257,9 @@ contract OperatorTest is Deployer {
     uint256 payment = 1 ether;
     uint256 expiration = block.timestamp + 5 minutes;
 
-    deal(address(s_link), ALICE, payment);
+    deal(address(s_pli), ALICE, payment);
     vm.prank(ALICE);
-    s_link.transferAndCall(
+    s_pli.transferAndCall(
       address(s_operator),
       payment,
       abi.encodeWithSignature(

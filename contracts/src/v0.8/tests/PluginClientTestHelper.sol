@@ -4,13 +4,13 @@ pragma solidity ^0.8.0;
 import "../PluginClient.sol";
 
 contract PluginClientTestHelper is PluginClient {
-  constructor(address _link, address _oracle) {
-    _setPluginToken(_link);
+  constructor(address _pli, address _oracle) {
+    _setPluginToken(_pli);
     _setPluginOracle(_oracle);
   }
 
   event Request(bytes32 id, address callbackAddress, bytes4 callbackfunctionSelector, bytes data);
-  event LinkAmount(uint256 amount);
+  event PliAmount(uint256 amount);
 
   function publicNewRequest(bytes32 _id, address _address, bytes memory _fulfillmentSignature) public {
     Plugin.Request memory req = _buildPluginRequest(_id, _address, bytes4(keccak256(_fulfillmentSignature)));
@@ -70,7 +70,7 @@ contract PluginClientTestHelper is PluginClient {
   }
 
   function publicPLI(uint256 _amount) public {
-    emit LinkAmount(PLI_DIVISIBILITY * _amount);
+    emit PliAmount(PLI_DIVISIBILITY * _amount);
   }
 
   function publicOracleAddress() public view returns (address) {

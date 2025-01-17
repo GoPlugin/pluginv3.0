@@ -1,7 +1,7 @@
 pragma solidity 0.8.19;
 
 import "./BaseTest.t.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {ExposedVRFCoordinatorV2_5_Arbitrum} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5_Arbitrum.sol";
 import {BlockhashStore} from "../dev/BlockhashStore.sol";
@@ -24,8 +24,8 @@ contract VRFV2CoordinatorV2_5_Arbitrum is BaseTest {
 
   BlockhashStore s_bhs;
   ExposedVRFCoordinatorV2_5_Arbitrum s_testCoordinator;
-  MockLinkToken s_linkToken;
-  MockV3Aggregator s_linkNativeFeed;
+  MockPliToken s_pliToken;
+  MockV3Aggregator s_pliNativeFeed;
 
   uint256 s_startGas = 0.0038 gwei;
   uint256 s_weiPerUnitGas = 0.003 gwei;
@@ -45,21 +45,21 @@ contract VRFV2CoordinatorV2_5_Arbitrum is BaseTest {
 
     // Deploy coordinator, PLI token and PLI/Native feed.
     s_testCoordinator = new ExposedVRFCoordinatorV2_5_Arbitrum(address(s_bhs));
-    s_linkToken = new MockLinkToken();
-    s_linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    s_pliToken = new MockPliToken();
+    s_pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Configure the coordinator.
-    s_testCoordinator.setPLIAndPLINativeFeed(address(s_linkToken), address(s_linkNativeFeed));
+    s_testCoordinator.setPLIAndPLINativeFeed(address(s_pliToken), address(s_pliNativeFeed));
     s_testCoordinator.setConfig(
       0, // minRequestConfirmations
       2_500_000, // maxGasLimit
       1, // stalenessSeconds
       50_000, // gasAfterPaymentCalculation
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
   }
 
@@ -77,14 +77,14 @@ contract VRFV2CoordinatorV2_5_Arbitrum is BaseTest {
       );
   }
 
-  function _encodeCalculatePaymentAmountLinkExternal(
+  function _encodeCalculatePaymentAmountPliExternal(
     uint256 startGas,
     uint256 weiPerUnitGas,
     bool onlyPremium
   ) internal pure returns (bytes memory) {
     return
       abi.encodeWithSelector(
-        ExposedVRFCoordinatorV2_5_Arbitrum.calculatePaymentAmountLinkExternal.selector,
+        ExposedVRFCoordinatorV2_5_Arbitrum.calculatePaymentAmountPliExternal.selector,
         startGas,
         weiPerUnitGas,
         onlyPremium
@@ -148,10 +148,10 @@ contract VRFV2CoordinatorV2_5_Arbitrum is BaseTest {
     assertApproxEqAbs(payment, 5.000017 * 1e17, 1e15);
   }
 
-  function test_calculatePaymentAmountLink() public {
+  function test_calculatePaymentAmountPli() public {
     // first we test premium and flat fee payment combined
     bool onlyPremium = false;
-    bytes memory txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    bytes memory txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
     vm.mockCall(ARBGAS_ADDR, abi.encodeWithSelector(ARBGAS.getCurrentTxL1GasFees.selector), abi.encode(10 gwei));
     vm.recordLogs();
 
@@ -166,7 +166,7 @@ contract VRFV2CoordinatorV2_5_Arbitrum is BaseTest {
 
     // now we test only premium payment
     onlyPremium = true;
-    txMsgData = _encodeCalculatePaymentAmountLinkExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
+    txMsgData = _encodeCalculatePaymentAmountPliExternal(s_startGas, s_weiPerUnitGas, onlyPremium);
 
     (success, returnData) = address(s_testCoordinator).call{gas: gasLimit}(txMsgData);
     assertTrue(success);

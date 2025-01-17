@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../shared/interfaces/PliTokenInterface.sol";
 import {VRFV2WrapperInterface} from "./interfaces/VRFV2WrapperInterface.sol";
 
 /** *******************************************************************************
@@ -29,16 +29,16 @@ import {VRFV2WrapperInterface} from "./interfaces/VRFV2WrapperInterface.sol";
  */
 abstract contract VRFV2WrapperConsumerBase {
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
-  LinkTokenInterface internal immutable PLI;
+  PliTokenInterface internal immutable PLI;
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
   VRFV2WrapperInterface internal immutable VRF_V2_WRAPPER;
 
   /**
-   * @param _link is the address of LinkToken
+   * @param _pli is the address of PliToken
    * @param _vrfV2Wrapper is the address of the VRFV2Wrapper contract
    */
-  constructor(address _link, address _vrfV2Wrapper) {
-    PLI = LinkTokenInterface(_link);
+  constructor(address _pli, address _vrfV2Wrapper) {
+    PLI = PliTokenInterface(_pli);
     VRF_V2_WRAPPER = VRFV2WrapperInterface(_vrfV2Wrapper);
   }
 

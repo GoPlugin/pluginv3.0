@@ -22,7 +22,7 @@ contract BaseFeeManagerTest is Test {
   RewardManager internal rewardManager;
   FeeManagerProxy internal feeManagerProxy;
 
-  ERC20Mock internal link;
+  ERC20Mock internal pli;
   WERC20Mock internal native;
 
   //erc20 config
@@ -73,9 +73,9 @@ contract BaseFeeManagerTest is Test {
   //events emitted
   event SubscriberDiscountUpdated(address indexed subscriber, bytes32 indexed feedId, address token, uint64 discount);
   event NativeSurchargeUpdated(uint64 newSurcharge);
-  event InsufficientLink(IRewardManager.FeePayment[] feesAndRewards);
+  event InsufficientPli(IRewardManager.FeePayment[] feesAndRewards);
   event Withdraw(address adminAddress, address recipient, address assetAddress, uint192 quantity);
-  event LinkDeficitCleared(bytes32 indexed configDigest, uint256 linkQuantity);
+  event PliDeficitCleared(bytes32 indexed configDigest, uint256 pliQuantity);
   event DiscountApplied(
     bytes32 indexed configDigest,
     address indexed subscriber,
@@ -93,31 +93,31 @@ contract BaseFeeManagerTest is Test {
   }
 
   function _initializeContracts() internal {
-    link = new ERC20Mock("PLI", "PLI", ADMIN, 0);
+    pli = new ERC20Mock("PLI", "PLI", ADMIN, 0);
     native = new WERC20Mock();
 
     feeManagerProxy = new FeeManagerProxy();
-    rewardManager = new RewardManager(address(link));
-    feeManager = new FeeManager(address(link), address(native), address(feeManagerProxy), address(rewardManager));
+    rewardManager = new RewardManager(address(pli));
+    feeManager = new FeeManager(address(pli), address(native), address(feeManagerProxy), address(rewardManager));
 
-    //link the feeManager to the proxy
+    //pli the feeManager to the proxy
     feeManagerProxy.setFeeManager(feeManager);
 
-    //link the feeManager to the reward manager
+    //pli the feeManager to the reward manager
     rewardManager.setFeeManager(address(feeManager));
 
     //mint some tokens to the admin
-    link.mint(ADMIN, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(ADMIN, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(ADMIN, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(ADMIN, DEFAULT_NATIVE_MINT_QUANTITY);
 
     //mint some tokens to the user
-    link.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(USER, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(USER, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(USER, DEFAULT_NATIVE_MINT_QUANTITY);
 
     //mint some tokens to the proxy
-    link.mint(PROXY, DEFAULT_PLI_MINT_QUANTITY);
+    pli.mint(PROXY, DEFAULT_PLI_MINT_QUANTITY);
     native.mint(PROXY, DEFAULT_NATIVE_MINT_QUANTITY);
     vm.deal(PROXY, DEFAULT_NATIVE_MINT_QUANTITY);
   }
@@ -209,7 +209,7 @@ contract BaseFeeManagerTest is Test {
   function getV3ReportWithCustomExpiryAndFee(
     bytes32 feedId,
     uint256 expiry,
-    uint256 linkFee,
+    uint256 pliFee,
     uint256 nativeFee
   ) public pure returns (bytes memory) {
     return
@@ -218,7 +218,7 @@ contract BaseFeeManagerTest is Test {
         uint32(0),
         uint32(0),
         uint192(nativeFee),
-        uint192(linkFee),
+        uint192(pliFee),
         uint32(expiry),
         int192(0),
         int192(0),
@@ -226,8 +226,8 @@ contract BaseFeeManagerTest is Test {
       );
   }
 
-  function getLinkQuote() public view returns (address) {
-    return address(link);
+  function getPliQuote() public view returns (address) {
+    return address(pli);
   }
 
   function getNativeQuote() public view returns (address) {
@@ -246,8 +246,8 @@ contract BaseFeeManagerTest is Test {
     changePrank(originalAddr);
   }
 
-  function getLinkBalance(address balanceAddress) public view returns (uint256) {
-    return link.balanceOf(balanceAddress);
+  function getPliBalance(address balanceAddress) public view returns (uint256) {
+    return pli.balanceOf(balanceAddress);
   }
 
   function getNativeBalance(address balanceAddress) public view returns (uint256) {
@@ -258,13 +258,13 @@ contract BaseFeeManagerTest is Test {
     return balanceAddress.balance;
   }
 
-  function mintLink(address recipient, uint256 amount) public {
+  function mintPli(address recipient, uint256 amount) public {
     //record the current address and switch to the recipient
     address originalAddr = msg.sender;
     changePrank(ADMIN);
 
-    //mint the link to the recipient
-    link.mint(recipient, amount);
+    //mint the pli to the recipient
+    pli.mint(recipient, amount);
 
     //change back to the original address
     changePrank(originalAddr);
@@ -337,13 +337,13 @@ contract BaseFeeManagerTest is Test {
     return abi.encode([DEFAULT_CONFIG_DIGEST, 0, 0], reportPayload, new bytes32[](1), new bytes32[](1), bytes32(""));
   }
 
-  function approveLink(address spender, uint256 quantity, address sender) public {
+  function approvePli(address spender, uint256 quantity, address sender) public {
     //record the current address and switch to the recipient
     address originalAddr = msg.sender;
     changePrank(sender);
 
-    //approve the link to be transferred
-    link.approve(spender, quantity);
+    //approve the pli to be transferred
+    pli.approve(spender, quantity);
 
     //change back to the original address
     changePrank(originalAddr);
@@ -354,26 +354,26 @@ contract BaseFeeManagerTest is Test {
     address originalAddr = msg.sender;
     changePrank(sender);
 
-    //approve the link to be transferred
+    //approve the pli to be transferred
     native.approve(spender, quantity);
 
     //change back to the original address
     changePrank(originalAddr);
   }
 
-  function payLinkDeficit(bytes32 configDigest, address sender) public {
+  function payPliDeficit(bytes32 configDigest, address sender) public {
     //record the current address and switch to the recipient
     address originalAddr = msg.sender;
     changePrank(sender);
 
-    //approve the link to be transferred
-    feeManager.payLinkDeficit(configDigest);
+    //approve the pli to be transferred
+    feeManager.payPliDeficit(configDigest);
 
     //change back to the original address
     changePrank(originalAddr);
   }
 
-  function getLinkDeficit(bytes32 configDigest) public view returns (uint256) {
-    return feeManager.s_linkDeficit(configDigest);
+  function getPliDeficit(bytes32 configDigest) public view returns (uint256) {
+    return feeManager.s_pliDeficit(configDigest);
   }
 }

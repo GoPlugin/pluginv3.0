@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import {IPaymaster} from "../../../vendor/entrypoint/interfaces/IPaymaster.sol";
 import {SCALibrary} from "./SCALibrary.sol";
-import {LinkTokenInterface} from "../../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../../shared/interfaces/PliTokenInterface.sol";
 import {AggregatorV3Interface} from "../../../shared/interfaces/AggregatorV3Interface.sol";
 import {ConfirmedOwner} from "../../../shared/access/ConfirmedOwner.sol";
 import {UserOperation} from "../../../vendor/entrypoint/interfaces/UserOperation.sol";
@@ -12,19 +12,19 @@ import {_packValidationData} from "../../../vendor/entrypoint/core/Helpers.sol";
 /// @dev PLI token paymaster implementation.
 /// TODO: more documentation.
 contract Paymaster is IPaymaster, ConfirmedOwner {
-  error OnlyCallableFromLink();
+  error OnlyCallableFromPli();
   error InvalidCalldata();
   error Unauthorized(address sender, address validator);
   error UserOperationAlreadyTried(bytes32 userOpHash);
   error InsufficientFunds(uint256 juelsNeeded, uint256 subscriptionBalance);
 
-  LinkTokenInterface public immutable i_linkToken;
-  AggregatorV3Interface public immutable i_linkEthFeed;
+  PliTokenInterface public immutable i_pliToken;
+  AggregatorV3Interface public immutable i_pliEthFeed;
   address public immutable i_entryPoint;
 
   struct Config {
     uint32 stalenessSeconds;
-    int256 fallbackWeiPerUnitLink;
+    int256 fallbackWeiPerUnitPli;
   }
   Config public s_config;
 
@@ -32,22 +32,22 @@ contract Paymaster is IPaymaster, ConfirmedOwner {
   mapping(address => uint256) internal s_subscriptions;
 
   constructor(
-    LinkTokenInterface linkToken,
-    AggregatorV3Interface linkEthFeed,
+    PliTokenInterface pliToken,
+    AggregatorV3Interface pliEthFeed,
     address entryPoint
   ) ConfirmedOwner(msg.sender) {
-    i_linkToken = linkToken;
-    i_linkEthFeed = linkEthFeed;
+    i_pliToken = pliToken;
+    i_pliEthFeed = pliEthFeed;
     i_entryPoint = entryPoint;
   }
 
-  function setConfig(uint32 stalenessSeconds, int256 fallbackWeiPerUnitLink) external onlyOwner {
-    s_config = Config({stalenessSeconds: stalenessSeconds, fallbackWeiPerUnitLink: fallbackWeiPerUnitLink});
+  function setConfig(uint32 stalenessSeconds, int256 fallbackWeiPerUnitPli) external onlyOwner {
+    s_config = Config({stalenessSeconds: stalenessSeconds, fallbackWeiPerUnitPli: fallbackWeiPerUnitPli});
   }
 
   function onTokenTransfer(address /* _sender */, uint256 _amount, bytes calldata _data) external {
-    if (msg.sender != address(i_linkToken)) {
-      revert OnlyCallableFromLink();
+    if (msg.sender != address(i_pliToken)) {
+      revert OnlyCallableFromPli();
     }
     if (_data.length != 32) {
       revert InvalidCalldata();
@@ -90,16 +90,16 @@ contract Paymaster is IPaymaster, ConfirmedOwner {
     uint8 paymentType = uint8(userOp.paymasterAndData[20]);
 
     // For direct funding, use top-up logic.
-    if (paymentType == uint8(SCALibrary.LinkPaymentType.DIRECT_FUNDING)) {
+    if (paymentType == uint8(SCALibrary.PliPaymentType.DIRECT_FUNDING)) {
       SCALibrary.DirectFundingData memory directFundingData = abi.decode(
         userOp.paymasterAndData[21:],
         (SCALibrary.DirectFundingData)
       );
       if (
         directFundingData.topupThreshold != 0 &&
-        i_linkToken.balanceOf(directFundingData.recipient) < directFundingData.topupThreshold
+        i_pliToken.balanceOf(directFundingData.recipient) < directFundingData.topupThreshold
       ) {
-        i_linkToken.transfer(directFundingData.recipient, directFundingData.topupAmount);
+        i_pliToken.transfer(directFundingData.recipient, directFundingData.topupAmount);
         extraCost = directFundingData.topupAmount;
       }
     }
@@ -124,11 +124,11 @@ contract Paymaster is IPaymaster, ConfirmedOwner {
     uint32 stalenessSeconds = s_config.stalenessSeconds;
     bool staleFallback = stalenessSeconds > 0;
     uint256 timestamp;
-    int256 weiPerUnitLink;
-    (, weiPerUnitLink, , timestamp, ) = i_linkEthFeed.latestRoundData();
+    int256 weiPerUnitPli;
+    (, weiPerUnitPli, , timestamp, ) = i_pliEthFeed.latestRoundData();
     if (staleFallback && stalenessSeconds < block.timestamp - timestamp) {
-      weiPerUnitLink = s_config.fallbackWeiPerUnitLink;
+      weiPerUnitPli = s_config.fallbackWeiPerUnitPli;
     }
-    return weiPerUnitLink;
+    return weiPerUnitPli;
   }
 }

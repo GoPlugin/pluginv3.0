@@ -2,7 +2,7 @@ pragma solidity 0.8.19;
 
 import "./BaseTest.t.sol";
 import {VRF} from "../VRF.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {ExposedVRFCoordinatorV2_5} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5.sol";
 import {VRFCoordinatorV2_5} from "../dev/VRFCoordinatorV2_5.sol";
@@ -38,10 +38,10 @@ contract VRFV2Plus is BaseTest {
 
   BlockhashStore s_bhs;
   ExposedVRFCoordinatorV2_5 s_testCoordinator;
-  ExposedVRFCoordinatorV2_5 s_testCoordinator_noLink;
+  ExposedVRFCoordinatorV2_5 s_testCoordinator_noPli;
   VRFV2PlusConsumerExample s_testConsumer;
-  MockLinkToken s_linkToken;
-  MockV3Aggregator s_linkNativeFeed;
+  MockPliToken s_pliToken;
+  MockV3Aggregator s_pliNativeFeed;
 
   // VRF KeyV2 generated from a node; not sensitive information.
   // The secret key used to generate this key is: 10.
@@ -66,14 +66,14 @@ contract VRFV2Plus is BaseTest {
     // Deploy coordinator and consumer.
     // Note: adding contract deployments to this section will require the VRF proofs be regenerated.
     s_testCoordinator = new ExposedVRFCoordinatorV2_5(address(s_bhs));
-    s_linkToken = new MockLinkToken();
-    s_linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    s_pliToken = new MockPliToken();
+    s_pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Use create2 to deploy our consumer, so that its address is always the same
     // and surrounding changes do not alter our generated proofs.
     bytes memory consumerInitCode = bytes.concat(
       initializeCode,
-      abi.encode(address(s_testCoordinator), address(s_linkToken))
+      abi.encode(address(s_testCoordinator), address(s_pliToken))
     );
     bytes32 abiEncodedOwnerAddress = bytes32(uint256(uint160(PLI_WHALE)) << 96);
     address consumerCreate2Address;
@@ -87,10 +87,10 @@ contract VRFV2Plus is BaseTest {
     }
     s_testConsumer = VRFV2PlusConsumerExample(consumerCreate2Address);
 
-    s_testCoordinator_noLink = new ExposedVRFCoordinatorV2_5(address(s_bhs));
+    s_testCoordinator_noPli = new ExposedVRFCoordinatorV2_5(address(s_bhs));
 
     // Configure the coordinator.
-    s_testCoordinator.setPLIAndPLINativeFeed(address(s_linkToken), address(s_linkNativeFeed));
+    s_testCoordinator.setPLIAndPLINativeFeed(address(s_pliToken), address(s_pliNativeFeed));
   }
 
   function setConfig() internal {
@@ -99,11 +99,11 @@ contract VRFV2Plus is BaseTest {
       2_500_000, // maxGasLimit
       1, // stalenessSeconds
       50_000, // gasAfterPaymentCalculation
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
   }
 
@@ -120,13 +120,13 @@ contract VRFV2Plus is BaseTest {
       50_000,
       50000000000000000,
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
 
-    // Test that setting fallbackWeiPerUnitLink to zero reverts.
-    vm.expectRevert(abi.encodeWithSelector(VRFCoordinatorV2_5.InvalidLinkWeiPrice.selector, 0));
+    // Test that setting fallbackWeiPerUnitPli to zero reverts.
+    vm.expectRevert(abi.encodeWithSelector(VRFCoordinatorV2_5.InvalidPliWeiPrice.selector, 0));
 
     s_testCoordinator.setConfig(
       0,
@@ -135,13 +135,13 @@ contract VRFV2Plus is BaseTest {
       50_000,
       0,
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
 
-    // Test that setting link discount flat fee higher than native flat fee reverts
-    vm.expectRevert(abi.encodeWithSelector(VRFCoordinatorV2_5.LinkDiscountTooHigh.selector, uint32(501), uint32(500)));
+    // Test that setting pli discount flat fee higher than native flat fee reverts
+    vm.expectRevert(abi.encodeWithSelector(VRFCoordinatorV2_5.PliDiscountTooHigh.selector, uint32(501), uint32(500)));
 
     s_testCoordinator.setConfig(
       0,
@@ -150,12 +150,12 @@ contract VRFV2Plus is BaseTest {
       50_000,
       500,
       500, // fulfillmentFlatFeeNativePPM
-      501, // fulfillmentFlatFeeLinkDiscountPPM
+      501, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
 
-    // // Test that setting link discount flat fee equal to native flat fee does not revert
+    // // Test that setting pli discount flat fee equal to native flat fee does not revert
     s_testCoordinator.setConfig(
       0,
       2_500_000,
@@ -163,9 +163,9 @@ contract VRFV2Plus is BaseTest {
       50_000,
       500,
       450, // fulfillmentFlatFeeNativePPM
-      450, // fulfillmentFlatFeeLinkDiscountPPM
+      450, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
 
     // Test that setting native premium percentage higher than 155 will revert
@@ -180,9 +180,9 @@ contract VRFV2Plus is BaseTest {
       50_000,
       500,
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       156, // nativePremiumPercentage
-      10 // linkPremiumPercentage
+      10 // pliPremiumPercentage
     );
 
     // Test that setting PLI premium percentage higher than 155 will revert
@@ -197,9 +197,9 @@ contract VRFV2Plus is BaseTest {
       50_000,
       500,
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000, // fulfillmentFlatFeeLinkDiscountPPM
+      100_000, // fulfillmentFlatFeePliDiscountPPM
       15, // nativePremiumPercentage
-      202 // linkPremiumPercentage
+      202 // pliPremiumPercentage
     );
   }
 
@@ -276,16 +276,16 @@ contract VRFV2Plus is BaseTest {
     s_testCoordinator.fundSubscriptionWithNative{value: 10 ether}(subId);
   }
 
-  function testCancelSubWithNoLink() public {
-    uint256 subId = s_testCoordinator_noLink.createSubscription();
-    s_testCoordinator_noLink.fundSubscriptionWithNative{value: 1000 ether}(subId);
+  function testCancelSubWithNoPli() public {
+    uint256 subId = s_testCoordinator_noPli.createSubscription();
+    s_testCoordinator_noPli.fundSubscriptionWithNative{value: 1000 ether}(subId);
 
     assertEq(PLI_WHALE.balance, 9000 ether);
-    s_testCoordinator_noLink.cancelSubscription(subId, PLI_WHALE);
+    s_testCoordinator_noPli.cancelSubscription(subId, PLI_WHALE);
     assertEq(PLI_WHALE.balance, 10_000 ether);
 
     vm.expectRevert(SubscriptionAPI.InvalidSubscription.selector);
-    s_testCoordinator_noLink.getSubscription(subId);
+    s_testCoordinator_noPli.getSubscription(subId);
   }
 
   function testGetActiveSubscriptionIds() public {
@@ -369,7 +369,7 @@ contract VRFV2Plus is BaseTest {
     bytes extraArgs,
     bool success
   );
-  event FallbackWeiPerUnitLinkUsed(uint256 requestId, int256 fallbackWeiPerUnitLink);
+  event FallbackWeiPerUnitPliUsed(uint256 requestId, int256 fallbackWeiPerUnitPli);
 
   function testRequestAndFulfillRandomWordsNative() public {
     (
@@ -403,7 +403,7 @@ contract VRFV2Plus is BaseTest {
     // flatFeeWei = 1e12 * (fulfillmentFlatFeeNativePPM)
     // flatFeeWei = 1e12 * 500_000 = 5e17
     // ...
-    // billed_fee = baseFeeWei * (100 + linkPremiumPercentage / 100) + 5e17
+    // billed_fee = baseFeeWei * (100 + pliPremiumPercentage / 100) + 5e17
     // billed_fee = 1.2e16 * 1.15 + 5e17
     // billed_fee = 5.138e+17
     (, uint96 nativeBalanceAfter, , , ) = s_testCoordinator.getSubscription(subId);
@@ -420,7 +420,7 @@ contract VRFV2Plus is BaseTest {
       uint256 subId,
       uint256 requestId
     ) = setupSubAndRequestRandomnessPLIPayment();
-    (uint96 linkBalanceBefore, , , , ) = s_testCoordinator.getSubscription(subId);
+    (uint96 pliBalanceBefore, , , , ) = s_testCoordinator.getSubscription(subId);
 
     uint256 outputSeed = s_testCoordinator.getRandomnessFromProofExternal(proof, rc).randomness;
     vm.recordLogs();
@@ -440,25 +440,25 @@ contract VRFV2Plus is BaseTest {
     // gasAfterPaymentCalculation is 50_000.
     //
     // The cost of the VRF fulfillment charged to the user is:
-    // paymentNoFee = (weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft() + l1CostWei) / link_native_ratio)
+    // paymentNoFee = (weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft() + l1CostWei) / pli_native_ratio)
     // paymentNoFee = (1e11 * (50_000 + 86_000 + 0)) / .5
     // paymentNoFee = 2.72e16
-    // flatFeeWei = 1e12 * (fulfillmentFlatFeeNativePPM - fulfillmentFlatFeeLinkDiscountPPM)
+    // flatFeeWei = 1e12 * (fulfillmentFlatFeeNativePPM - fulfillmentFlatFeePliDiscountPPM)
     // flatFeeWei = 1e12 * (500_000 - 100_000)
-    // flatFeeJuels = 1e18 * flatFeeWei / link_native_ratio
+    // flatFeeJuels = 1e18 * flatFeeWei / pli_native_ratio
     // flatFeeJuels = 4e17 / 0.5 = 8e17
     // billed_fee = paymentNoFee * ((100 + 10) / 100) + 8e17
     // billed_fee = 2.72e16 * 1.1 + 8e17
     // billed_fee = 2.992e16 + 8e17 = 8.2992e17
-    // note: delta is doubled from the native test to account for more variance due to the link/native ratio
-    (uint96 linkBalanceAfter, , , , ) = s_testCoordinator.getSubscription(subId);
+    // note: delta is doubled from the native test to account for more variance due to the pli/native ratio
+    (uint96 pliBalanceAfter, , , , ) = s_testCoordinator.getSubscription(subId);
     // 1e15 is less than 1 percent discrepancy
     assertApproxEqAbs(payment, 8.2992 * 1e17, 1e15);
-    assertApproxEqAbs(linkBalanceAfter, linkBalanceBefore - 8.2992 * 1e17, 1e15);
+    assertApproxEqAbs(pliBalanceAfter, pliBalanceBefore - 8.2992 * 1e17, 1e15);
     assertFalse(s_testCoordinator.pendingRequestExists(subId));
   }
 
-  function testRequestAndFulfillRandomWordsPLI_FallbackWeiPerUnitLinkUsed() public {
+  function testRequestAndFulfillRandomWordsPLI_FallbackWeiPerUnitPliUsed() public {
     (
       VRF.Proof memory proof,
       VRFTypes.RequestCommitmentV2Plus memory rc,
@@ -467,15 +467,15 @@ contract VRFV2Plus is BaseTest {
     ) = setupSubAndRequestRandomnessPLIPayment();
 
     (, , , uint32 stalenessSeconds, , , , , ) = s_testCoordinator.s_config();
-    int256 fallbackWeiPerUnitLink = s_testCoordinator.s_fallbackWeiPerUnitLink();
+    int256 fallbackWeiPerUnitPli = s_testCoordinator.s_fallbackWeiPerUnitPli();
 
-    // Set the link feed to be stale.
-    (uint80 roundId, int256 answer, uint256 startedAt, , ) = s_linkNativeFeed.latestRoundData();
+    // Set the pli feed to be stale.
+    (uint80 roundId, int256 answer, uint256 startedAt, , ) = s_pliNativeFeed.latestRoundData();
     uint256 timestamp = block.timestamp - stalenessSeconds - 1;
-    s_linkNativeFeed.updateRoundData(roundId, answer, timestamp, startedAt);
+    s_pliNativeFeed.updateRoundData(roundId, answer, timestamp, startedAt);
 
     vm.expectEmit(false, false, false, true, address(s_testCoordinator));
-    emit FallbackWeiPerUnitLinkUsed(requestId, fallbackWeiPerUnitLink);
+    emit FallbackWeiPerUnitPliUsed(requestId, fallbackWeiPerUnitPli);
     s_testCoordinator.fulfillRandomWords(proof, rc, false);
   }
 
@@ -485,7 +485,7 @@ contract VRFV2Plus is BaseTest {
   {
     uint32 requestBlock = 20;
     vm.roll(requestBlock);
-    s_linkToken.transfer(address(s_testConsumer), 10 ether);
+    s_pliToken.transfer(address(s_testConsumer), 10 ether);
     s_testConsumer.createSubscriptionAndFund(10 ether);
     subId = s_testConsumer.s_subId();
 
@@ -726,7 +726,7 @@ contract VRFV2Plus is BaseTest {
     // flatFeeWei = 1e12 * (fulfillmentFlatFeeNativePPM)
     // flatFeeWei = 1e12 * 500_000 = 5e17
     // ...
-    // billed_fee = baseFeeWei * (linkPremiumPercentage / 100) + 5e17
+    // billed_fee = baseFeeWei * (pliPremiumPercentage / 100) + 5e17
     // billed_fee = 6.11e17 * 0.15 + 5e17
     // billed_fee = 5.9157e+17
     (, uint96 nativeBalanceAfter, , , ) = s_testCoordinator.getSubscription(subId);
@@ -736,14 +736,14 @@ contract VRFV2Plus is BaseTest {
     assertFalse(s_testCoordinator.pendingRequestExists(subId));
   }
 
-  function testRequestAndFulfillRandomWords_OnlyPremium_LinkPayment() public {
+  function testRequestAndFulfillRandomWords_OnlyPremium_PliPayment() public {
     (
       VRF.Proof memory proof,
       VRFTypes.RequestCommitmentV2Plus memory rc,
       uint256 subId,
       uint256 requestId
     ) = setupSubAndRequestRandomnessPLIPayment();
-    (uint96 linkBalanceBefore, , , , ) = s_testCoordinator.getSubscription(subId);
+    (uint96 pliBalanceBefore, , , , ) = s_testCoordinator.getSubscription(subId);
 
     // network gas is twice the gas lane max gas
     uint256 networkGasPrice = GAS_LANE_MAX_GAS * 5;
@@ -767,22 +767,22 @@ contract VRFV2Plus is BaseTest {
     // gasAfterPaymentCalculation is 50_000.
     //
     // The cost of the VRF fulfillment charged to the user is:
-    // paymentNoFee = (weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft() + l1CostWei) / link_native_ratio)
+    // paymentNoFee = (weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft() + l1CostWei) / pli_native_ratio)
     // network gas price is capped at gas lane max gas (5000 gwei)
     // paymentNoFee = (5e12 * (50_000 + 89_100 + 0)) / .5
     // paymentNoFee = 1.391e+18
-    // flatFeeWei = 1e12 * (fulfillmentFlatFeeNativePPM - fulfillmentFlatFeeLinkDiscountPPM)
+    // flatFeeWei = 1e12 * (fulfillmentFlatFeeNativePPM - fulfillmentFlatFeePliDiscountPPM)
     // flatFeeWei = 1e12 * (500_000 - 100_000)
-    // flatFeeJuels = 1e18 * flatFeeWei / link_native_ratio
+    // flatFeeJuels = 1e18 * flatFeeWei / pli_native_ratio
     // flatFeeJuels = 4e17 / 0.5 = 8e17
     // billed_fee = paymentNoFee * (10 / 100) + 8e17
     // billed_fee = 1.391e+18 * 0.1 + 8e17
     // billed_fee = 9.391e+17
-    // note: delta is doubled from the native test to account for more variance due to the link/native ratio
-    (uint96 linkBalanceAfter, , , , ) = s_testCoordinator.getSubscription(subId);
+    // note: delta is doubled from the native test to account for more variance due to the pli/native ratio
+    (uint96 pliBalanceAfter, , , , ) = s_testCoordinator.getSubscription(subId);
     // 1e15 is less than 1 percent discrepancy
     assertApproxEqAbs(payment, 9.391 * 1e17, 1e15);
-    assertApproxEqAbs(linkBalanceAfter, linkBalanceBefore - 9.391 * 1e17, 1e15);
+    assertApproxEqAbs(pliBalanceAfter, pliBalanceBefore - 9.391 * 1e17, 1e15);
     assertFalse(s_testCoordinator.pendingRequestExists(subId));
   }
 

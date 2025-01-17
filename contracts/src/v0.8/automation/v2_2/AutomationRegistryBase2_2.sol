@@ -8,7 +8,7 @@ import {ILogAutomation, Log} from "../interfaces/ILogAutomation.sol";
 import {IAutomationForwarder} from "../interfaces/IAutomationForwarder.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {AggregatorV3Interface} from "../../shared/interfaces/AggregatorV3Interface.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {KeeperCompatibleInterface} from "../interfaces/KeeperCompatibleInterface.sol";
 import {UpkeepFormat} from "../interfaces/UpkeepTranscoderInterface.sol";
 import {IChainModule} from "../interfaces/IChainModule.sol";
@@ -67,8 +67,8 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   uint256 internal constant ACCOUNTING_FIXED_GAS_OVERHEAD = 22_000; // Fixed overhead per tx
   uint256 internal constant ACCOUNTING_PER_UPKEEP_GAS_OVERHEAD = 7_000; // Overhead per upkeep performed in batch
 
-  LinkTokenInterface internal immutable i_link;
-  AggregatorV3Interface internal immutable i_linkNativeFeed;
+  PliTokenInterface internal immutable i_pli;
+  AggregatorV3Interface internal immutable i_pliNativeFeed;
   AggregatorV3Interface internal immutable i_fastGasFeed;
   address internal immutable i_automationForwarderLogic;
   address internal immutable i_allowedReadOnlyAddress;
@@ -97,8 +97,8 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   HotVars internal s_hotVars; // Mixture of config and state, used in transmit
   Storage internal s_storage; // Mixture of config and state, not used in transmit
   uint256 internal s_fallbackGasPrice;
-  uint256 internal s_fallbackLinkPrice;
-  uint256 internal s_expectedLinkBalance; // Used in case of erroneous PLI transfers to contract
+  uint256 internal s_fallbackPliPrice;
+  uint256 internal s_expectedPliBalance; // Used in case of erroneous PLI transfers to contract
   mapping(address => MigrationPermission) internal s_peerRegistryMigrationPermission; // Permissions for migration to and fro
   mapping(uint256 => bytes) internal s_upkeepTriggerConfig; // upkeep triggers
   mapping(uint256 => bytes) internal s_upkeepOffchainConfig; // general config set by users for each upkeep
@@ -187,8 +187,8 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
    * @dev used only in setConfig()
    * @member paymentPremiumPPB payment premium rate oracles receive on top of
    * being reimbursed for gas, measured in parts per billion
-   * @member flatFeeMicroLink flat fee paid to oracles for performing upkeeps,
-   * priced in MicroLink; can be used in conjunction with or independently of
+   * @member flatFeeMicroPli flat fee paid to oracles for performing upkeeps,
+   * priced in MicroPli; can be used in conjunction with or independently of
    * paymentPremiumPPB
    * @member checkGasLimit gas limit when checking for upkeep
    * @member stalenessSeconds number of seconds that is allowed for feed data to
@@ -201,7 +201,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
    * @member maxPerformDataSize max length of performData bytes
    * @member maxRevertDataSize max length of revertData bytes
    * @member fallbackGasPrice gas price used if the gas price feed is stale
-   * @member fallbackLinkPrice PLI price used if the PLI price feed is stale
+   * @member fallbackPliPrice PLI price used if the PLI price feed is stale
    * @member transcoder address of the transcoder contract
    * @member registrars addresses of the registrar contracts
    * @member upkeepPrivilegeManager address which can set privilege for upkeeps
@@ -211,7 +211,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   // solhint-disable-next-line gas-struct-packing
   struct OnchainConfig {
     uint32 paymentPremiumPPB;
-    uint32 flatFeeMicroLink; // min 0.000001 PLI, max 4294 PLI
+    uint32 flatFeeMicroPli; // min 0.000001 PLI, max 4294 PLI
     uint32 checkGasLimit;
     uint24 stalenessSeconds;
     uint16 gasCeilingMultiplier;
@@ -221,7 +221,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     uint32 maxPerformDataSize;
     uint32 maxRevertDataSize;
     uint256 fallbackGasPrice;
-    uint256 fallbackLinkPrice;
+    uint256 fallbackPliPrice;
     address transcoder;
     address[] registrars;
     address upkeepPrivilegeManager;
@@ -255,7 +255,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   struct HotVars {
     uint96 totalPremium; // ─────────╮ total historical payment to oracles for premium
     uint32 paymentPremiumPPB; //     │ premium percentage charged to user over tx cost
-    uint32 flatFeeMicroLink; //      │ flat fee charged to user for every perform
+    uint32 flatFeeMicroPli; //      │ flat fee charged to user for every perform
     uint32 latestEpoch; //           │ latest epoch for which a report was transmitted
     uint24 stalenessSeconds; //      │ Staleness tolerance for feeds
     uint16 gasCeilingMultiplier; //  │ multiplier on top of fast gas feed for upper bound
@@ -271,7 +271,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     uint96 minUpkeepSpend; // Minimum amount an upkeep must spend
     address transcoder; // Address of transcoder contract used in migrations
     // 1 EVM word full
-    uint96 ownerLinkBalance; // Balance of owner, accumulates minUpkeepSpend in case it is not spent
+    uint96 ownerPliBalance; // Balance of owner, accumulates minUpkeepSpend in case it is not spent
     uint32 checkGasLimit; // Gas limit allowed in checkUpkeep
     uint32 maxPerformGas; // Max gas an upkeep can use on this registry
     uint32 nonce; // Nonce for each upkeep created
@@ -289,7 +289,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   /// @dev Report transmitted by OCR to transmit function
   struct Report {
     uint256 fastGasWei;
-    uint256 linkNative;
+    uint256 pliNative;
     uint256[] upkeepIds;
     uint256[] gasLimits;
     bytes[] triggers;
@@ -389,21 +389,21 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   event Unpaused(address account);
 
   /**
-   * @param link address of the PLI Token
-   * @param linkNativeFeed address of the PLI/Native price feed
+   * @param pli address of the PLI Token
+   * @param pliNativeFeed address of the PLI/Native price feed
    * @param fastGasFeed address of the Fast Gas price feed
    * @param automationForwarderLogic the address of automation forwarder logic
    * @param allowedReadOnlyAddress the address of the allowed read only address
    */
   constructor(
-    address link,
-    address linkNativeFeed,
+    address pli,
+    address pliNativeFeed,
     address fastGasFeed,
     address automationForwarderLogic,
     address allowedReadOnlyAddress
   ) ConfirmedOwner(msg.sender) {
-    i_link = LinkTokenInterface(link);
-    i_linkNativeFeed = AggregatorV3Interface(linkNativeFeed);
+    i_pli = PliTokenInterface(pli);
+    i_pliNativeFeed = AggregatorV3Interface(pliNativeFeed);
     i_fastGasFeed = AggregatorV3Interface(fastGasFeed);
     i_automationForwarderLogic = automationForwarderLogic;
     i_allowedReadOnlyAddress = allowedReadOnlyAddress;
@@ -438,7 +438,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     s_upkeep[id] = upkeep;
     s_upkeepAdmin[id] = admin;
     s_checkData[id] = checkData;
-    s_expectedLinkBalance = s_expectedLinkBalance + upkeep.balance;
+    s_expectedPliBalance = s_expectedPliBalance + upkeep.balance;
     s_upkeepTriggerConfig[id] = triggerConfig;
     s_upkeepOffchainConfig[id] = offchainConfig;
     s_upkeepIDs.add(id);
@@ -470,12 +470,12 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
   }
 
   /**
-   * @dev retrieves feed data for fast gas/native and link/native prices. if the feed
+   * @dev retrieves feed data for fast gas/native and pli/native prices. if the feed
    * data is stale it uses the configured fallback price. Once a price is picked
    * for gas it takes the min of gas price in the transaction or the fast gas
    * price in order to reduce costs for the upkeep clients.
    */
-  function _getFeedData(HotVars memory hotVars) internal view returns (uint256 gasWei, uint256 linkNative) {
+  function _getFeedData(HotVars memory hotVars) internal view returns (uint256 gasWei, uint256 pliNative) {
     uint32 stalenessSeconds = hotVars.stalenessSeconds;
     bool staleFallback = stalenessSeconds > 0;
     uint256 timestamp;
@@ -488,15 +488,15 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     } else {
       gasWei = uint256(feedValue);
     }
-    (, feedValue, , timestamp, ) = i_linkNativeFeed.latestRoundData();
+    (, feedValue, , timestamp, ) = i_pliNativeFeed.latestRoundData();
     if (
       feedValue <= 0 || block.timestamp < timestamp || (staleFallback && stalenessSeconds < block.timestamp - timestamp)
     ) {
-      linkNative = s_fallbackLinkPrice;
+      pliNative = s_fallbackPliPrice;
     } else {
-      linkNative = uint256(feedValue);
+      pliNative = uint256(feedValue);
     }
-    return (gasWei, linkNative);
+    return (gasWei, pliNative);
   }
 
   /**
@@ -505,7 +505,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
    * @param gasOverhead the amount of gas overhead
    * @param l1CostWei the amount to be charged for L1 fee in wei
    * @param fastGasWei the fast gas price
-   * @param linkNative the exchange ratio between PLI and Native token
+   * @param pliNative the exchange ratio between PLI and Native token
    * @param isExecution if this is triggered by a perform upkeep function
    */
   function _calculatePaymentAmount(
@@ -514,7 +514,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     uint256 gasOverhead,
     uint256 l1CostWei,
     uint256 fastGasWei,
-    uint256 linkNative,
+    uint256 pliNative,
     bool isExecution
   ) internal view returns (uint96, uint96) {
     uint256 gasWei = fastGasWei * hotVars.gasCeilingMultiplier;
@@ -522,10 +522,10 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     if (isExecution && tx.gasprice < gasWei) {
       gasWei = tx.gasprice;
     }
-    uint256 gasPayment = ((gasWei * (gasLimit + gasOverhead) + l1CostWei) * 1e18) / linkNative;
+    uint256 gasPayment = ((gasWei * (gasLimit + gasOverhead) + l1CostWei) * 1e18) / pliNative;
     uint256 premium = (((gasWei * gasLimit) + l1CostWei) * 1e9 * hotVars.paymentPremiumPPB) /
-      linkNative +
-      uint256(hotVars.flatFeeMicroLink) *
+      pliNative +
+      uint256(hotVars.flatFeeMicroPli) *
       1e12;
     // PLI_TOTAL_SUPPLY < UINT96_MAX
     if (gasPayment + premium > PLI_TOTAL_SUPPLY) revert PaymentGreaterThanAllPLI();
@@ -536,12 +536,12 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
    * @dev calculates the max PLI payment for an upkeep. Called during checkUpkeep simulation and assumes
    * maximum gas overhead, L1 fee
    */
-  function _getMaxLinkPayment(
+  function _getMaxPliPayment(
     HotVars memory hotVars,
     Trigger triggerType,
     uint32 performGas,
     uint256 fastGasWei,
-    uint256 linkNative
+    uint256 pliNative
   ) internal view returns (uint96) {
     uint256 maxGasOverhead;
     if (triggerType == Trigger.CONDITION) {
@@ -568,7 +568,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
       maxGasOverhead,
       maxL1Fee,
       fastGasWei,
-      linkNative,
+      pliNative,
       false //isExecution
     );
 
@@ -797,7 +797,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
     uint256 upkeepId,
     uint256 gasUsed,
     uint256 fastGasWei,
-    uint256 linkNative,
+    uint256 pliNative,
     uint256 gasOverhead,
     uint256 l1Fee
   ) internal returns (uint96 gasReimbursement, uint96 premium) {
@@ -807,7 +807,7 @@ abstract contract AutomationRegistryBase2_2 is ConfirmedOwner {
       gasOverhead,
       l1Fee,
       fastGasWei,
-      linkNative,
+      pliNative,
       true // isExecution
     );
 

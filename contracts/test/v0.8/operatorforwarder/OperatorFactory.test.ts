@@ -4,7 +4,7 @@ import { assert } from 'chai'
 import { Contract, ContractFactory, ContractReceipt } from 'ethers'
 import { getUsers, Roles } from '../../test-helpers/setup'
 
-let linkTokenFactory: ContractFactory
+let pliTokenFactory: ContractFactory
 let operatorGeneratorFactory: ContractFactory
 let operatorFactory: ContractFactory
 let forwarderFactory: ContractFactory
@@ -15,8 +15,8 @@ before(async () => {
   const users = await getUsers()
 
   roles = users.roles
-  linkTokenFactory = await ethers.getContractFactory(
-    'src/v0.8/shared/test/helpers/LinkTokenTestHelper.sol:LinkTokenTestHelper',
+  pliTokenFactory = await ethers.getContractFactory(
+    'src/v0.8/shared/test/helpers/PliTokenTestHelper.sol:PliTokenTestHelper',
     roles.defaultAccount,
   )
   operatorGeneratorFactory = await ethers.getContractFactory(
@@ -34,7 +34,7 @@ before(async () => {
 })
 
 describe('OperatorFactory', () => {
-  let link: Contract
+  let pli: Contract
   let operatorGenerator: Contract
   let operator: Contract
   let forwarder: Contract
@@ -43,10 +43,10 @@ describe('OperatorFactory', () => {
   let emittedForwarder: string
 
   beforeEach(async () => {
-    link = await linkTokenFactory.connect(roles.defaultAccount).deploy()
+    pli = await pliTokenFactory.connect(roles.defaultAccount).deploy()
     operatorGenerator = await operatorGeneratorFactory
       .connect(roles.defaultAccount)
-      .deploy(link.address)
+      .deploy(pli.address)
   })
 
   it('has a limited public interface [ @skip-coverage ]', () => {
@@ -56,7 +56,7 @@ describe('OperatorFactory', () => {
       'deployNewOperatorAndForwarder',
       'deployNewForwarder',
       'deployNewForwarderAndTransferOwnership',
-      'linkToken',
+      'pliToken',
       'typeAndVersion',
     ])
   })

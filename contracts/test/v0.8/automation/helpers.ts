@@ -16,8 +16,8 @@ import { IAutomationRegistryMaster2_3__factory as IAutomationRegistryMaster2_3Fa
 export const deployRegistry21 = async (
   from: Signer,
   mode: Parameters<KeeperRegistryLogicBFactory['deploy']>[0],
-  link: Parameters<KeeperRegistryLogicBFactory['deploy']>[1],
-  linkNative: Parameters<KeeperRegistryLogicBFactory['deploy']>[2],
+  pli: Parameters<KeeperRegistryLogicBFactory['deploy']>[1],
+  pliNative: Parameters<KeeperRegistryLogicBFactory['deploy']>[2],
   fastgas: Parameters<KeeperRegistryLogicBFactory['deploy']>[3],
 ): Promise<IKeeperRegistry> => {
   const logicBFactory = await ethers.getContractFactory(
@@ -33,7 +33,7 @@ export const deployRegistry21 = async (
   const forwarderLogic = await forwarderLogicFactory.connect(from).deploy()
   const logicB = await logicBFactory
     .connect(from)
-    .deploy(mode, link, linkNative, fastgas, forwarderLogic.address)
+    .deploy(mode, pli, pliNative, fastgas, forwarderLogic.address)
   const logicA = await logicAFactory.connect(from).deploy(logicB.address)
   const master = await registryFactory.connect(from).deploy(logicA.address)
   return IKeeperRegistryMasterFactory.connect(master.address, from)
@@ -132,8 +132,8 @@ export const assertSatisfiesInterface = (
 
 export const deployRegistry22 = async (
   from: Signer,
-  link: Parameters<AutomationRegistryLogicBFactory['deploy']>[0],
-  linkNative: Parameters<AutomationRegistryLogicBFactory['deploy']>[1],
+  pli: Parameters<AutomationRegistryLogicBFactory['deploy']>[0],
+  pliNative: Parameters<AutomationRegistryLogicBFactory['deploy']>[1],
   fastgas: Parameters<AutomationRegistryLogicBFactory['deploy']>[2],
   allowedReadOnlyAddress: Parameters<
     AutomationRegistryLogicBFactory['deploy']
@@ -155,8 +155,8 @@ export const deployRegistry22 = async (
   const logicB = await logicBFactory
     .connect(from)
     .deploy(
-      link,
-      linkNative,
+      pli,
+      pliNative,
       fastgas,
       forwarderLogic.address,
       allowedReadOnlyAddress,
@@ -168,8 +168,8 @@ export const deployRegistry22 = async (
 
 export const deployRegistry23 = async (
   from: Signer,
-  link: Parameters<AutomationRegistryLogicC2_3Factory['deploy']>[0],
-  linkUSD: Parameters<AutomationRegistryLogicC2_3Factory['deploy']>[1],
+  pli: Parameters<AutomationRegistryLogicC2_3Factory['deploy']>[0],
+  pliUSD: Parameters<AutomationRegistryLogicC2_3Factory['deploy']>[1],
   nativeUSD: Parameters<AutomationRegistryLogicC2_3Factory['deploy']>[2],
   fastgas: Parameters<AutomationRegistryLogicC2_3Factory['deploy']>[3],
   allowedReadOnlyAddress: Parameters<
@@ -199,8 +199,8 @@ export const deployRegistry23 = async (
   const logicC = await logicCFactory
     .connect(from)
     .deploy(
-      link,
-      linkUSD,
+      pli,
+      pliUSD,
       nativeUSD,
       fastgas,
       forwarderLogic.address,
@@ -216,8 +216,8 @@ export const deployRegistry23 = async (
 
 export const deployZKSyncRegistry23 = async (
   from: Signer,
-  link: Parameters<ZKSyncAutomationRegistryLogicC2_3Factory['deploy']>[0],
-  linkUSD: Parameters<ZKSyncAutomationRegistryLogicC2_3Factory['deploy']>[1],
+  pli: Parameters<ZKSyncAutomationRegistryLogicC2_3Factory['deploy']>[0],
+  pliUSD: Parameters<ZKSyncAutomationRegistryLogicC2_3Factory['deploy']>[1],
   nativeUSD: Parameters<ZKSyncAutomationRegistryLogicC2_3Factory['deploy']>[2],
   fastgas: Parameters<ZKSyncAutomationRegistryLogicC2_3Factory['deploy']>[3],
   allowedReadOnlyAddress: Parameters<
@@ -247,8 +247,8 @@ export const deployZKSyncRegistry23 = async (
   const logicC = await logicCFactory
     .connect(from)
     .deploy(
-      link,
-      linkUSD,
+      pli,
+      pliUSD,
       nativeUSD,
       fastgas,
       forwarderLogic.address,

@@ -102,7 +102,7 @@ contract AutomationRegistry2_2_SetConfig is AutomationRegistry2_2_SetUp {
 
     AutomationRegistryBase2_2.OnchainConfig memory cfg = AutomationRegistryBase2_2.OnchainConfig({
       paymentPremiumPPB: 10_000,
-      flatFeeMicroLink: 40_000,
+      flatFeeMicroPli: 40_000,
       checkGasLimit: 5_000_000,
       stalenessSeconds: 90_000,
       gasCeilingMultiplier: 0,
@@ -112,7 +112,7 @@ contract AutomationRegistry2_2_SetConfig is AutomationRegistry2_2_SetUp {
       maxPerformDataSize: 5_000,
       maxRevertDataSize: 5_000,
       fallbackGasPrice: 20_000_000_000,
-      fallbackLinkPrice: 200_000_000_000,
+      fallbackPliPrice: 200_000_000_000,
       transcoder: 0xB1e66855FD67f6e85F0f0fA38cd6fBABdf00923c,
       registrars: s_registrars,
       upkeepPrivilegeManager: 0xD9c855F08A7e460691F41bBDDe6eC310bc0593D8,

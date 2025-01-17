@@ -32,9 +32,9 @@ contract VRFV2WrapperLoadTestConsumer is VRFV2WrapperConsumerBase, ConfirmedOwne
   }
 
   constructor(
-    address _link,
+    address _pli,
     address _vrfV2Wrapper
-  ) ConfirmedOwner(msg.sender) VRFV2WrapperConsumerBase(_link, _vrfV2Wrapper) {
+  ) ConfirmedOwner(msg.sender) VRFV2WrapperConsumerBase(_pli, _vrfV2Wrapper) {
     i_vrfV2Wrapper = VRFV2WrapperInterface(_vrfV2Wrapper);
   }
 
@@ -119,9 +119,9 @@ contract VRFV2WrapperLoadTestConsumer is VRFV2WrapperConsumerBase, ConfirmedOwne
     );
   }
 
-  /// @notice withdrawLink withdraws the amount specified in amount to the owner
+  /// @notice withdrawPli withdraws the amount specified in amount to the owner
   /// @param amount the amount to withdraw, in juels
-  function withdrawLink(uint256 amount) external onlyOwner {
+  function withdrawPli(uint256 amount) external onlyOwner {
     PLI.transfer(owner(), amount);
   }
 

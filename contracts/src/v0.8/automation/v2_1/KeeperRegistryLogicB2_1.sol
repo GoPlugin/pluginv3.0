@@ -18,11 +18,11 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
    */
   constructor(
     Mode mode,
-    address link,
-    address linkNativeFeed,
+    address pli,
+    address pliNativeFeed,
     address fastGasFeed,
     address automationForwarderLogic
-  ) KeeperRegistryBase2_1(mode, link, linkNativeFeed, fastGasFeed, automationForwarderLogic) {}
+  ) KeeperRegistryBase2_1(mode, pli, pliNativeFeed, fastGasFeed, automationForwarderLogic) {}
 
   // ================================================================
   // |                      UPKEEP MANAGEMENT                       |
@@ -119,9 +119,9 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
     if (s_upkeepAdmin[id] != msg.sender) revert OnlyCallableByAdmin();
     if (upkeep.maxValidBlocknumber > _blockNum()) revert UpkeepNotCanceled();
     uint96 amountToWithdraw = s_upkeep[id].balance;
-    s_expectedLinkBalance = s_expectedLinkBalance - amountToWithdraw;
+    s_expectedPliBalance = s_expectedPliBalance - amountToWithdraw;
     s_upkeep[id].balance = 0;
-    i_link.transfer(to, amountToWithdraw);
+    i_pli.transfer(to, amountToWithdraw);
     emit FundsWithdrawn(id, amountToWithdraw, to);
   }
 
@@ -162,8 +162,8 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
     if (s_transmitterPayees[from] != msg.sender) revert OnlyCallableByPayee();
     uint96 balance = _updateTransmitterBalanceFromPool(from, s_hotVars.totalPremium, uint96(s_transmittersList.length));
     s_transmitters[from].balance = 0;
-    s_expectedLinkBalance = s_expectedLinkBalance - balance;
-    i_link.transfer(to, balance);
+    s_expectedPliBalance = s_expectedPliBalance - balance;
+    i_pli.transfer(to, balance);
     emit PaymentWithdrawn(from, balance, to, msg.sender);
   }
 
@@ -186,19 +186,19 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
    * @notice withdraws the owner's PLI balance
    */
   function withdrawOwnerFunds() external onlyOwner {
-    uint96 amount = s_storage.ownerLinkBalance;
-    s_expectedLinkBalance = s_expectedLinkBalance - amount;
-    s_storage.ownerLinkBalance = 0;
+    uint96 amount = s_storage.ownerPliBalance;
+    s_expectedPliBalance = s_expectedPliBalance - amount;
+    s_storage.ownerPliBalance = 0;
     emit OwnerFundsWithdrawn(amount);
-    i_link.transfer(msg.sender, amount);
+    i_pli.transfer(msg.sender, amount);
   }
 
   /**
    * @notice allows the owner to withdraw any PLI accidentally sent to the contract
    */
   function recoverFunds() external onlyOwner {
-    uint256 total = i_link.balanceOf(address(this));
-    i_link.transfer(msg.sender, total - s_expectedLinkBalance);
+    uint256 total = i_pli.balanceOf(address(this));
+    i_pli.transfer(msg.sender, total - s_expectedPliBalance);
   }
 
   /**
@@ -285,12 +285,12 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
     return i_mode;
   }
 
-  function getLinkAddress() external view returns (address) {
-    return address(i_link);
+  function getPliAddress() external view returns (address) {
+    return address(i_pli);
   }
 
-  function getLinkNativeFeedAddress() external view returns (address) {
-    return address(i_linkNativeFeed);
+  function getPliNativeFeedAddress() external view returns (address) {
+    return address(i_pliNativeFeed);
   }
 
   function getFastGasFeedAddress() external view returns (address) {
@@ -412,8 +412,8 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
   {
     state = IAutomationV21PlusCommon.StateLegacy({
       nonce: s_storage.nonce,
-      ownerLinkBalance: s_storage.ownerLinkBalance,
-      expectedLinkBalance: s_expectedLinkBalance,
+      ownerPliBalance: s_storage.ownerPliBalance,
+      expectedPliBalance: s_expectedPliBalance,
       totalPremium: s_hotVars.totalPremium,
       numUpkeeps: s_upkeepIDs.length(),
       configCount: s_storage.configCount,
@@ -425,7 +425,7 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
 
     config = IAutomationV21PlusCommon.OnchainConfigLegacy({
       paymentPremiumPPB: s_hotVars.paymentPremiumPPB,
-      flatFeeMicroLink: s_hotVars.flatFeeMicroLink,
+      flatFeeMicroPli: s_hotVars.flatFeeMicroPli,
       checkGasLimit: s_storage.checkGasLimit,
       stalenessSeconds: s_hotVars.stalenessSeconds,
       gasCeilingMultiplier: s_hotVars.gasCeilingMultiplier,
@@ -435,7 +435,7 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
       maxPerformDataSize: s_storage.maxPerformDataSize,
       maxRevertDataSize: s_storage.maxRevertDataSize,
       fallbackGasPrice: s_fallbackGasPrice,
-      fallbackLinkPrice: s_fallbackLinkPrice,
+      fallbackPliPrice: s_fallbackPliPrice,
       transcoder: s_storage.transcoder,
       registrars: s_registrars.values(),
       upkeepPrivilegeManager: s_storage.upkeepPrivilegeManager
@@ -475,9 +475,9 @@ contract KeeperRegistryLogicB2_1 is KeeperRegistryBase2_1 {
    */
   function getMaxPaymentForGas(Trigger triggerType, uint32 gasLimit) public view returns (uint96 maxPayment) {
     HotVars memory hotVars = s_hotVars;
-    (uint256 fastGasWei, uint256 linkNative) = _getFeedData(hotVars);
+    (uint256 fastGasWei, uint256 pliNative) = _getFeedData(hotVars);
     return
-      _getMaxLinkPayment(hotVars, triggerType, gasLimit, s_storage.maxPerformDataSize, fastGasWei, linkNative, false);
+      _getMaxPliPayment(hotVars, triggerType, gasLimit, s_storage.maxPerformDataSize, fastGasWei, pliNative, false);
   }
 
   /**

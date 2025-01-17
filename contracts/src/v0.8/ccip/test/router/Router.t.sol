@@ -75,7 +75,7 @@ contract Router_recoverTokens is OnRampSetup {
 contract Router_ccipSend is OnRampSetup {
   event Burned(address indexed sender, uint256 amount);
 
-  function test_CCIPSendLinkFeeOneTokenSuccess_gas() public {
+  function test_CCIPSendPliFeeOneTokenSuccess_gas() public {
     vm.pauseGasMetering();
     Client.EVM2AnyMessage memory message = _generateEmptyMessage();
 
@@ -111,7 +111,7 @@ contract Router_ccipSend is OnRampSetup {
     vm.resumeGasMetering();
   }
 
-  function test_CCIPSendLinkFeeNoTokenSuccess_gas() public {
+  function test_CCIPSendPliFeeNoTokenSuccess_gas() public {
     vm.pauseGasMetering();
     Client.EVM2AnyMessage memory message = _generateEmptyMessage();
 
@@ -198,7 +198,7 @@ contract Router_ccipSend is OnRampSetup {
     vm.resumeGasMetering();
   }
 
-  function test_NonLinkFeeToken_Success() public {
+  function test_NonPliFeeToken_Success() public {
     address[] memory feeTokens = new address[](1);
     feeTokens[0] = s_sourceTokens[1];
     s_feeQuoter.applyFeeTokensUpdates(feeTokens, new address[](0));

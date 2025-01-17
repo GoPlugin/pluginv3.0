@@ -63,10 +63,10 @@ contract Plugined is PluginClient {
 
   /**
    * @notice Sets the PLI token address
-   * @param _link The address of the PLI token contract
+   * @param _pli The address of the PLI token contract
    */
-  function setLinkToken(address _link) internal {
-    _setPluginToken(_link);
+  function setPliToken(address _pli) internal {
+    _setPluginToken(_pli);
   }
 
   /**

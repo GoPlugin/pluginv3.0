@@ -6,8 +6,8 @@ import {PluginClient} from "../../../PluginClient.sol";
 contract PluginClientHelper is PluginClient {
   bytes4 public constant FULFILL_SELECTOR = this.fulfill.selector;
 
-  constructor(address link) {
-    _setPluginToken(link);
+  constructor(address pli) {
+    _setPluginToken(pli);
   }
 
   function sendRequest(address op, uint256 payment) external returns (bytes32) {

@@ -108,11 +108,11 @@ contract ApproveUpkeep is SetUp {
 }
 
 contract RegisterUpkeep is SetUp {
-  function testLink_autoApproveOff_happy() external {
+  function testPli_autoApproveOff_happy() external {
     vm.startPrank(UPKEEP_ADMIN);
 
-    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(linkToken))));
-    linkToken.approve(address(registrar), amount);
+    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(pliToken))));
+    pliToken.approve(address(registrar), amount);
 
     registrar.registerUpkeep(
       AutomationRegistrar2_3.RegistrationParams({
@@ -121,7 +121,7 @@ contract RegisterUpkeep is SetUp {
         adminAddress: UPKEEP_ADMIN,
         gasLimit: 10_000,
         triggerType: 0,
-        billingToken: IERC20(address(linkToken)),
+        billingToken: IERC20(address(pliToken)),
         name: "foobar",
         encryptedEmail: "",
         checkData: bytes("check data"),
@@ -130,7 +130,7 @@ contract RegisterUpkeep is SetUp {
       })
     );
 
-    assertEq(linkToken.balanceOf(address(registrar)), amount);
+    assertEq(pliToken.balanceOf(address(registrar)), amount);
     assertEq(registry.getNumUpkeeps(), 0);
   }
 
@@ -160,13 +160,13 @@ contract RegisterUpkeep is SetUp {
     assertEq(registry.getNumUpkeeps(), 0);
   }
 
-  function testLink_autoApproveOn_happy() external {
+  function testPli_autoApproveOn_happy() external {
     vm.startPrank(OWNER);
     registrar.setTriggerConfig(0, AutomationRegistrar2_3.AutoApproveType.ENABLED_ALL, 1000);
 
     vm.startPrank(UPKEEP_ADMIN);
-    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(linkToken))));
-    linkToken.approve(address(registrar), amount);
+    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(pliToken))));
+    pliToken.approve(address(registrar), amount);
 
     registrar.registerUpkeep(
       AutomationRegistrar2_3.RegistrationParams({
@@ -175,7 +175,7 @@ contract RegisterUpkeep is SetUp {
         adminAddress: UPKEEP_ADMIN,
         gasLimit: 10_000,
         triggerType: 0,
-        billingToken: IERC20(address(linkToken)),
+        billingToken: IERC20(address(pliToken)),
         name: "foobar",
         encryptedEmail: "",
         checkData: bytes("check data"),
@@ -184,8 +184,8 @@ contract RegisterUpkeep is SetUp {
       })
     );
 
-    assertEq(linkToken.balanceOf(address(registrar)), 0);
-    assertEq(linkToken.balanceOf(address(registry)), amount);
+    assertEq(pliToken.balanceOf(address(registrar)), 0);
+    assertEq(pliToken.balanceOf(address(registry)), amount);
     assertEq(registry.getNumUpkeeps(), 1);
   }
 
@@ -301,11 +301,11 @@ contract RegisterUpkeep is SetUp {
     assertEq(registry.getNumUpkeeps(), 0);
   }
 
-  function testLink_autoApproveOff_revertOnDuplicateEntry() external {
+  function testPli_autoApproveOff_revertOnDuplicateEntry() external {
     vm.startPrank(UPKEEP_ADMIN);
 
-    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(linkToken))));
-    linkToken.approve(address(registrar), amount * 2);
+    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(pliToken))));
+    pliToken.approve(address(registrar), amount * 2);
 
     AutomationRegistrar2_3.RegistrationParams memory params = AutomationRegistrar2_3.RegistrationParams({
       upkeepContract: address(TARGET1),
@@ -313,7 +313,7 @@ contract RegisterUpkeep is SetUp {
       adminAddress: UPKEEP_ADMIN,
       gasLimit: 10_000,
       triggerType: 0,
-      billingToken: IERC20(address(linkToken)),
+      billingToken: IERC20(address(pliToken)),
       name: "foobar",
       encryptedEmail: "",
       checkData: bytes("check data"),
@@ -323,7 +323,7 @@ contract RegisterUpkeep is SetUp {
 
     registrar.registerUpkeep(params);
 
-    assertEq(linkToken.balanceOf(address(registrar)), amount);
+    assertEq(pliToken.balanceOf(address(registrar)), amount);
     assertEq(registry.getNumUpkeeps(), 0);
 
     // attempt to register the same upkeep again
@@ -335,8 +335,8 @@ contract RegisterUpkeep is SetUp {
     vm.startPrank(UPKEEP_ADMIN);
 
     // slightly less than the minimum amount
-    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(linkToken))) - 1);
-    linkToken.approve(address(registrar), amount);
+    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(pliToken))) - 1);
+    pliToken.approve(address(registrar), amount);
 
     AutomationRegistrar2_3.RegistrationParams memory params = AutomationRegistrar2_3.RegistrationParams({
       upkeepContract: address(TARGET1),
@@ -344,7 +344,7 @@ contract RegisterUpkeep is SetUp {
       adminAddress: UPKEEP_ADMIN,
       gasLimit: 10_000,
       triggerType: 0,
-      billingToken: IERC20(address(linkToken)),
+      billingToken: IERC20(address(pliToken)),
       name: "foobar",
       encryptedEmail: "",
       checkData: bytes("check data"),
@@ -360,8 +360,8 @@ contract RegisterUpkeep is SetUp {
   function test_revertOnInvalidAdminAddress() external {
     vm.startPrank(UPKEEP_ADMIN);
 
-    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(linkToken))));
-    linkToken.approve(address(registrar), amount);
+    uint96 amount = uint96(registrar.getMinimumRegistrationAmount(IERC20(address(pliToken))));
+    pliToken.approve(address(registrar), amount);
 
     AutomationRegistrar2_3.RegistrationParams memory params = AutomationRegistrar2_3.RegistrationParams({
       upkeepContract: address(TARGET1),
@@ -369,7 +369,7 @@ contract RegisterUpkeep is SetUp {
       adminAddress: ZERO_ADDRESS, // zero address is invalid
       gasLimit: 10_000,
       triggerType: 0,
-      billingToken: IERC20(address(linkToken)),
+      billingToken: IERC20(address(pliToken)),
       name: "foobar",
       encryptedEmail: "",
       checkData: bytes("check data"),

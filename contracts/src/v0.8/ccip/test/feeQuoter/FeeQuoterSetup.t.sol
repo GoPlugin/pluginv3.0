@@ -160,7 +160,7 @@ contract FeeQuoterSetup is TokenSetup {
 
     s_feeQuoter = new FeeQuoterHelper(
       FeeQuoter.StaticConfig({
-        linkToken: s_sourceTokens[0],
+        pliToken: s_sourceTokens[0],
         maxFeeJuelsPerMsg: MAX_MSG_FEES_JUELS,
         tokenPriceStalenessThreshold: uint32(TWELVE_HOURS)
       }),
@@ -294,7 +294,7 @@ contract FeeQuoterSetup is TokenSetup {
     FeeQuoter.StaticConfig memory a,
     FeeQuoter.StaticConfig memory b
   ) internal pure {
-    assertEq(a.linkToken, b.linkToken);
+    assertEq(a.pliToken, b.pliToken);
     assertEq(a.maxFeeJuelsPerMsg, b.maxFeeJuelsPerMsg);
   }
 

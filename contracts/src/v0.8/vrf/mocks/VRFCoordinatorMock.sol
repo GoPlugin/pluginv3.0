@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {VRFConsumerBase} from "../../vrf/VRFConsumerBase.sol";
 
 // solhint-disable gas-custom-errors
 
 contract VRFCoordinatorMock {
-  LinkTokenInterface public PLI;
+  PliTokenInterface public PLI;
 
   event RandomnessRequest(address indexed sender, bytes32 indexed keyHash, uint256 indexed seed, uint256 fee);
 
-  constructor(address linkAddress) {
-    PLI = LinkTokenInterface(linkAddress);
+  constructor(address pliAddress) {
+    PLI = PliTokenInterface(pliAddress);
   }
 
   function onTokenTransfer(address sender, uint256 fee, bytes memory _data) public onlyPLI {

@@ -251,7 +251,7 @@ contract BaseTest is Test {
 contract BaseTestWithConfiguredVerifierAndFeeManager is BaseTest {
   FeeManager internal feeManager;
   RewardManager internal rewardManager;
-  ERC20Mock internal link;
+  ERC20Mock internal pli;
   WERC20Mock internal native;
 
   uint256 internal constant DEFAULT_REPORT_PLI_FEE = 1e10;
@@ -267,8 +267,8 @@ contract BaseTestWithConfiguredVerifierAndFeeManager is BaseTest {
     uint32 observationsTimestamp;
     // The timestamp the report is valid from
     uint32 validFromTimestamp;
-    // The link fee
-    uint192 linkFee;
+    // The pli fee
+    uint192 pliFee;
     // The native fee
     uint192 nativeFee;
     // The expiry of the report
@@ -310,11 +310,11 @@ contract BaseTestWithConfiguredVerifierAndFeeManager is BaseTest {
     );
     (, , v3ConfigDigest) = s_verifier.latestConfigDetails(FEED_ID_V3);
 
-    link = new ERC20Mock("PLI", "PLI", ADMIN, 0);
+    pli = new ERC20Mock("PLI", "PLI", ADMIN, 0);
     native = new WERC20Mock();
 
-    rewardManager = new RewardManager(address(link));
-    feeManager = new FeeManager(address(link), address(native), address(s_verifierProxy), address(rewardManager));
+    rewardManager = new RewardManager(address(pli));
+    feeManager = new FeeManager(address(pli), address(native), address(s_verifierProxy), address(rewardManager));
 
     s_verifierProxy.setFeeManager(feeManager);
     rewardManager.setFeeManager(address(feeManager));
@@ -327,7 +327,7 @@ contract BaseTestWithConfiguredVerifierAndFeeManager is BaseTest {
         report.observationsTimestamp,
         report.validFromTimestamp,
         report.nativeFee,
-        report.linkFee,
+        report.pliFee,
         report.expiresAt,
         report.benchmarkPrice,
         report.bid,
@@ -371,7 +371,7 @@ contract BaseTestWithConfiguredVerifierAndFeeManager is BaseTest {
         observationsTimestamp: OBSERVATIONS_TIMESTAMP,
         validFromTimestamp: uint32(block.timestamp),
         nativeFee: uint192(DEFAULT_REPORT_NATIVE_FEE),
-        linkFee: uint192(DEFAULT_REPORT_PLI_FEE),
+        pliFee: uint192(DEFAULT_REPORT_PLI_FEE),
         expiresAt: uint32(block.timestamp),
         benchmarkPrice: MEDIAN,
         bid: BID,
@@ -386,11 +386,11 @@ contract BaseTestWithConfiguredVerifierAndFeeManager is BaseTest {
     return reportContext;
   }
 
-  function _approveLink(address spender, uint256 quantity, address sender) internal {
+  function _approvePli(address spender, uint256 quantity, address sender) internal {
     address originalAddr = msg.sender;
     changePrank(sender);
 
-    link.approve(spender, quantity);
+    pli.approve(spender, quantity);
     changePrank(originalAddr);
   }
 

@@ -8,7 +8,7 @@ import {ILogAutomation, Log} from "../interfaces/ILogAutomation.sol";
 import {IAutomationForwarder} from "../interfaces/IAutomationForwarder.sol";
 import {ConfirmedOwner} from "../../shared/access/ConfirmedOwner.sol";
 import {AggregatorV3Interface} from "../../shared/interfaces/AggregatorV3Interface.sol";
-import {LinkTokenInterface} from "../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../shared/interfaces/PliTokenInterface.sol";
 import {KeeperCompatibleInterface} from "../interfaces/KeeperCompatibleInterface.sol";
 import {IChainModule} from "../interfaces/IChainModule.sol";
 import {IERC20Metadata as IERC20} from "../../vendor/openzeppelin-solidity/v4.8.3/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -62,8 +62,8 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
   uint256 internal constant ACCOUNTING_FIXED_GAS_OVERHEAD = 51_200; // Fixed overhead per tx
   uint256 internal constant ACCOUNTING_PER_UPKEEP_GAS_OVERHEAD = 14_200; // Overhead per upkeep performed in batch
 
-  LinkTokenInterface internal immutable i_link;
-  AggregatorV3Interface internal immutable i_linkUSDFeed;
+  PliTokenInterface internal immutable i_pli;
+  AggregatorV3Interface internal immutable i_pliUSDFeed;
   AggregatorV3Interface internal immutable i_nativeUSDFeed;
   AggregatorV3Interface internal immutable i_fastGasFeed;
   address internal immutable i_automationForwarderLogic;
@@ -95,7 +95,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
   HotVars internal s_hotVars; // Mixture of config and state, used in transmit
   Storage internal s_storage; // Mixture of config and state, not used in transmit
   uint256 internal s_fallbackGasPrice;
-  uint256 internal s_fallbackLinkPrice;
+  uint256 internal s_fallbackPliPrice;
   uint256 internal s_fallbackNativePrice;
   mapping(address => MigrationPermission) internal s_peerRegistryMigrationPermission; // Permissions for migration to and fro
   mapping(uint256 => bytes) internal s_upkeepTriggerConfig; // upkeep triggers
@@ -122,7 +122,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
   error IncorrectNumberOfSigners();
   error IndexOutOfRange();
   error InsufficientBalance(uint256 available, uint256 requested);
-  error InsufficientLinkLiquidity();
+  error InsufficientPliLiquidity();
   error InvalidDataLength();
   error InvalidFeed();
   error InvalidTrigger();
@@ -210,7 +210,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
    * @member maxPerformDataSize max length of performData bytes
    * @member maxRevertDataSize max length of revertData bytes
    * @member fallbackGasPrice gas price used if the gas price feed is stale
-   * @member fallbackLinkPrice PLI price used if the PLI price feed is stale
+   * @member fallbackPliPrice PLI price used if the PLI price feed is stale
    * @member transcoder address of the transcoder contract
    * @member registrars addresses of the registrar contracts
    * @member upkeepPrivilegeManager address which can set privilege for upkeeps
@@ -233,7 +233,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
     address financeAdmin;
     // 3 words
     uint256 fallbackGasPrice;
-    uint256 fallbackLinkPrice;
+    uint256 fallbackPliPrice;
     uint256 fallbackNativePrice;
     address[] registrars;
     IChainModule chainModule;
@@ -299,7 +299,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
   /// @dev Report transmitted by OCR to transmit function
   struct Report {
     uint256 fastGasWei;
-    uint256 linkUSD;
+    uint256 pliUSD;
     uint256[] upkeepIds;
     uint256[] gasLimits;
     bytes[] triggers;
@@ -415,7 +415,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
    * @member gasOverhead the amount of gas overhead
    * @member l1CostWei the amount to be charged for L1 fee in wei
    * @member fastGasWei the fast gas price
-   * @member linkUSD the exchange ratio between PLI and USD
+   * @member pliUSD the exchange ratio between PLI and USD
    * @member nativeUSD the exchange ratio between the chain's native token and USD
    * @member billingToken the billing token
    * @member billingTokenParams the payment params specific to a particular payment token
@@ -426,7 +426,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
     uint256 gasOverhead;
     uint256 l1CostWei;
     uint256 fastGasWei;
-    uint256 linkUSD;
+    uint256 pliUSD;
     uint256 nativeUSD;
     IERC20 billingToken;
     BillingTokenPaymentParams billingTokenParams;
@@ -449,7 +449,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
     uint96 premiumInJuels;
     // second word ends
     IERC20 billingToken;
-    uint96 linkUSD;
+    uint96 pliUSD;
     // third word ends
     uint96 nativeUSD;
     uint96 billingUSD;
@@ -500,8 +500,8 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
   event Unpaused(address account);
 
   /**
-   * @param link address of the PLI Token
-   * @param linkUSDFeed address of the PLI/USD price feed
+   * @param pli address of the PLI Token
+   * @param pliUSDFeed address of the PLI/USD price feed
    * @param nativeUSDFeed address of the Native/USD price feed
    * @param fastGasFeed address of the Fast Gas price feed
    * @param automationForwarderLogic the address of automation forwarder logic
@@ -509,8 +509,8 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
    * @param payoutMode the payout mode
    */
   constructor(
-    address link,
-    address linkUSDFeed,
+    address pli,
+    address pliUSDFeed,
     address nativeUSDFeed,
     address fastGasFeed,
     address automationForwarderLogic,
@@ -518,15 +518,15 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
     PayoutMode payoutMode,
     address wrappedNativeTokenAddress
   ) ConfirmedOwner(msg.sender) {
-    i_link = LinkTokenInterface(link);
-    i_linkUSDFeed = AggregatorV3Interface(linkUSDFeed);
+    i_pli = PliTokenInterface(pli);
+    i_pliUSDFeed = AggregatorV3Interface(pliUSDFeed);
     i_nativeUSDFeed = AggregatorV3Interface(nativeUSDFeed);
     i_fastGasFeed = AggregatorV3Interface(fastGasFeed);
     i_automationForwarderLogic = automationForwarderLogic;
     i_allowedReadOnlyAddress = allowedReadOnlyAddress;
     s_payoutMode = payoutMode;
     i_wrappedNativeToken = IWrappedNative(wrappedNativeTokenAddress);
-    if (i_linkUSDFeed.decimals() != i_nativeUSDFeed.decimals()) {
+    if (i_pliUSDFeed.decimals() != i_nativeUSDFeed.decimals()) {
       revert InvalidFeed();
     }
   }
@@ -593,14 +593,14 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
   }
 
   /**
-   * @dev retrieves feed data for fast gas/native and link/native prices. if the feed
+   * @dev retrieves feed data for fast gas/native and pli/native prices. if the feed
    * data is stale it uses the configured fallback price. Once a price is picked
    * for gas it takes the min of gas price in the transaction or the fast gas
    * price in order to reduce costs for the upkeep clients.
    */
   function _getFeedData(
     HotVars memory hotVars
-  ) internal view returns (uint256 gasWei, uint256 linkUSD, uint256 nativeUSD) {
+  ) internal view returns (uint256 gasWei, uint256 pliUSD, uint256 nativeUSD) {
     uint32 stalenessSeconds = hotVars.stalenessSeconds;
     bool staleFallback = stalenessSeconds > 0;
     uint256 timestamp;
@@ -613,15 +613,15 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
     } else {
       gasWei = uint256(feedValue);
     }
-    (, feedValue, , timestamp, ) = i_linkUSDFeed.latestRoundData();
+    (, feedValue, , timestamp, ) = i_pliUSDFeed.latestRoundData();
     if (
       feedValue <= 0 || block.timestamp < timestamp || (staleFallback && stalenessSeconds < block.timestamp - timestamp)
     ) {
-      linkUSD = s_fallbackLinkPrice;
+      pliUSD = s_fallbackPliPrice;
     } else {
-      linkUSD = uint256(feedValue);
+      pliUSD = uint256(feedValue);
     }
-    return (gasWei, linkUSD, _getNativeUSD(hotVars));
+    return (gasWei, pliUSD, _getNativeUSD(hotVars));
   }
 
   /**
@@ -702,7 +702,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
         (paymentParams.billingTokenParams.priceUSD * denominatorScalingFactor)
     );
     // 18 decimals: 26 decimals / 8 decimals
-    receipt.gasReimbursementInJuels = SafeCast.toUint96(gasPaymentHexaicosaUSD / paymentParams.linkUSD);
+    receipt.gasReimbursementInJuels = SafeCast.toUint96(gasPaymentHexaicosaUSD / paymentParams.pliUSD);
 
     // premium calculation
     uint256 flatFeeHexaicosaUSD = uint256(paymentParams.billingTokenParams.flatFeeMilliCents) * 1e21; // 1e13 for milliCents to attoUSD and 1e8 for attoUSD to hexaicosaUSD
@@ -715,10 +715,10 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
         (paymentParams.billingTokenParams.priceUSD * denominatorScalingFactor - 1)) /
         (paymentParams.billingTokenParams.priceUSD * denominatorScalingFactor)
     );
-    receipt.premiumInJuels = SafeCast.toUint96(premiumHexaicosaUSD / paymentParams.linkUSD);
+    receipt.premiumInJuels = SafeCast.toUint96(premiumHexaicosaUSD / paymentParams.pliUSD);
 
     receipt.billingToken = paymentParams.billingToken;
-    receipt.linkUSD = SafeCast.toUint96(paymentParams.linkUSD);
+    receipt.pliUSD = SafeCast.toUint96(paymentParams.pliUSD);
     receipt.nativeUSD = SafeCast.toUint96(paymentParams.nativeUSD);
     receipt.billingUSD = SafeCast.toUint96(paymentParams.billingTokenParams.priceUSD);
 
@@ -735,7 +735,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
     Trigger triggerType,
     uint32 performGas,
     uint256 fastGasWei,
-    uint256 linkUSD,
+    uint256 pliUSD,
     uint256 nativeUSD,
     IERC20 billingToken
   ) internal view returns (uint96) {
@@ -776,7 +776,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
         gasOverhead: maxGasOverhead,
         l1CostWei: maxL1Fee,
         fastGasWei: fastGasWei,
-        linkUSD: linkUSD,
+        pliUSD: pliUSD,
         nativeUSD: nativeUSD,
         billingToken: billingToken,
         billingTokenParams: paymentParams,
@@ -1036,7 +1036,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
       payment = balance;
       receipt.gasReimbursementInJuels = SafeCast.toUint96(
         (balance * paymentParams.billingTokenParams.priceUSD * scalingFactor1) /
-          (paymentParams.linkUSD * scalingFactor2)
+          (paymentParams.pliUSD * scalingFactor2)
       );
       receipt.premiumInJuels = 0;
       receipt.premiumInBillingToken = 0;
@@ -1046,11 +1046,11 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
       payment = balance;
       receipt.premiumInJuels = SafeCast.toUint96(
         ((balance * paymentParams.billingTokenParams.priceUSD * scalingFactor1) /
-          (paymentParams.linkUSD * scalingFactor2)) - receipt.gasReimbursementInJuels
+          (paymentParams.pliUSD * scalingFactor2)) - receipt.gasReimbursementInJuels
       );
       // round up
       receipt.premiumInBillingToken = SafeCast.toUint96(
-        ((receipt.premiumInJuels * paymentParams.linkUSD * scalingFactor2) +
+        ((receipt.premiumInJuels * paymentParams.pliUSD * scalingFactor2) +
           (paymentParams.billingTokenParams.priceUSD * scalingFactor1 - 1)) /
           (paymentParams.billingTokenParams.priceUSD * scalingFactor1)
       );
@@ -1133,7 +1133,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
       }
 
       // if PLI is a billing option, payout mode must be ON_CHAIN
-      if (address(token) == address(i_link) && mode == PayoutMode.OFF_CHAIN) {
+      if (address(token) == address(i_pli) && mode == PayoutMode.OFF_CHAIN) {
         revert InvalidToken();
       }
       if (address(token) == ZERO_ADDRESS || address(config.priceFeed) == ZERO_ADDRESS) {
@@ -1210,7 +1210,7 @@ abstract contract AutomationRegistryBase2_3 is ConfirmedOwner {
    * @notice returns the size of the PLI liquidity pool
    # @dev PLI max supply < 2^96, so casting to int256 is safe
    */
-  function _linkAvailableForPayment() internal view returns (int256) {
-    return int256(i_link.balanceOf(address(this))) - int256(s_reserveAmounts[IERC20(address(i_link))]);
+  function _pliAvailableForPayment() internal view returns (int256) {
+    return int256(i_pli.balanceOf(address(this))) - int256(s_reserveAmounts[IERC20(address(i_pli))]);
   }
 }

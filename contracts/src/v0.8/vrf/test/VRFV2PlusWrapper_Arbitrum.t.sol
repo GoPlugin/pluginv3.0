@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import {BaseTest} from "./BaseTest.t.sol";
-import {MockLinkToken} from "../../mocks/MockLinkToken.sol";
+import {MockPliToken} from "../../mocks/MockPliToken.sol";
 import {MockV3Aggregator} from "../../tests/MockV3Aggregator.sol";
 import {ExposedVRFCoordinatorV2_5_Arbitrum} from "../dev/testhelpers/ExposedVRFCoordinatorV2_5_Arbitrum.sol";
 import {VRFV2PlusWrapper_Arbitrum} from "../dev/VRFV2PlusWrapper_Arbitrum.sol";
@@ -19,8 +19,8 @@ contract VRFV2PlusWrapperArbitrumTest is BaseTest {
   uint256 private s_wrapperSubscriptionId;
 
   ExposedVRFCoordinatorV2_5_Arbitrum private s_testCoordinator;
-  MockLinkToken private s_linkToken;
-  MockV3Aggregator private s_linkNativeFeed;
+  MockPliToken private s_pliToken;
+  MockV3Aggregator private s_pliNativeFeed;
   VRFV2PlusWrapper_Arbitrum private s_wrapper;
 
   function setUp() public override {
@@ -32,9 +32,9 @@ contract VRFV2PlusWrapperArbitrumTest is BaseTest {
     vm.stopPrank();
     vm.startPrank(DEPLOYER);
 
-    // Deploy link token and link/native feed.
-    s_linkToken = new MockLinkToken();
-    s_linkNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
+    // Deploy pli token and pli/native feed.
+    s_pliToken = new MockPliToken();
+    s_pliNativeFeed = new MockV3Aggregator(18, 500000000000000000); // .5 ETH (good for testing)
 
     // Deploy coordinator.
     s_testCoordinator = new ExposedVRFCoordinatorV2_5_Arbitrum(address(0));
@@ -44,8 +44,8 @@ contract VRFV2PlusWrapperArbitrumTest is BaseTest {
 
     // Deploy wrapper.
     s_wrapper = new VRFV2PlusWrapper_Arbitrum(
-      address(s_linkToken),
-      address(s_linkNativeFeed),
+      address(s_pliToken),
+      address(s_pliNativeFeed),
       address(s_testCoordinator),
       uint256(s_wrapperSubscriptionId)
     );
@@ -54,16 +54,16 @@ contract VRFV2PlusWrapperArbitrumTest is BaseTest {
     s_wrapper.setConfig(
       100_000, // wrapper gas overhead
       200_000, // coordinator gas overhead native
-      220_000, // coordinator gas overhead link
+      220_000, // coordinator gas overhead pli
       500, // coordinator gas overhead per word
       15, // native premium percentage,
-      10, // link premium percentage
+      10, // pli premium percentage
       vrfKeyHash, // keyHash
       10, // max number of words,
       1, // stalenessSeconds
-      50000000000000000, // fallbackWeiPerUnitLink
+      50000000000000000, // fallbackWeiPerUnitPli
       500_000, // fulfillmentFlatFeeNativePPM
-      100_000 // fulfillmentFlatFeeLinkDiscountPPM
+      100_000 // fulfillmentFlatFeePliDiscountPPM
     );
 
     // Add wrapper as a consumer to the wrapper's subscription.
@@ -97,7 +97,7 @@ contract VRFV2PlusWrapperArbitrumTest is BaseTest {
     assertApproxEqAbs(wrapperCostCalculation, 5.01483 * 1e17, 1e15);
   }
 
-  function test_calculateRequestPriceLinkOnArbitrumWrapper() public {
+  function test_calculateRequestPricePliOnArbitrumWrapper() public {
     vm.txGasPrice(1 gwei);
     _mockArbGasGetPricesInWei();
     uint32 callbackGasLimit = 1_000_000;

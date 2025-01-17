@@ -2,14 +2,14 @@
 // Example of a single consumer contract which owns the subscription.
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../../shared/interfaces/PliTokenInterface.sol";
 import {VRFConsumerBaseV2Plus} from "../VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "../libraries/VRFV2PlusClient.sol";
 
 /// @notice This contract is used for testing only and should not be used for production.
 contract VRFV2PlusSingleConsumerExample is VRFConsumerBaseV2Plus {
   // solhint-disable-next-line plugin-solidity/prefix-storage-variables-with-s-underscore
-  LinkTokenInterface internal PLITOKEN;
+  PliTokenInterface internal PLITOKEN;
 
   // solhint-disable-next-line gas-struct-packing
   struct RequestConfig {
@@ -27,14 +27,14 @@ contract VRFV2PlusSingleConsumerExample is VRFConsumerBaseV2Plus {
 
   constructor(
     address vrfCoordinator,
-    address link,
+    address pli,
     uint32 callbackGasLimit,
     uint16 requestConfirmations,
     uint32 numWords,
     bytes32 keyHash,
     bool nativePayment
   ) VRFConsumerBaseV2Plus(vrfCoordinator) {
-    PLITOKEN = LinkTokenInterface(link);
+    PLITOKEN = PliTokenInterface(pli);
     s_owner = msg.sender;
     s_requestConfig = RequestConfig({
       subId: 0, // Unset initially
@@ -69,10 +69,10 @@ contract VRFV2PlusSingleConsumerExample is VRFConsumerBaseV2Plus {
     s_requestId = s_vrfCoordinator.requestRandomWords(req);
   }
 
-  // Assumes this contract owns link
+  // Assumes this contract owns pli
   // This method is analogous to VRFv1, except the amount
   // should be selected based on the keyHash (each keyHash functions like a "gas lane"
-  // with different link costs).
+  // with different pli costs).
   function fundAndRequestRandomWords(uint256 amount) external onlyOwner {
     RequestConfig memory rc = s_requestConfig;
     PLITOKEN.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_requestConfig.subId));
@@ -88,7 +88,7 @@ contract VRFV2PlusSingleConsumerExample is VRFConsumerBaseV2Plus {
     s_requestId = s_vrfCoordinator.requestRandomWords(req);
   }
 
-  // Assumes this contract owns link
+  // Assumes this contract owns pli
   function topUpSubscription(uint256 amount) external onlyOwner {
     PLITOKEN.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_requestConfig.subId));
   }

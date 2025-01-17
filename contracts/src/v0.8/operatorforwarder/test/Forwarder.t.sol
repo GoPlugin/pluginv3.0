@@ -77,8 +77,8 @@ contract ForwarderTest is Deployer {
     s_forwarder.forward(address(0), new bytes(0));
 
     vm.prank(SENDER_1);
-    vm.expectRevert("Cannot forward to Link token");
-    s_forwarder.forward(address(s_link), new bytes(0));
+    vm.expectRevert("Cannot forward to Pli token");
+    s_forwarder.forward(address(s_pli), new bytes(0));
 
     vm.prank(SENDER_1);
     vm.expectRevert("Must forward to a contract");
@@ -121,7 +121,7 @@ contract ForwarderTest is Deployer {
     s_forwarder.multiForward(tos, datas);
 
     tos[0] = address(s_mockReceiver);
-    tos[1] = address(s_link);
+    tos[1] = address(s_pli);
 
     vm.prank(SENDER_1);
     vm.expectRevert("Forwarded call reverted without reason");
@@ -131,7 +131,7 @@ contract ForwarderTest is Deployer {
     datas[1] = abi.encodeWithSignature("receiveData(uint256)", _value2);
 
     vm.prank(SENDER_1);
-    vm.expectRevert("Cannot forward to Link token");
+    vm.expectRevert("Cannot forward to Pli token");
     s_forwarder.multiForward(tos, datas);
 
     tos[1] = address(s_mockReceiver);
@@ -148,10 +148,10 @@ contract ForwarderTest is Deployer {
 
     vm.prank(ALICE);
     vm.expectRevert("Forwarded call reverted without reason");
-    s_forwarder.ownerForward(address(s_link), new bytes(0));
+    s_forwarder.ownerForward(address(s_pli), new bytes(0));
 
     vm.prank(ALICE);
-    s_forwarder.ownerForward(address(s_link), abi.encodeWithSignature("balanceOf(address)", address(0)));
+    s_forwarder.ownerForward(address(s_pli), abi.encodeWithSignature("balanceOf(address)", address(0)));
   }
 
   function test_TransferOwnershipWithMessage_Success() public {

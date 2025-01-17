@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {LinkTokenInterface} from "../../../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../../../shared/interfaces/PliTokenInterface.sol";
 import {VRFConsumerBaseV2Plus} from "../VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "../libraries/VRFV2PlusClient.sol";
 
@@ -9,13 +9,13 @@ contract VRFMaliciousConsumerV2Plus is VRFConsumerBaseV2Plus {
   uint256[] public s_randomWords;
   uint256 public s_requestId;
   // solhint-disable-next-line plugin-solidity/prefix-storage-variables-with-s-underscore
-  LinkTokenInterface internal PLITOKEN;
+  PliTokenInterface internal PLITOKEN;
   uint256 public s_gasAvailable;
   uint256 internal s_subId;
   bytes32 internal s_keyHash;
 
-  constructor(address vrfCoordinator, address link) VRFConsumerBaseV2Plus(vrfCoordinator) {
-    PLITOKEN = LinkTokenInterface(link);
+  constructor(address vrfCoordinator, address pli) VRFConsumerBaseV2Plus(vrfCoordinator) {
+    PLITOKEN = PliTokenInterface(pli);
   }
 
   // solhint-disable-next-line plugin-solidity/prefix-internal-functions-with-underscore
@@ -29,7 +29,7 @@ contract VRFMaliciousConsumerV2Plus is VRFConsumerBaseV2Plus {
       requestConfirmations: 1,
       callbackGasLimit: 200000,
       numWords: 1,
-      extraArgs: "" // empty extraArgs defaults to link payment
+      extraArgs: "" // empty extraArgs defaults to pli payment
     });
     // Should revert
     s_vrfCoordinator.requestRandomWords(req);
@@ -40,7 +40,7 @@ contract VRFMaliciousConsumerV2Plus is VRFConsumerBaseV2Plus {
       s_subId = s_vrfCoordinator.createSubscription();
       s_vrfCoordinator.addConsumer(s_subId, address(this));
     }
-    // Approve the link transfer.
+    // Approve the pli transfer.
     PLITOKEN.transferAndCall(address(s_vrfCoordinator), amount, abi.encode(s_subId));
   }
 
@@ -60,7 +60,7 @@ contract VRFMaliciousConsumerV2Plus is VRFConsumerBaseV2Plus {
       requestConfirmations: 1,
       callbackGasLimit: 500000,
       numWords: 1,
-      extraArgs: "" // empty extraArgs defaults to link payment
+      extraArgs: "" // empty extraArgs defaults to pli payment
     });
     return s_vrfCoordinator.requestRandomWords(req);
   }

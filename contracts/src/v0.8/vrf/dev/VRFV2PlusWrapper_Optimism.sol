@@ -9,11 +9,11 @@ contract VRFV2PlusWrapper_Optimism is VRFV2PlusWrapper, OptimismL1Fees {
   error UnsupportedL1FeeCalculationMode(uint8 mode);
 
   constructor(
-    address _link,
-    address _linkNativeFeed,
+    address _pli,
+    address _pliNativeFeed,
     address _coordinator,
     uint256 _subId
-  ) VRFV2PlusWrapper(_link, _linkNativeFeed, _coordinator, _subId) {
+  ) VRFV2PlusWrapper(_pli, _pliNativeFeed, _coordinator, _subId) {
     // default calculation mode from OptimismL1Fees is not supported on the wrapper
     // switch to the next available one
     s_l1FeeCalculationMode = L1_CALLDATA_GAS_COST_MODE;

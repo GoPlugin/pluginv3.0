@@ -23,24 +23,24 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     vm.expectRevert(UNAUTHORIZED_ERROR);
 
     //process the fee
-    ProcessFeeAsUser(payload, USER, address(link), 0, USER);
+    ProcessFeeAsUser(payload, USER, address(pli), 0, USER);
   }
 
   function test_processFeeAsProxy() public {
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
-    //approve the link to be transferred from the from the subscriber to the rewardManager
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    //approve the pli to be transferred from the from the subscriber to the rewardManager
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
 
-    //processing the fee will transfer the link from the user to the rewardManager
-    processFee(payload, USER, address(link), 0);
+    //processing the fee will transfer the pli from the user to the rewardManager
+    processFee(payload, USER, address(pli), 0);
 
-    //check the link has been transferred
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the user has had the link fee deducted
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    //check the user has had the pli fee deducted
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
   }
 
   function test_processFeeIfSubscriberIsSelf() public {
@@ -61,7 +61,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //expect a revert as the quote is invalid
     vm.expectRevert();
 
-    //processing the fee will transfer the link by default
+    //processing the fee will transfer the pli by default
     processFee(payload, USER, address(0), 0);
   }
 
@@ -72,7 +72,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //expect a revert as the quote is invalid
     vm.expectRevert(INVALID_QUOTE_ERROR);
 
-    //processing the fee will transfer the link by default
+    //processing the fee will transfer the pli by default
     processFee(payload, USER, INVALID_ADDRESS, 0);
   }
 
@@ -90,14 +90,14 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     vm.expectRevert();
 
     //processing the fee will not withdraw anything as there is no fee to collect
-    processFee(payload, USER, address(link), 0);
+    processFee(payload, USER, address(pli), 0);
   }
 
   function test_processFeeDefaultReportsStillVerifiesWithEmptyQuote() public {
     //get the default payload
     bytes memory payload = getPayload(getV1Report(DEFAULT_FEED_1_V1));
 
-    //processing the fee will transfer the link from the user to the rewardManager
+    //processing the fee will transfer the pli from the user to the rewardManager
     processFee(payload, USER, address(0), 0);
   }
 
@@ -106,12 +106,12 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     bytes memory payload = getPayload(getV1Report(DEFAULT_FEED_1_V1));
 
     //processing the fee will not withdraw anything as there is no fee to collect
-    processFee(payload, USER, address(link), 0);
+    processFee(payload, USER, address(pli), 0);
   }
 
   function test_processFeeNative() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
@@ -125,19 +125,19 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //check the native has been transferred
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE);
 
-    //check the link has been transferred to the rewardManager
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred to the rewardManager
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the feeManager has had the link deducted, the remaining balance should be 0
-    assertEq(getLinkBalance(address(feeManager)), 0);
+    //check the feeManager has had the pli deducted, the remaining balance should be 0
+    assertEq(getPliBalance(address(feeManager)), 0);
 
     //check the subscriber has had the native deducted
     assertEq(getNativeBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
   }
 
-  function test_processFeeEmitsEventIfNotEnoughLink() public {
-    //simulate a deposit of half the link required for the fee
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE / 2);
+  function test_processFeeEmitsEventIfNotEnoughPli() public {
+    //simulate a deposit of half the pli required for the fee
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE / 2);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
@@ -145,14 +145,14 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //approve the native to be transferred from the user
     approveNative(address(feeManager), DEFAULT_REPORT_NATIVE_FEE, USER);
 
-    //expect an emit as there's not enough link
+    //expect an emit as there's not enough pli
     vm.expectEmit();
 
     IRewardManager.FeePayment[] memory contractFees = new IRewardManager.FeePayment[](1);
     contractFees[0] = IRewardManager.FeePayment(DEFAULT_CONFIG_DIGEST, uint192(DEFAULT_REPORT_PLI_FEE));
 
     //emit the event that is expected to be emitted
-    emit InsufficientLink(contractFees);
+    emit InsufficientPli(contractFees);
 
     //processing the fee will transfer the native from the user to the feeManager
     processFee(payload, USER, address(native), 0);
@@ -160,17 +160,17 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //check the native has been transferred
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE);
 
-    //check no link has been transferred to the rewardManager
-    assertEq(getLinkBalance(address(rewardManager)), 0);
-    assertEq(getLinkBalance(address(feeManager)), DEFAULT_REPORT_PLI_FEE / 2);
+    //check no pli has been transferred to the rewardManager
+    assertEq(getPliBalance(address(rewardManager)), 0);
+    assertEq(getPliBalance(address(feeManager)), DEFAULT_REPORT_PLI_FEE / 2);
 
     //check the subscriber has had the native deducted
     assertEq(getNativeBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
   }
 
   function test_processFeeWithUnwrappedNative() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
@@ -182,19 +182,19 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE);
     assertEq(getNativeUnwrappedBalance(address(feeManager)), 0);
 
-    //check the link has been transferred to the rewardManager
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred to the rewardManager
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the feeManager has had the link deducted, the remaining balance should be 0
-    assertEq(getLinkBalance(address(feeManager)), 0);
+    //check the feeManager has had the pli deducted, the remaining balance should be 0
+    assertEq(getPliBalance(address(feeManager)), 0);
 
     //check the subscriber has had the native deducted
     assertEq(getNativeUnwrappedBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
   }
 
   function test_processFeeWithUnwrappedNativeShortFunds() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
@@ -206,9 +206,9 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     processFee(payload, USER, address(native), DEFAULT_REPORT_NATIVE_FEE - 1);
   }
 
-  function test_processFeeWithUnwrappedNativeLinkAddress() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+  function test_processFeeWithUnwrappedNativePliAddress() public {
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
@@ -217,36 +217,36 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     vm.expectRevert(INSUFFICIENT_ALLOWANCE_ERROR);
 
     //the change will be returned and the user will attempted to be billed in PLI
-    processFee(payload, USER, address(link), DEFAULT_REPORT_NATIVE_FEE - 1);
+    processFee(payload, USER, address(pli), DEFAULT_REPORT_NATIVE_FEE - 1);
   }
 
-  function test_processFeeWithUnwrappedNativeLinkAddressExcessiveFee() public {
-    //approve the link to be transferred from the from the subscriber to the rewardManager
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, PROXY);
+  function test_processFeeWithUnwrappedNativePliAddressExcessiveFee() public {
+    //approve the pli to be transferred from the from the subscriber to the rewardManager
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, PROXY);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
     //call processFee from the proxy to test whether the funds are returned to the subscriber. In reality, the funds would be returned to the caller of the proxy.
-    processFee(payload, PROXY, address(link), DEFAULT_REPORT_NATIVE_FEE);
+    processFee(payload, PROXY, address(pli), DEFAULT_REPORT_NATIVE_FEE);
 
     //check the native unwrapped is no longer in the account
     assertEq(getNativeBalance(address(feeManager)), 0);
     assertEq(getNativeUnwrappedBalance(address(feeManager)), 0);
 
-    //check the link has been transferred to the rewardManager
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred to the rewardManager
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the feeManager has had the link deducted, the remaining balance should be 0
-    assertEq(getLinkBalance(address(feeManager)), 0);
+    //check the feeManager has had the pli deducted, the remaining balance should be 0
+    assertEq(getPliBalance(address(feeManager)), 0);
 
     //native should not be deducted
     assertEq(getNativeUnwrappedBalance(PROXY), DEFAULT_NATIVE_MINT_QUANTITY);
   }
 
   function test_processFeeWithUnwrappedNativeWithExcessiveFee() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
@@ -258,11 +258,11 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE);
     assertEq(getNativeUnwrappedBalance(address(feeManager)), 0);
 
-    //check the link has been transferred to the rewardManager
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred to the rewardManager
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the feeManager has had the link deducted, the remaining balance should be 0
-    assertEq(getLinkBalance(address(feeManager)), 0);
+    //check the feeManager has had the pli deducted, the remaining balance should be 0
+    assertEq(getPliBalance(address(feeManager)), 0);
 
     //check the subscriber has had the native deducted
     assertEq(getNativeUnwrappedBalance(PROXY), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
@@ -272,17 +272,17 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //get the default payload
     bytes memory payload = getPayload(getV3Report(DEFAULT_FEED_1_V3));
 
-    //approve the link to be transferred from the from the subscriber to the rewardManager
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    //approve the pli to be transferred from the from the subscriber to the rewardManager
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
 
-    //processing the fee will transfer the link from the user to the rewardManager
-    processFee(payload, USER, address(link), 0);
+    //processing the fee will transfer the pli from the user to the rewardManager
+    processFee(payload, USER, address(pli), 0);
 
-    //check the link has been transferred
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the user has had the link fee deducted
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    //check the user has had the pli fee deducted
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
 
     //check funds have been paid to the reward manager
     assertEq(rewardManager.s_totalRewardRecipientFees(DEFAULT_CONFIG_DIGEST), DEFAULT_REPORT_PLI_FEE);
@@ -298,7 +298,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
       bytes32("")
     );
 
-    //processing the fee will transfer the link from the user to the rewardManager
+    //processing the fee will transfer the pli from the user to the rewardManager
     processFee(payload, USER, address(0), 0);
   }
 
@@ -306,17 +306,17 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //get the default payload
     bytes memory payload = getPayload(getV2Report(DEFAULT_FEED_1_V2));
 
-    //approve the link to be transferred from the from the subscriber to the rewardManager
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    //approve the pli to be transferred from the from the subscriber to the rewardManager
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
 
-    //processing the fee will transfer the link from the user to the rewardManager
-    processFee(payload, USER, address(link), 0);
+    //processing the fee will transfer the pli from the user to the rewardManager
+    processFee(payload, USER, address(pli), 0);
 
-    //check the link has been transferred
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the user has had the link fee deducted
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    //check the user has had the pli fee deducted
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
   }
 
   function test_V2PayloadWithoutQuoteFails() public {
@@ -326,7 +326,7 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //expect a revert as the quote is invalid
     vm.expectRevert();
 
-    //processing the fee will transfer the link from the user to the rewardManager
+    //processing the fee will transfer the pli from the user to the rewardManager
     processFee(payload, USER, address(0), 0);
   }
 
@@ -337,8 +337,8 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //expect a revert as the quote is invalid
     vm.expectRevert();
 
-    //processing the fee will transfer the link from the user to the rewardManager
-    processFee(payload, USER, address(link), 0);
+    //processing the fee will transfer the pli from the user to the rewardManager
+    processFee(payload, USER, address(pli), 0);
   }
 
   function test_processFeeWithInvalidReportVersionFailsToDecode() public {
@@ -351,10 +351,10 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     vm.expectRevert();
 
     //processing the fee will not withdraw anything as there is no fee to collect
-    processFee(payload, USER, address(link), 0);
+    processFee(payload, USER, address(pli), 0);
   }
 
-  function test_processFeeWithZeroNativeNonZeroLinkWithNativeQuote() public {
+  function test_processFeeWithZeroNativeNonZeroPliWithNativeQuote() public {
     //get the default payload
     bytes memory payload = getPayload(
       getV3ReportWithCustomExpiryAndFee(DEFAULT_FEED_1_V3, block.timestamp, DEFAULT_REPORT_PLI_FEE, 0)
@@ -364,28 +364,28 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     processFee(payload, PROXY, address(native), 0);
   }
 
-  function test_processFeeWithZeroNativeNonZeroLinkWithLinkQuote() public {
+  function test_processFeeWithZeroNativeNonZeroPliWithPliQuote() public {
     //get the default payload
     bytes memory payload = getPayload(
       getV3ReportWithCustomExpiryAndFee(DEFAULT_FEED_1_V3, block.timestamp, DEFAULT_REPORT_PLI_FEE, 0)
     );
 
-    //approve the link to be transferred from the from the subscriber to the rewardManager
-    approveLink(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
+    //approve the pli to be transferred from the from the subscriber to the rewardManager
+    approvePli(address(rewardManager), DEFAULT_REPORT_PLI_FEE, USER);
 
-    //processing the fee will transfer the link to the rewardManager from the user
-    processFee(payload, USER, address(link), 0);
+    //processing the fee will transfer the pli to the rewardManager from the user
+    processFee(payload, USER, address(pli), 0);
 
-    //check the link has been transferred
-    assertEq(getLinkBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the pli has been transferred
+    assertEq(getPliBalance(address(rewardManager)), DEFAULT_REPORT_PLI_FEE);
 
-    //check the user has had the link fee deducted
-    assertEq(getLinkBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
+    //check the user has had the pli fee deducted
+    assertEq(getPliBalance(USER), DEFAULT_PLI_MINT_QUANTITY - DEFAULT_REPORT_PLI_FEE);
   }
 
-  function test_processFeeWithZeroLinkNonZeroNativeWithNativeQuote() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+  function test_processFeeWithZeroPliNonZeroNativeWithNativeQuote() public {
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //get the default payload
     bytes memory payload = getPayload(
@@ -401,34 +401,34 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
     //check the native has been transferred
     assertEq(getNativeBalance(address(feeManager)), DEFAULT_REPORT_NATIVE_FEE);
 
-    //check no link has been transferred to the rewardManager
-    assertEq(getLinkBalance(address(rewardManager)), 0);
+    //check no pli has been transferred to the rewardManager
+    assertEq(getPliBalance(address(rewardManager)), 0);
 
-    //check the feeManager has had no link deducted
-    assertEq(getLinkBalance(address(feeManager)), DEFAULT_REPORT_PLI_FEE);
+    //check the feeManager has had no pli deducted
+    assertEq(getPliBalance(address(feeManager)), DEFAULT_REPORT_PLI_FEE);
 
     //check the subscriber has had the native deducted
     assertEq(getNativeBalance(USER), DEFAULT_NATIVE_MINT_QUANTITY - DEFAULT_REPORT_NATIVE_FEE);
   }
 
-  function test_processFeeWithZeroLinkNonZeroNativeWithLinkQuote() public {
+  function test_processFeeWithZeroPliNonZeroNativeWithPliQuote() public {
     //get the default payload
     bytes memory payload = getPayload(
       getV3ReportWithCustomExpiryAndFee(DEFAULT_FEED_1_V3, block.timestamp, 0, DEFAULT_REPORT_NATIVE_FEE)
     );
 
     //call processFee should not revert as the fee is 0
-    processFee(payload, USER, address(link), 0);
+    processFee(payload, USER, address(pli), 0);
   }
 
-  function test_processFeeWithZeroNativeNonZeroLinkReturnsChange() public {
+  function test_processFeeWithZeroNativeNonZeroPliReturnsChange() public {
     //get the default payload
     bytes memory payload = getPayload(
       getV3ReportWithCustomExpiryAndFee(DEFAULT_FEED_1_V3, block.timestamp, 0, DEFAULT_REPORT_NATIVE_FEE)
     );
 
     //call processFee should not revert as the fee is 0
-    processFee(payload, USER, address(link), DEFAULT_REPORT_NATIVE_FEE);
+    processFee(payload, USER, address(pli), DEFAULT_REPORT_NATIVE_FEE);
 
     //check the change has been returned
     assertEq(USER.balance, DEFAULT_NATIVE_MINT_QUANTITY);
@@ -449,8 +449,8 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
   }
 
   function test_processFeeWithDiscountEmitsEvent() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //set the subscriber discount to 50%
     setSubscriberDiscount(USER, DEFAULT_FEED_1_V3, address(native), FEE_SCALAR / 2, ADMIN);
@@ -474,8 +474,8 @@ contract FeeManagerProcessFeeTest is BaseFeeManagerTest {
   }
 
   function test_processFeeWithNoDiscountDoesNotEmitEvent() public {
-    //simulate a deposit of link for the conversion pool
-    mintLink(address(feeManager), DEFAULT_REPORT_PLI_FEE);
+    //simulate a deposit of pli for the conversion pool
+    mintPli(address(feeManager), DEFAULT_REPORT_PLI_FEE);
 
     //approve the native to be transferred from the user
     approveNative(address(feeManager), DEFAULT_REPORT_NATIVE_FEE, USER);

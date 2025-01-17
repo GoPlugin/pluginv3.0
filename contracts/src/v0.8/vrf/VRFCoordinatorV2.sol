@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {LinkTokenInterface} from "../shared/interfaces/LinkTokenInterface.sol";
+import {PliTokenInterface} from "../shared/interfaces/PliTokenInterface.sol";
 import {BlockhashStoreInterface} from "./interfaces/BlockhashStoreInterface.sol";
 import {AggregatorV3Interface} from "../shared/interfaces/AggregatorV3Interface.sol";
 import {VRFCoordinatorV2Interface} from "./interfaces/VRFCoordinatorV2Interface.sol";
@@ -13,7 +13,7 @@ import {VRFConsumerBaseV2} from "./VRFConsumerBaseV2.sol";
 import {ChainSpecificUtil} from "../ChainSpecificUtil_v0_8_6.sol";
 contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCoordinatorV2Interface, IERC677Receiver {
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
-  LinkTokenInterface public immutable PLI;
+  PliTokenInterface public immutable PLI;
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
   AggregatorV3Interface public immutable PLI_ETH_FEED;
   // solhint-disable-next-line plugin-solidity/prefix-immutable-variables-with-i
@@ -27,7 +27,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   error InsufficientBalance();
   error InvalidConsumer(uint64 subId, address consumer);
   error InvalidSubscription();
-  error OnlyCallableFromLink();
+  error OnlyCallableFromPli();
   error InvalidCalldata();
   error MustBeSubOwner(address owner);
   error PendingRequestExists();
@@ -85,7 +85,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   error NumWordsTooBig(uint32 have, uint32 want);
   error ProvingKeyAlreadyRegistered(bytes32 keyHash);
   error NoSuchProvingKey(bytes32 keyHash);
-  error InvalidLinkWeiPrice(int256 pliWei);
+  error InvalidPliWeiPrice(int256 pliWei);
   error InsufficientGasForConsumer(uint256 have, uint256 want);
   error NoCorrespondingRequest();
   error IncorrectCommitment();
@@ -123,23 +123,23 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     // Reentrancy protection.
     bool reentrancyLock;
     // stalenessSeconds is how long before we consider the feed price to be stale
-    // and fallback to fallbackWeiPerUnitLink.
+    // and fallback to fallbackWeiPerUnitPli.
     uint32 stalenessSeconds;
     // Gas to cover oracle payment after we calculate the payment.
     // We make it configurable in case those operations are repriced.
     uint32 gasAfterPaymentCalculation;
   }
-  int256 private s_fallbackWeiPerUnitLink;
+  int256 private s_fallbackWeiPerUnitPli;
   Config private s_config;
   FeeConfig private s_feeConfig;
   struct FeeConfig {
     // Flat fee charged per fulfillment in millionths of pli
     // So fee range is [0, 2^32/10^6].
-    uint32 fulfillmentFlatFeeLinkPPMTier1;
-    uint32 fulfillmentFlatFeeLinkPPMTier2;
-    uint32 fulfillmentFlatFeeLinkPPMTier3;
-    uint32 fulfillmentFlatFeeLinkPPMTier4;
-    uint32 fulfillmentFlatFeeLinkPPMTier5;
+    uint32 fulfillmentFlatFeePliPPMTier1;
+    uint32 fulfillmentFlatFeePliPPMTier2;
+    uint32 fulfillmentFlatFeePliPPMTier3;
+    uint32 fulfillmentFlatFeePliPPMTier4;
+    uint32 fulfillmentFlatFeePliPPMTier5;
     uint24 reqsForTier2;
     uint24 reqsForTier3;
     uint24 reqsForTier4;
@@ -150,13 +150,13 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     FeeConfig feeConfig
   );
 
   constructor(address pli, address blockhashStore, address pliEthFeed) ConfirmedOwner(msg.sender) {
-    PLI = LinkTokenInterface(link);
-    PLI_ETH_FEED = AggregatorV3Interface(linkEthFeed);
+    PLI = PliTokenInterface(pli);
+    PLI_ETH_FEED = AggregatorV3Interface(pliEthFeed);
     BLOCKHASH_STORE = BlockhashStoreInterface(blockhashStore);
   }
 
@@ -209,9 +209,9 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
    * @notice Sets the configuration of the vrfv2 coordinator
    * @param minimumRequestConfirmations global min for request confirmations
    * @param maxGasLimit global max for request gas limit
-   * @param stalenessSeconds if the eth/link feed is more stale then this, use the fallback price
+   * @param stalenessSeconds if the eth/pli feed is more stale then this, use the fallback price
    * @param gasAfterPaymentCalculation gas used in doing accounting after completing the gas measurement
-   * @param fallbackWeiPerUnitLink fallback eth/link price in the case of a stale feed
+   * @param fallbackWeiPerUnitPli fallback eth/pli price in the case of a stale feed
    * @param feeConfig fee tier configuration
    */
   function setConfig(
@@ -219,7 +219,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitPli,
     FeeConfig memory feeConfig
   ) external onlyOwner {
     if (minimumRequestConfirmations > MAX_REQUEST_CONFIRMATIONS) {
@@ -229,8 +229,8 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
         MAX_REQUEST_CONFIRMATIONS
       );
     }
-    if (fallbackWeiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(fallbackWeiPerUnitLink);
+    if (fallbackWeiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(fallbackWeiPerUnitPli);
     }
     s_config = Config({
       minimumRequestConfirmations: minimumRequestConfirmations,
@@ -240,13 +240,13 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
       reentrancyLock: false
     });
     s_feeConfig = feeConfig;
-    s_fallbackWeiPerUnitLink = fallbackWeiPerUnitLink;
+    s_fallbackWeiPerUnitPli = fallbackWeiPerUnitPli;
     emit ConfigSet(
       minimumRequestConfirmations,
       maxGasLimit,
       stalenessSeconds,
       gasAfterPaymentCalculation,
-      fallbackWeiPerUnitLink,
+      fallbackWeiPerUnitPli,
       s_feeConfig
     );
   }
@@ -273,11 +273,11 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     external
     view
     returns (
-      uint32 fulfillmentFlatFeeLinkPPMTier1,
-      uint32 fulfillmentFlatFeeLinkPPMTier2,
-      uint32 fulfillmentFlatFeeLinkPPMTier3,
-      uint32 fulfillmentFlatFeeLinkPPMTier4,
-      uint32 fulfillmentFlatFeeLinkPPMTier5,
+      uint32 fulfillmentFlatFeePliPPMTier1,
+      uint32 fulfillmentFlatFeePliPPMTier2,
+      uint32 fulfillmentFlatFeePliPPMTier3,
+      uint32 fulfillmentFlatFeePliPPMTier4,
+      uint32 fulfillmentFlatFeePliPPMTier5,
       uint24 reqsForTier2,
       uint24 reqsForTier3,
       uint24 reqsForTier4,
@@ -285,11 +285,11 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     )
   {
     return (
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier1,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier2,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier3,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier4,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier5,
+      s_feeConfig.fulfillmentFlatFeePliPPMTier1,
+      s_feeConfig.fulfillmentFlatFeePliPPMTier2,
+      s_feeConfig.fulfillmentFlatFeePliPPMTier3,
+      s_feeConfig.fulfillmentFlatFeePliPPMTier4,
+      s_feeConfig.fulfillmentFlatFeePliPPMTier5,
       s_feeConfig.reqsForTier2,
       s_feeConfig.reqsForTier3,
       s_feeConfig.reqsForTier4,
@@ -301,8 +301,8 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     return s_totalBalance;
   }
 
-  function getFallbackWeiPerUnitLink() external view returns (int256) {
-    return s_fallbackWeiPerUnitLink;
+  function getFallbackWeiPerUnitPli() external view returns (int256) {
+    return s_fallbackWeiPerUnitPli;
   }
 
   /**
@@ -501,18 +501,18 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   function getFeeTier(uint64 reqCount) public view returns (uint32) {
     FeeConfig memory fc = s_feeConfig;
     if (0 <= reqCount && reqCount <= fc.reqsForTier2) {
-      return fc.fulfillmentFlatFeeLinkPPMTier1;
+      return fc.fulfillmentFlatFeePliPPMTier1;
     }
     if (fc.reqsForTier2 < reqCount && reqCount <= fc.reqsForTier3) {
-      return fc.fulfillmentFlatFeeLinkPPMTier2;
+      return fc.fulfillmentFlatFeePliPPMTier2;
     }
     if (fc.reqsForTier3 < reqCount && reqCount <= fc.reqsForTier4) {
-      return fc.fulfillmentFlatFeeLinkPPMTier3;
+      return fc.fulfillmentFlatFeePliPPMTier3;
     }
     if (fc.reqsForTier4 < reqCount && reqCount <= fc.reqsForTier5) {
-      return fc.fulfillmentFlatFeeLinkPPMTier4;
+      return fc.fulfillmentFlatFeePliPPMTier4;
     }
-    return fc.fulfillmentFlatFeeLinkPPMTier5;
+    return fc.fulfillmentFlatFeePliPPMTier5;
   }
 
   /*
@@ -555,7 +555,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     // The gasAfterPaymentCalculation is meant to cover these additional operations where we
     // decrement the subscription balance and increment the oracles withdrawable balance.
     // We also add the flat pli fee to the payment amount.
-    // Its specified in millionths of pli, if s_config.fulfillmentFlatFeeLinkPPM = 1
+    // Its specified in millionths of pli, if s_config.fulfillmentFlatFeePliPPM = 1
     // 1 pli / 1e6 = 1e18 juels / 1e6 = 1e12 juels.
     uint96 payment = _calculatePaymentAmount(
       startGas,
@@ -577,20 +577,20 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
   function _calculatePaymentAmount(
     uint256 startGas,
     uint256 gasAfterPaymentCalculation,
-    uint32 fulfillmentFlatFeeLinkPPM,
+    uint32 fulfillmentFlatFeePliPPM,
     uint256 weiPerUnitGas
   ) internal view returns (uint96) {
-    int256 weiPerUnitLink;
-    weiPerUnitLink = _getFeedData();
-    if (weiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(weiPerUnitLink);
+    int256 weiPerUnitPli;
+    weiPerUnitPli = _getFeedData();
+    if (weiPerUnitPli <= 0) {
+      revert InvalidPliWeiPrice(weiPerUnitPli);
     }
     // Will return non-zero on chains that have this enabled
     uint256 l1CostWei = ChainSpecificUtil._getCurrentTxL1GasFees(msg.data);
-    // (1e18 juels/link) ((wei/gas * gas) + l1wei) / (wei/link) = juels
+    // (1e18 juels/pli) ((wei/gas * gas) + l1wei) / (wei/pli) = juels
     uint256 paymentNoFee = (1e18 * (weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft()) + l1CostWei)) /
-      uint256(weiPerUnitLink);
-    uint256 fee = 1e12 * uint256(fulfillmentFlatFeeLinkPPM);
+      uint256(weiPerUnitPli);
+    uint256 fee = 1e12 * uint256(fulfillmentFlatFeePliPPM);
     if (paymentNoFee > (1e27 - fee)) {
       revert PaymentTooLarge(); // Payment + fee cannot be more than all of the pli in existence.
     }
@@ -601,13 +601,13 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
     uint32 stalenessSeconds = s_config.stalenessSeconds;
     bool staleFallback = stalenessSeconds > 0;
     uint256 timestamp;
-    int256 weiPerUnitLink;
-    (, weiPerUnitLink, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
+    int256 weiPerUnitPli;
+    (, weiPerUnitPli, , timestamp, ) = PLI_ETH_FEED.latestRoundData();
     // solhint-disable-next-line not-rely-on-time
     if (staleFallback && stalenessSeconds < block.timestamp - timestamp) {
-      weiPerUnitLink = s_fallbackWeiPerUnitLink;
+      weiPerUnitPli = s_fallbackWeiPerUnitPli;
     }
-    return weiPerUnitLink;
+    return weiPerUnitPli;
   }
 
   /*
@@ -628,7 +628,7 @@ contract VRFCoordinatorV2 is VRF, ConfirmedOwner, TypeAndVersionInterface, VRFCo
 
   function onTokenTransfer(address /* sender */, uint256 amount, bytes calldata data) external override nonReentrant {
     if (msg.sender != address(PLI)) {
-      revert OnlyCallableFromLink();
+      revert OnlyCallableFromPli();
     }
     if (data.length != 32) {
       revert InvalidCalldata();
