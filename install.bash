@@ -28,31 +28,32 @@ local frames=(
 echo "Starting Plugin build process... Total steps: 6"
 
 # Step 1: Setup Go env variables
-echo "Step 1/6: Appending environment variables to ~/.bashrc..."
+echo "Step 1/6: Appending environment variables to ~/.pluginGoVariable.vars..."
+
 # Run animation in the background
 spin_animation &
 spinner_pid=$!
 
 # Define your 
-ENV_VARS=(
-    "export GONOPROXY='github.com/goplugin'"
-    "export GONOSUMDB='github.com/goplugin'"
-    "export GO111MODULE='on'"
-    "export GOPRIVATE='github.com/goplugin'"
-    "export GOPROXY='direct'"
-    "export CGO_ENABLED='1'"
-)
+#ENV_VARS=(
+#    "export GONOPROXY='github.com/goplugin'"
+#    "export GONOSUMDB='github.com/goplugin'"
+#    "export GO111MODULE='on'"
+#    "export GOPRIVATE='github.com/goplugin'"
+#    "export GOPROXY='direct'"
+#    "export CGO_ENABLED='1'"
+#)
 # Append variables to ~/.bashrc if they are not already present
-for VAR in "${ENV_VARS[@]}"; do
-    if ! grep -qxF "$VAR" ~/.bashrc; then
-        echo "$VAR" >> ~/.bashrc
-        echo "Added: $VAR"
-    else
-        echo "Already exists: $VAR"
-    fi
-done
-# Reload ~/.bashrc to apply changes
-source ~/.bashrc
+#for VAR in "${ENV_VARS[@]}"; do
+#    if ! grep -qxF "$VAR" ~/.bashrc; then
+#        echo "$VAR" >> ~/.bashrc
+#        echo "Added: $VAR"
+#    else
+#        echo "Already exists: $VAR"
+#    fi
+#done
+# Load ~/pli_node_govariable_script.sh to apply changes
+source ~/pli_node_govariable_script.sh
 
 # Kill spinner after command finishes
 kill $spinner_pid
