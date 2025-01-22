@@ -53,7 +53,7 @@ spinner_pid=$!
 #    fi
 #done
 # Load ~/pli_node_govariable_script.sh to apply changes
-source ~/pli_node_govariable_script.sh
+source pli_node_govariable_script.sh
 
 # Kill spinner after command finishes
 kill $spinner_pid
