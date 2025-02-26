@@ -438,7 +438,7 @@ func (c *chain) listNodeStatuses(start, end int) ([]types.NodeStatus, int, error
 			nodeState = "Unknown"
 		} else {
 			// The node is in the DB and the chain is enabled but it's not running
-			nodeState = "NotLoaded"
+			nodeState = "Loaded"
 			s, exists := states[*n.Name]
 			if exists {
 				nodeState = s
