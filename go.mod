@@ -375,9 +375,9 @@ replace (
 	github.com/chenzhuoyu/iasm => github.com/cloudwego/iasm v0.0.9
 	// replicating the replace directive on cosmos SDK
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	go.opencensus.io => github.com/census-instrumentation/opencensus-go v0.22.4
 
 	github.com/sourcegraph/sourcegraph/lib => github.com/sourcegraph/sourcegraph-public-snapshot/lib v0.0.0-20240822153003-c864f15af264
+	go.opencensus.io => github.com/census-instrumentation/opencensus-go v0.22.4
 	//	github.com/goplugin/pluginv3.0/integration-tests => github.com/goplugin/pluginv3.0/integration-tests/v2 v2.2.1
 	//nhooyr.io/websocket  => github.com/coder/websocket v1.8.12
 	nhooyr.io/websocket => nhooyr.io/websocket v1.8.17
